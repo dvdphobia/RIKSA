@@ -1,4 +1,4 @@
-package com.riksa.api;
+package com.riksa;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
