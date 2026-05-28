@@ -9,5 +9,6 @@ public class RiksaApiApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(RiksaApiApplication.class, args);
 	}
-
 }
+
+
