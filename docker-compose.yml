@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: riksa-postgres
+
+    environment:
+      POSTGRES_DB: riksa_db
+      POSTGRES_USER: riksa_user
+      POSTGRES_PASSWORD: riksaUniquenessTeam
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

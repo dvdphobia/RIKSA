@@ -78,6 +78,13 @@
 			<optional>true</optional>
 		</dependency>
 
+		<!-- Env -->
+		<dependency>
+			<groupId>me.paulschwarz</groupId>
+			<artifactId>spring-dotenv</artifactId>
+			<version>4.0.0</version>
+		</dependency>
+
 		<!-- JWT -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
@@ -97,7 +104,7 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- Google OAuth (for verifying Google ID tokens) -->
+		<!-- Google OAuth -->
 		<dependency>
 			<groupId>com.google.oauth-client</groupId>
 			<artifactId>google-oauth-client</artifactId>
