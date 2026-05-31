@@ -26,7 +26,7 @@ server:
   port: ${PORT:8080}
 
 jwt:
-  secret: ${JWT_SECRET:riksa-dev-secret-key-uniqueness-team}
+  secret: ${JWT_SECRET:CHANGE-ME-IN-PRODUCTION-MUST-BE-256-BITS-OR-LONGER}
   access-expiration: ${JWT_ACCESS_EXPIRATION:900000}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:2592000000}
 
@@ -46,5 +46,5 @@ google:
 
 logging:
   level:
-    com.riksa: DEBUG
-    org.springframework.security: DEBUG
+    com.riksa: INFO
+    org.springframework.security: WARN

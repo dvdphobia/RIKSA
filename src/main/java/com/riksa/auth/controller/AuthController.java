@@ -49,18 +49,17 @@ public class AuthController {
 
     @PostMapping("/otp/send")
     public ResponseEntity<Map<String, String>> sendOtp(@Valid @RequestBody OtpSendRequest request) {
-        String code = authService.sendOtp(request.getIdentifier(), request.getChannel());
+        authService.sendOtp(request.getIdentifier(), request.getChannel());
         Map<String, String> response = Map.of(
                 "message", "OTP sent successfully",
-                "channel", request.getChannel().name(),
-                "code", code
+                "channel", request.getChannel().name()
         );
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/otp/verify")
     public ResponseEntity<Map<String, Object>> verifyOtp(@Valid @RequestBody OtpVerifyRequest request) {
-        boolean verified = authService.verifyOtpOnly(request.getIdentifier(), request.getChannel(), request.getCode());
+        boolean verified = authService.verifyPhoneOtp(request.getIdentifier(), request.getChannel(), request.getCode());
         return ResponseEntity.ok(Map.of(
                 "verified", verified,
                 "message", verified ? "Verification successful" : "Invalid OTP code"

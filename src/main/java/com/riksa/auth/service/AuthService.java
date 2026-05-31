@@ -92,6 +92,13 @@ public class AuthService {
         RefreshToken stored = refreshTokenRepository.findByTokenAndRevokedFalse(token)
                 .orElseThrow(() -> new IllegalArgumentException("Refresh token not found or revoked"));
 
+        if (stored.getExpiresAt().isBefore(OffsetDateTime.now())) {
+            throw new IllegalArgumentException("Refresh token has expired");
+        }
+
+        stored.setRevoked(true);
+        refreshTokenRepository.save(stored);
+
         User user = stored.getUser();
         return buildAuthResponse(user);
     }
@@ -162,12 +169,20 @@ public class AuthService {
         return buildAuthResponse(user);
     }
 
-    public String sendOtp(String identifier, OtpChannel channel) {
-        return otpService.generateOtp(identifier, channel);
+    public void sendOtp(String identifier, OtpChannel channel) {
+        otpService.generateOtp(identifier, channel);
     }
 
-    public boolean verifyOtpOnly(String identifier, OtpChannel channel, String code) {
-        return otpService.verifyOtp(identifier, channel, code);
+    @Transactional
+    public boolean verifyPhoneOtp(String identifier, OtpChannel channel, String code) {
+        boolean verified = otpService.verifyOtp(identifier, channel, code);
+        if (verified && channel == OtpChannel.SMS) {
+            userRepository.findByPhoneNumber(identifier).ifPresent(user -> {
+                user.setPhoneVerified(true);
+                userRepository.save(user);
+            });
+        }
+        return verified;
     }
 
     private AuthResponse buildAuthResponse(User user) {

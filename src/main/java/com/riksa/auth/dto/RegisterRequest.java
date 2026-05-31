@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import java.util.UUID;
+import jakarta.validation.constraints.Pattern;
 
 @Getter
 @Setter
@@ -23,8 +24,9 @@ public class RegisterRequest {
     @Email(message = "Email must be valid")
     private String email;
 
+    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$",
+    message = "Password must be at least 8 characters with uppercase, lowercase, and a digit")
     @NotBlank(message = "Password is required")
-    @Size(min = 6, max = 160, message = "Password must be between 6 and 160 characters")
     private String password;
 
     private String phoneNumber;
