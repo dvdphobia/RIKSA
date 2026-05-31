@@ -35,6 +35,11 @@ otp:
   max-attempts: ${OTP_MAX_ATTEMPTS:3}
   code-length: ${OTP_CODE_LENGTH:6}
 
+telegram:
+  enabled: ${TELEGRAM_ENABLED:false}
+  bot-token: ${TELEGRAM_BOT_TOKEN:}
+  bot-username: ${TELEGRAM_BOT_USERNAME:}
+
 google:
   client:
     id: ${GOOGLE_CLIENT_ID:}

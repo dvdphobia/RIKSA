@@ -13,10 +13,10 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TYPE "Role" AS ENUM ('USER', 'MODERATOR', 'ADMIN');
 
 -- Reaction types for social interactions
-CREATE TYPE "ReactionType" AS ENUM ('UPVOTE', 'DOWNVOTE', 'LIKE', 'LOVE');
+CREATE TYPE "ReactionType" AS ENUM ('UPVOTE', 'DOWNVOTE', 'HAHA', 'LOVE');
 
 -- Difficulty levels for lessons and exercises
-CREATE TYPE "DifficultyLevel" AS ENUM ('EASY', 'MEDIUM', 'HARD', 'EXPERT');
+CREATE TYPE "DifficultyLevel" AS ENUM ('EASY', 'MEDIUM', 'HARD', 'DIFFICULT');
 
 -- Scope types for leaderboards and rank tracking
 CREATE TYPE "ScopeType" AS ENUM ('PROVINCE', 'COUNTRY');
@@ -30,7 +30,9 @@ CREATE TYPE "AchievementCriteriaType" AS ENUM (
     'COMPLETE_COURSE_IN_EVERY_CATEGORY',
     'COMPLETE_N_COURSES',
     'COMPLETE_ALL_IN_CATEGORY',
-    'COMPLETE_ALL_IN_EVERY_CATEGORY'
+    'COMPLETE_ALL_IN_EVERY_CATEGORY',
+    'COMPLETE_COURSE_WITH_DIFFICULTY',
+    'EARN_XP'
 );
 
 -- Blog post status
@@ -70,6 +72,7 @@ CREATE TABLE "users" (
     display_name VARCHAR(100) NOT NULL,
     avatar_url TEXT DEFAULT 'default-avatar.png',
     bio VARCHAR(160),
+    gender VARCHAR(20),
     role "Role" NOT NULL DEFAULT 'USER',
     phone_number VARCHAR(20) UNIQUE,
     password TEXT,
