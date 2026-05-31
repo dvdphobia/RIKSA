@@ -36,7 +36,7 @@ otp:
   code-length: ${OTP_CODE_LENGTH:6}
 
 telegram:
-  enabled: ${TELEGRAM_ENABLED:false}
+  enabled: ${TELEGRAM_ENABLED:true}
   bot-token: ${TELEGRAM_BOT_TOKEN:}
   bot-username: ${TELEGRAM_BOT_USERNAME:}
 
