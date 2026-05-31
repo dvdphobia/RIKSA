@@ -1,7 +1,6 @@
 package com.riksa.auth.otp;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,11 +8,8 @@ import lombok.Setter;
 @Setter
 public class OtpVerifyRequest {
 
-    @NotBlank(message = "Identifier is required (phone number or Telegram chat ID)")
+    @NotBlank(message = "Telegram chat ID is required")
     private String identifier;
-
-    @NotNull(message = "Channel is required (SMS or TELEGRAM)")
-    private OtpChannel channel;
 
     @NotBlank(message = "OTP code is required")
     private String code;

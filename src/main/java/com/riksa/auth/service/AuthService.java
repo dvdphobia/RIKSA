@@ -6,7 +6,6 @@ import com.riksa.auth.entity.Role;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.google.GoogleAuthRequest;
 import com.riksa.auth.google.GoogleOAuthService;
-import com.riksa.auth.otp.OtpChannel;
 import com.riksa.auth.otp.OtpService;
 import com.riksa.auth.token.RefreshToken;
 import com.riksa.auth.token.RefreshTokenRepository;
@@ -169,15 +168,15 @@ public class AuthService {
         return buildAuthResponse(user);
     }
 
-    public void sendOtp(String identifier, OtpChannel channel) {
-        otpService.generateOtp(identifier, channel);
+    public void sendOtp(String telegramChatId) {
+        otpService.generateOtp(telegramChatId);
     }
 
     @Transactional
-    public boolean verifyPhoneOtp(String identifier, OtpChannel channel, String code) {
-        boolean verified = otpService.verifyOtp(identifier, channel, code);
-        if (verified && channel == OtpChannel.SMS) {
-            userRepository.findByPhoneNumber(identifier).ifPresent(user -> {
+    public boolean verifyOtp(String telegramChatId, String code) {
+        boolean verified = otpService.verifyOtp(telegramChatId, code);
+        if (verified) {
+            userRepository.findByTelegramId(telegramChatId).ifPresent(user -> {
                 user.setPhoneVerified(true);
                 userRepository.save(user);
             });

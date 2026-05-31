@@ -44,6 +44,9 @@ public class User {
     @Column(name = "phone_verified", nullable = false)
     private Boolean phoneVerified = false;
 
+    @Column(name = "telegram_id", unique = true, columnDefinition = "TEXT")
+    private String telegramId;
+
     @Column(columnDefinition = "TEXT")
     private String password;
 

@@ -2,7 +2,6 @@ package com.riksa.auth.controller;
 
 import com.riksa.auth.dto.*;
 import com.riksa.auth.google.GoogleAuthRequest;
-import com.riksa.auth.otp.OtpChannel;
 import com.riksa.auth.otp.OtpSendRequest;
 import com.riksa.auth.otp.OtpVerifyRequest;
 import com.riksa.auth.service.AuthService;
@@ -49,17 +48,17 @@ public class AuthController {
 
     @PostMapping("/otp/send")
     public ResponseEntity<Map<String, String>> sendOtp(@Valid @RequestBody OtpSendRequest request) {
-        authService.sendOtp(request.getIdentifier(), request.getChannel());
+        authService.sendOtp(request.getIdentifier());
         Map<String, String> response = Map.of(
                 "message", "OTP sent successfully",
-                "channel", request.getChannel().name()
+                "channel", "TELEGRAM"
         );
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/otp/verify")
     public ResponseEntity<Map<String, Object>> verifyOtp(@Valid @RequestBody OtpVerifyRequest request) {
-        boolean verified = authService.verifyPhoneOtp(request.getIdentifier(), request.getChannel(), request.getCode());
+        boolean verified = authService.verifyOtp(request.getIdentifier(), request.getCode());
         return ResponseEntity.ok(Map.of(
                 "verified", verified,
                 "message", verified ? "Verification successful" : "Invalid OTP code"

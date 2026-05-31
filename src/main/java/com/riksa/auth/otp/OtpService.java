@@ -2,7 +2,6 @@ package com.riksa.auth.otp;
 
 import com.riksa.auth.telegram.TelegramService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -11,7 +10,6 @@ import java.time.OffsetDateTime;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class OtpService {
 
     private final OtpCodeRepository otpCodeRepository;
@@ -28,31 +26,26 @@ public class OtpService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    public String generateOtp(String identifier, OtpChannel channel) {
+    public String generateOtp(String identifier) {
         String code = generateNumericCode();
 
         OtpCode otp = new OtpCode();
         otp.setIdentifier(identifier);
-        otp.setChannel(channel);
+        otp.setChannel(OtpChannel.TELEGRAM);
         otp.setCode(code);
         otp.setExpiresAt(OffsetDateTime.now().plusMinutes(expirationMinutes));
         otp.setAttempts(0);
         otp.setVerified(false);
 
         otpCodeRepository.save(otp);
-
-        // Send the OTP through the appropriate channel
-        switch (channel) {
-            case TELEGRAM -> telegramService.sendOtp(identifier, code);
-            case SMS -> log.info("SMS OTP for {}: {} (SMS sending not yet configured)", identifier, code);
-        }
+        telegramService.sendOtp(identifier, code);
 
         return code;
     }
 
-    public boolean verifyOtp(String identifier, OtpChannel channel, String code) {
+    public boolean verifyOtp(String identifier, String code) {
         OtpCode otp = otpCodeRepository
-                .findTopByIdentifierAndChannelAndVerifiedFalseOrderByCreatedAtDesc(identifier, channel)
+                .findTopByIdentifierAndChannelAndVerifiedFalseOrderByCreatedAtDesc(identifier, OtpChannel.TELEGRAM)
                 .orElseThrow(() -> new IllegalArgumentException("No pending OTP for this identifier"));
 
         if (otp.getVerified()) {

@@ -3,7 +3,6 @@ package com.riksa.auth.service;
 import com.riksa.auth.dto.*;
 import com.riksa.auth.entity.Role;
 import com.riksa.auth.entity.User;
-import com.riksa.auth.otp.OtpChannel;
 import com.riksa.auth.otp.OtpService;
 import com.riksa.auth.repository.ProvinceRepository;
 import com.riksa.auth.repository.UserRepository;
@@ -42,7 +41,7 @@ class AuthServiceTest {
         request.setUsername("john");
         request.setDisplayName("John");
         request.setEmail("john@example.com");
-        request.setPassword("password123");
+        request.setPassword("Password1");
 
         when(userRepository.existsByUsername("john")).thenReturn(true);
 
@@ -57,7 +56,7 @@ class AuthServiceTest {
         request.setUsername("newuser");
         request.setDisplayName("New User");
         request.setEmail("john@example.com");
-        request.setPassword("password123");
+        request.setPassword("Password1");
 
         when(userRepository.existsByUsername("newuser")).thenReturn(false);
         when(userRepository.existsByEmail("john@example.com")).thenReturn(true);
@@ -116,11 +115,11 @@ class AuthServiceTest {
         request.setUsername("newuser");
         request.setDisplayName("New User");
         request.setEmail("new@example.com");
-        request.setPassword("password123");
+        request.setPassword("Password1");
 
         when(userRepository.existsByUsername("newuser")).thenReturn(false);
         when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
-        when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
+        when(passwordEncoder.encode("Password1")).thenReturn("encoded-password");
         when(jwtService.generateAccessToken(any(UUID.class), eq("newuser"), eq("USER"))).thenReturn("access-token");
         when(jwtService.generateRefreshToken(any(UUID.class), eq("newuser"), eq("USER"))).thenReturn("refresh-token");
 
@@ -139,15 +138,15 @@ class AuthServiceTest {
     }
 
     @Test
-    void verifyPhoneOtp_smsChannel_setsPhoneVerified() {
+    void verifyOtp_telegram_setsVerified() {
         User user = new User();
-        user.setPhoneNumber("+85512345678");
+        user.setTelegramId("123456789");
         user.setPhoneVerified(false);
 
-        when(otpService.verifyOtp("+85512345678", OtpChannel.SMS, "123456")).thenReturn(true);
-        when(userRepository.findByPhoneNumber("+85512345678")).thenReturn(Optional.of(user));
+        when(otpService.verifyOtp("123456789", "123456")).thenReturn(true);
+        when(userRepository.findByTelegramId("123456789")).thenReturn(Optional.of(user));
 
-        boolean result = authService.verifyPhoneOtp("+85512345678", OtpChannel.SMS, "123456");
+        boolean result = authService.verifyOtp("123456789", "123456");
 
         assertThat(result).isTrue();
         assertThat(user.getPhoneVerified()).isTrue();
@@ -155,12 +154,12 @@ class AuthServiceTest {
     }
 
     @Test
-    void verifyPhoneOtp_telegramChannel_doesNotSetPhoneVerified() {
-        when(otpService.verifyOtp("123456789", OtpChannel.TELEGRAM, "123456")).thenReturn(true);
+    void verifyOtp_invalidCode_returnsFalse() {
+        when(otpService.verifyOtp("123456789", "wrong")).thenReturn(false);
 
-        boolean result = authService.verifyPhoneOtp("123456789", OtpChannel.TELEGRAM, "123456");
+        boolean result = authService.verifyOtp("123456789", "wrong");
 
-        assertThat(result).isTrue();
+        assertThat(result).isFalse();
         verify(userRepository, never()).save(any(User.class));
     }
 }
