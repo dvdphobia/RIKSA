@@ -56,12 +56,21 @@ public class User {
     @Column(unique = true, columnDefinition = "TEXT")
     private String email;
 
+    @Column(name = "email_verified", nullable = false)
+    private Boolean emailVerified = false;
+
     @Column(name = "country_id", length = 2)
     private String countryId = "KH";
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "province_id")
     private Province province;
+
+    @Column(name = "failed_login_attempts", nullable = false)
+    private Integer failedLoginAttempts = 0;
+
+    @Column(name = "locked_until")
+    private OffsetDateTime lockedUntil;
 
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
@@ -72,5 +81,9 @@ public class User {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = OffsetDateTime.now();
+    }
+
+    public boolean isLocked() {
+        return lockedUntil != null && lockedUntil.isAfter(OffsetDateTime.now());
     }
 }

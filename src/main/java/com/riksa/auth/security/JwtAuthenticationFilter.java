@@ -37,7 +37,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (jwtService.isTokenValid(token)) {
             var userId = jwtService.getUserId(token);
-            // var username = jwtService.getUsername(token);
             var role = jwtService.getRole(token);
 
             var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
@@ -45,8 +44,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             var authentication = new UsernamePasswordAuthenticationToken(
                     userId, null, authorities
             );
-            
+
             SecurityContextHolder.getContext().setAuthentication(authentication);
+        } else {
+            response.setHeader("WWW-Authenticate", "Bearer error=\"invalid_token\"");
         }
 
         filterChain.doFilter(request, response);
