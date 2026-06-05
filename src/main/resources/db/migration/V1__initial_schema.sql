@@ -165,6 +165,7 @@ CREATE TABLE "rank_tiers" (
     min_xp INTEGER NOT NULL,
     icon_url TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now()
+
 );
 
 -- Rank history tracking
