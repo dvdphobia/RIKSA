@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.time.OffsetDateTime;
+import org.springframework.data.domain.Pageable;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -15,7 +16,8 @@ public interface UserGamificationRepository extends JpaRepository<UserGamificati
     Optional<UserGamification> findByUserId(UUID userId);
 
     // leaderboard queries
-    List<UserGamification> findTop10ByOrderByTotalXpDesc();
+    // List<UserGamification> findTop10ByOrderByTotalXpDesc();
+    List<UserGamification> findAllByOrderByTotalXpDesc(Pageable pageable);
 
     // Active streak users
     List<UserGamification> findByCurrentStreakGreaterThan(int streak);
@@ -27,3 +29,4 @@ public interface UserGamificationRepository extends JpaRepository<UserGamificati
     boolean existsByUserId(UUID userID);
 
 }
+
