@@ -1,0 +1,11 @@
+package com.riksa.common.enums;
+
+public enum AchievementCriteriaType {
+    COMPLETE_COURSE,
+    COMPLETE_COURSE_IN_EVERY_CATEGORY,
+    COMPLETE_N_COURSES,
+    COMPLETE_ALL_IN_CATEGORY,
+    COMPLETE_ALL_IN_EVERY_CATEGORY,
+    COMPLETE_COURSE_WITH_DIFFICULTY,
+    EARN_XP
+}
