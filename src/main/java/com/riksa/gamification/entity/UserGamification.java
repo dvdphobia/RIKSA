@@ -2,6 +2,7 @@ package com.riksa.gamification.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.OffsetDateTime;
@@ -11,6 +12,7 @@ import java.util.UUID;
 @Table(name = "user_gamification")
 @Getter
 @Setter
+@NoArgsConstructor
 public class UserGamification {
 
     @Id
@@ -31,6 +33,10 @@ public class UserGamification {
 
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt = OffsetDateTime.now();
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private long version;
 
     @PreUpdate
     protected void onUpdate() {
