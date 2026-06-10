@@ -1,0 +1,135 @@
+# ══════════════════════════════════════════════════════
+# Social Module — GraphQL Schema
+# ══════════════════════════════════════════════════════
+
+scalar DateTime
+scalar UUID
+
+# ── Types ────────────────────────────────────────────
+type Category {
+  id:          UUID!
+  name:        String!
+  slug:        String!
+  description: String
+  iconUrl:     String
+  memberCount: Int!
+  joined:      Boolean!
+}
+
+type User {
+  id:          UUID!
+  username:    String!
+  displayName: String!
+  avatarUrl:   String!
+}
+
+type Post {
+  id:            UUID!
+  title:         String!
+  content:       String!
+  mediaUrl:      String
+  reactionCount: Int!
+  commentCount:  Int!
+  shareCount:    Int!
+  author:        User!
+  category:      Category!
+  myReaction:    ReactionType
+  createdAt:     DateTime!
+  updatedAt:     DateTime!
+  comments(cursor: UUID, limit: Int = 10): CommentPage!
+}
+
+type Comment {
+  id:         UUID!
+  content:    String!
+  author:     User!
+  postId:     UUID!
+  parentId:   UUID
+  myReaction: ReactionType
+  createdAt:  DateTime!
+  updatedAt:  DateTime!
+  replies(cursor: UUID, limit: Int = 5): CommentPage!
+}
+
+# ── Enums ────────────────────────────────────────────
+enum ReactionType { UPVOTE DOWNVOTE HAHA LOVE }
+enum SharePlatform { TELEGRAM FACEBOOK COPY_LINK }
+
+# ── Pagination ───────────────────────────────────────
+type FeedPage {
+  edges:    [Post!]!
+  pageInfo: PageInfo!
+}
+
+type CommentPage {
+  edges:    [Comment!]!
+  pageInfo: PageInfo!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  endCursor:   UUID
+}
+
+# ── Inputs ───────────────────────────────────────────
+input CreatePostInput {
+  title:      String!
+  content:    String!
+  mediaUrl:   String
+  categoryId: UUID!
+}
+
+input UpdatePostInput {
+  id:      UUID!
+  title:   String
+  content: String
+}
+
+input CreateCommentInput {
+  postId:   UUID!
+  content:  String!
+  parentId: UUID
+}
+
+input UpdateCommentInput {
+  id:      UUID!
+  content: String!
+}
+
+input ReactInput {
+  postId:    UUID
+  commentId: UUID
+  type:      ReactionType!
+}
+
+input SharePostInput {
+  postId:   UUID!
+  platform: SharePlatform
+}
+
+# ── Query ────────────────────────────────────────────
+type Query {
+  feed(categoryId: UUID, cursor: UUID, limit: Int = 20): FeedPage!
+  post(id: UUID!): Post
+  categories: [Category!]!
+  comments(postId: UUID!, cursor: UUID, limit: Int = 20): CommentPage!
+}
+
+# ── Mutation ─────────────────────────────────────────
+type Mutation {
+  createPost(input: CreatePostInput!): Post!
+  updatePost(input: UpdatePostInput!): Post!
+  deletePost(id: UUID!): Boolean!
+
+  createComment(input: CreateCommentInput!): Comment!
+  updateComment(input: UpdateCommentInput!): Comment!
+  deleteComment(id: UUID!): Boolean!
+
+  react(input: ReactInput!): Post!
+  removeReaction(postId: UUID, commentId: UUID): Post!
+
+  sharePost(input: SharePostInput!): Post!
+
+  joinCategory(categoryId: UUID!): Category!
+  leaveCategory(categoryId: UUID!): Category!
+}
