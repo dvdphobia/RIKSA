@@ -7,6 +7,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface BlogLikeRepository extends JpaRepository<BlogLike, UUID> {
-    Optional<BlogLike> findByUserIdAndBlogPostid(UUID userId, UUID blogPostId);
-    boolean existByUserIdAndBlogPostId(UUID userId, UUID blogPostId);
+    Optional<BlogLike> findByUserIdAndBlogPostId(UUID userId, UUID blogPostId);
+    boolean existsByUserIdAndBlogPostId(UUID userId, UUID blogPostId);
 }

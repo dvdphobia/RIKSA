@@ -36,7 +36,7 @@ public class BlogEngagementService {
     @Transactional
     public BlogPost toggleLike(UUID blogPostId, UUID userId) {
         BlogPost post = getPost(blogPostId);
-        Optional<BlogLike> existing = blogLikeRepository.findByUserIdAndBlogPostid(userId, blogPostId);
+        Optional<BlogLike> existing = blogLikeRepository.findByUserIdAndBlogPostId(userId, blogPostId);
 
         if (existing.isPresent()) {
             // unlike
@@ -55,7 +55,7 @@ public class BlogEngagementService {
     }
 
     public boolean isLiked(UUID blogPostId, UUID userId) {
-        return blogLikeRepository.existByUserIdAndBlogPostId(userId, blogPostId);
+        return blogLikeRepository.existsByUserIdAndBlogPostId(userId, blogPostId);
     }
 
     private BlogPost getPost(UUID blogPostId) {
