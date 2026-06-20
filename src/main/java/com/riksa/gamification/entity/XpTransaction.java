@@ -31,7 +31,7 @@ public class XpTransaction {
     private UUID sourceId;
 
     @Column(name = "running_balance", nullable = false)
-    private int runningBalance;
+    private long runningBalance;
 
     @Column(name = "created_at", updatable = false)
     @CreationTimestamp

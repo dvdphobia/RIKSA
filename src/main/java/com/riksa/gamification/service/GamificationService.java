@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.repository.UserRepository;
+import com.riksa.common.exception.InvalidCursorException;
+import com.riksa.common.exception.ResourceNotFoundException;
 import com.riksa.gamification.dto.AchievementResponse;
 import com.riksa.gamification.dto.CursorPage;
 import com.riksa.gamification.dto.GamificationProfileResponse;
@@ -27,21 +29,20 @@ import com.riksa.gamification.repository.UserGamificationRepository;
 import com.riksa.gamification.repository.XpTransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 @Service
 @RequiredArgsConstructor
 public class GamificationService {
+
     private final UserGamificationRepository userGamificationRepository;
     private final RankTierRepository rankTierRepository;
     private final XpTransactionRepository xpTransactionRepository;
@@ -52,29 +53,30 @@ public class GamificationService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
-    // ── cursor records (used internally for encode/decode) ──
+    // ── cursor records ──
 
     private record XpCursor(OffsetDateTime t, UUID i) {}
-    private record LeaderboardCursor(int x, UUID u, int r) {}
+    private record LeaderboardCursor(long x, UUID u, int r) {}
+    private record RankHistoryCursor(OffsetDateTime t, UUID i) {}
 
     // ── helpers ──
 
     private String encodeCursor(Object cursor) {
         try {
-            return Base64.getUrlEncoder().withoutPadding()
+            return java.util.Base64.getUrlEncoder().withoutPadding()
                     .encodeToString(objectMapper.writeValueAsBytes(cursor));
         } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException("Failed to encode cursor", e);
+            throw new InvalidCursorException("Failed to encode cursor", e);
         }
     }
 
     private <T> T decodeCursor(String cursor, Class<T> type) {
         if (cursor == null || cursor.isBlank()) return null;
         try {
-            byte[] bytes = Base64.getUrlDecoder().decode(cursor);
+            byte[] bytes = java.util.Base64.getUrlDecoder().decode(cursor);
             return objectMapper.readValue(bytes, type);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid cursor", e);
+            throw new InvalidCursorException("Invalid cursor: " + e.getMessage(), e);
         }
     }
 
@@ -83,7 +85,8 @@ public class GamificationService {
     @Transactional(readOnly = true)
     public GamificationProfileResponse getProfile(UUID userId) {
         UserGamification user = userGamificationRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User gamification not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Gamification profile not found for user " + userId));
 
         RankTier currentTier = rankTierRepository
                 .findFirstByMinXpLessThanEqualOrderByMinXpDesc(user.getTotalXp())
@@ -109,7 +112,7 @@ public class GamificationService {
         return response;
     }
 
-    // ── xp history (cursor-based, no COUNT query) ──
+    // ── xp history (cursor-based) ──
 
     @Transactional(readOnly = true)
     public CursorPage<XpTransactionResponse> getXpHistory(UUID userId, String cursorStr, int limit) {
@@ -174,20 +177,39 @@ public class GamificationService {
         }).toList();
     }
 
-    // ── rank history ──
+    // ── rank history (cursor-based) ──
 
     @Transactional(readOnly = true)
-    public List<RankHistoryResponse> getRankHistory(UUID userId) {
-        List<RankHistory> history = rankHistoryRepository.findByUserIdOrderByChangedAtDesc(userId);
-        return history.stream().map(h -> {
-            RankHistoryResponse r = new RankHistoryResponse();
-            r.setId(h.getId());
-            r.setScope(h.getScope().name());
-            r.setOldRank(h.getOldRank().name());
-            r.setNewRank(h.getNewRank().name());
-            r.setChangedAt(h.getChangedAt());
-            return r;
-        }).toList();
+    public CursorPage<RankHistoryResponse> getRankHistory(UUID userId, String cursorStr, int limit) {
+        limit = Math.min(Math.max(limit, 1), 50);
+        RankHistoryCursor cursor = decodeCursor(cursorStr, RankHistoryCursor.class);
+
+        OffsetDateTime cursorChangedAt = cursor != null ? cursor.t() : null;
+        UUID cursorId = cursor != null ? cursor.i() : null;
+
+        List<RankHistory> rows = rankHistoryRepository.findByUserIdAfterCursor(
+                userId, cursorChangedAt, cursorId, PageRequest.of(0, limit + 1));
+
+        List<RankHistoryResponse> edges = rows.stream()
+                .limit(limit)
+                .map(h -> {
+                    RankHistoryResponse r = new RankHistoryResponse();
+                    r.setId(h.getId());
+                    r.setScope(h.getScope().name());
+                    r.setOldRank(h.getOldRank().name());
+                    r.setNewRank(h.getNewRank().name());
+                    r.setChangedAt(h.getChangedAt());
+                    return r;
+                }).toList();
+
+        boolean hasNext = rows.size() > limit;
+        String endCursor = null;
+        if (hasNext) {
+            RankHistory last = rows.get(limit);
+            endCursor = encodeCursor(new RankHistoryCursor(last.getChangedAt(), last.getId()));
+        }
+
+        return new CursorPage<>(edges, hasNext, endCursor);
     }
 
     // ── streak ──
@@ -195,7 +217,8 @@ public class GamificationService {
     @Transactional(readOnly = true)
     public StreakResponse getStreak(UUID userId) {
         UserGamification user = userGamificationRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User gamification not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Gamification profile not found for user " + userId));
 
         StreakMilestone currentMilestone = streakMilestoneRepository
                 .findFirstByMinStreakLessThanEqualOrderByMinStreakDesc(user.getCurrentStreak())
@@ -226,17 +249,24 @@ public class GamificationService {
         limit = Math.min(Math.max(limit, 1), 50);
         LeaderboardCursor cursor = decodeCursor(cursorStr, LeaderboardCursor.class);
 
-        Integer cursorXp = cursor != null ? cursor.x() : null;
+        Long cursorXp = cursor != null ? cursor.x() : null;
         UUID cursorUserId = cursor != null ? cursor.u() : null;
         int startRank = cursor != null ? cursor.r() : 0;
 
         List<UserGamification> rows = userGamificationRepository.findLeaderboardAfterCursor(
                 cursorXp, cursorUserId, PageRequest.of(0, limit + 1));
 
+        if (rows.isEmpty()) {
+            return new CursorPage<>(List.of(), false, null);
+        }
+
         List<UUID> userIds = rows.stream().map(UserGamification::getUserId).toList();
         Map<UUID, User> usersById = userRepository.findAllById(userIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
-        List<RankTier> allTiers = rankTierRepository.findAll();
+
+        // Build a sorted list for tier lookup (descending by minXp) — O(1) per row after sort
+        List<RankTier> allTiers = new java.util.ArrayList<>(rankTierRepository.findAll());
+        allTiers.sort((a, b) -> Long.compare(b.getMinXp(), a.getMinXp()));
 
         List<LeaderboardEntryResponse> edges = new java.util.ArrayList<>();
         for (int i = 0; i < Math.min(rows.size(), limit); i++) {
@@ -255,18 +285,19 @@ public class GamificationService {
     }
 
     private LeaderboardEntryResponse toLeaderboardEntry(UserGamification ug, Map<UUID, User> usersById,
-                                                         List<RankTier> allTiers, int rank) {
+                                                         List<RankTier> sortedTiers, int rank) {
         User user = usersById.get(ug.getUserId());
-        RankTier tier = allTiers.stream()
+
+        // O(n) scan over sorted tiers, but n is tiny (6 tiers) and list is pre-sorted
+        RankTier tier = sortedTiers.stream()
                 .filter(t -> t.getMinXp() <= ug.getTotalXp())
-                .sorted((a, b) -> Integer.compare(b.getMinXp(), a.getMinXp()))
                 .findFirst()
                 .orElse(null);
 
         LeaderboardEntryResponse e = new LeaderboardEntryResponse();
         e.setRank(rank + 1);
         e.setUserId(ug.getUserId());
-        e.setDisplayName(user != null ? user.getDisplayName() : "Unknown");
+        e.setDisplayName(user != null ? user.getDisplayName() : "Deleted User");
         e.setAvatarUrl(user != null ? user.getAvatarUrl() : null);
         e.setTotalXp(ug.getTotalXp());
         e.setTierName(tier != null ? tier.getTierName().name() : null);

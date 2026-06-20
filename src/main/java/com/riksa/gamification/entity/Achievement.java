@@ -32,7 +32,7 @@ public class Achievement {
     private AchievementCriteriaType criteriaType;
 
     @Column(name = "criteria_value")
-    private Integer criteriaValue;
+    private Long criteriaValue;
 
     @Column(name = "requires_advanced", nullable = false)
     private boolean requiresAdvanced = false;

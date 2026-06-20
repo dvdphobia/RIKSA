@@ -20,7 +20,7 @@ public class UserGamification {
     private UUID userId;
 
     @Column(name = "total_xp", nullable = false)
-    private int totalXp = 0;
+    private long totalXp = 0;
 
     @Column(name = "current_streak", nullable = false)
     private int currentStreak = 0;
@@ -37,6 +37,11 @@ public class UserGamification {
     @Version
     @Column(name = "version", nullable = false)
     private long version;
+
+    @PrePersist
+    protected void onCreate() {
+        this.updatedAt = OffsetDateTime.now();
+    }
 
     @PreUpdate
     protected void onUpdate() {

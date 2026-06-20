@@ -51,10 +51,12 @@ public class GamificationController {
     }
 
     @GetMapping("/rank-history")
-    public ResponseEntity<List<RankHistoryResponse>> getRankHistory(
-            @RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<CursorPage<RankHistoryResponse>> getRankHistory(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int limit) {
         UUID userId = extractUserId(authHeader);
-        return ResponseEntity.ok(gamificationService.getRankHistory(userId));
+        return ResponseEntity.ok(gamificationService.getRankHistory(userId, cursor, limit));
     }
 
     @GetMapping("/streak")

@@ -5,10 +5,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
-import java.util.UUID;
 
 @Repository
-public interface StreakMilestoneRepository extends JpaRepository<StreakMilestone, UUID> {
+public interface StreakMilestoneRepository extends JpaRepository<StreakMilestone, java.util.UUID> {
 
-    Optional<StreakMilestone> findFirstByMinStreakLessThanEqualOrderByMinStreakDesc(int streak);
+    /**
+     * Find the highest milestone the user qualifies for based on their streak count.
+     * Returns the milestone with the largest minStreak that is <= the given streak.
+     */
+    Optional<StreakMilestone> findFirstByMinStreakLessThanEqualOrderByMinStreakDesc(int minStreak);
 }

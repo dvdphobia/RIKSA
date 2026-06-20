@@ -26,7 +26,7 @@ public class RankTier {
     private TierType tierName;
 
     @Column(name = "min_xp", nullable = false)
-    private int minXp;
+    private long minXp;
 
     @Column(name = "icon_url", nullable = false)
     private String iconUrl;

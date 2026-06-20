@@ -15,6 +15,6 @@ public class XpTransactionResponse {
     private int amount;
     private String sourceType;
     private UUID sourceId;
-    private int runningBalance;
+    private long runningBalance;
     private OffsetDateTime createdAt;
 }
