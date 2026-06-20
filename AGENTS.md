@@ -101,6 +101,8 @@
 - `GamificationService` now depends on `ObjectMapper` (from Jackson, auto-configured by Spring Boot) — for cursor encode/decode.
 - `GamificationService` now depends on `RankHistoryRepository` and `StreakMilestoneRepository`.
 
+The remaining 20% is the hot-path write pipeline — the actual logic that grants XP when a user completes a lesson/task, updates their streak, checks if they earned an achievement, and inserts rank history on tier change. That's the hardest part.
+
 ---
 
 *Start a new session by sharing this file with the AI agent.*

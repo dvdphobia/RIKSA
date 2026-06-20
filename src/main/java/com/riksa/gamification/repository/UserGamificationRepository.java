@@ -27,7 +27,7 @@ public interface UserGamificationRepository extends JpaRepository<UserGamificati
                OR (ug.totalXp = :cursorXp AND ug.userId > :cursorUserId))
         ORDER BY ug.totalXp DESC, ug.userId ASC
     """)
-    List<UserGamification> findLeaderboardAfterCursor(@Param("cursorXp") Integer cursorXp,
+    List<UserGamification> findLeaderboardAfterCursor(@Param("cursorXp") Long cursorXp,
                                                        @Param("cursorUserId") UUID cursorUserId,
                                                        Pageable pageable);
 
