@@ -18,9 +18,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.OffsetDateTime;
-import java.util.Random;
 import java.util.UUID;
 
 @Service
@@ -42,6 +42,8 @@ public class OAuth2Service {
             "avatar-1.png", "avatar-2.png", "avatar-3.png", "avatar-4.png", "avatar-5.png",
             "avatar-6.png", "avatar-7.png", "avatar-8.png", "avatar-9.png", "avatar-10.png"
     };
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Transactional
     public AuthResponse googleAuth(GoogleAuthRequest request) {
@@ -114,7 +116,6 @@ public class OAuth2Service {
     }
 
     private String generateRandomAvatar() {
-        Random random = new Random();
-        return AVAILABLE_AVATARS[random.nextInt(AVAILABLE_AVATARS.length)];
+        return AVAILABLE_AVATARS[SECURE_RANDOM.nextInt(AVAILABLE_AVATARS.length)];
     }
 }

@@ -15,7 +15,7 @@ class RateLimitFilterTest {
     void nonAuthPath_passesThrough() throws Exception {
         RateLimitFilter filter = new RateLimitFilter(5, 60);
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRequestURI("/api/lessons");
+        request.setRequestURI("/api/v1/lessons");
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain chain = mock(FilterChain.class);
 
@@ -29,7 +29,7 @@ class RateLimitFilterTest {
     void authPath_withinLimit_passesThrough() throws Exception {
         RateLimitFilter filter = new RateLimitFilter(5, 60);
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRequestURI("/api/auth/login");
+        request.setRequestURI("/api/v1/auth/login");
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain chain = mock(FilterChain.class);
 
@@ -47,7 +47,7 @@ class RateLimitFilterTest {
 
         for (int i = 0; i < 3; i++) {
             MockHttpServletRequest request = new MockHttpServletRequest();
-            request.setRequestURI("/api/auth/login");
+            request.setRequestURI("/api/v1/auth/login");
             response = new MockHttpServletResponse();
             filter.doFilterInternal(request, response, chain);
         }

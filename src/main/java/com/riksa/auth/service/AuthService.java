@@ -18,9 +18,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.OffsetDateTime;
-import java.util.Random;
 import java.util.UUID;
 
 @Service
@@ -281,8 +281,9 @@ public class AuthService {
         );
     }
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private String generateRandomAvatar() {
-        Random random = new Random();
-        return AVAILABLE_AVATARS[random.nextInt(AVAILABLE_AVATARS.length)];
+        return AVAILABLE_AVATARS[SECURE_RANDOM.nextInt(AVAILABLE_AVATARS.length)];
     }
 }

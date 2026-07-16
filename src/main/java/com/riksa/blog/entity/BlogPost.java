@@ -43,6 +43,9 @@ public class BlogPost {
     @Column(name = "category_id")
     private UUID categoryId;
 
+    @Column(name = "rejection_reason", length = 500)
+    private String rejectionReason;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;

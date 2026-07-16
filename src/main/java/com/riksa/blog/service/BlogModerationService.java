@@ -19,13 +19,21 @@ public class BlogModerationService {
     @Transactional
     public BlogPost approve(UUID postId){
         BlogPost post = getPost(postId);
+        if (post.getStatus() != BlogStatus.PENDING) {
+            throw new IllegalStateException("Post already moderated: " + post.getStatus());
+        }
         post.setStatus(BlogStatus.APPROVED);
+        post.setRejectionReason(null);
         return blogPostRepository.save(post);
     }
     @Transactional
     public BlogPost reject(UUID postId, String reason){
         BlogPost post = getPost(postId);
+        if (post.getStatus() != BlogStatus.PENDING) {
+            throw new IllegalStateException("Post already moderated: " + post.getStatus());
+        }
         post.setStatus(BlogStatus.REJECTED);
+        post.setRejectionReason(reason);
         return blogPostRepository.save(post);
     }
     private BlogPost getPost(UUID postId){

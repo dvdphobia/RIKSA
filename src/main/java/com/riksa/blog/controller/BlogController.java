@@ -5,6 +5,7 @@ import com.riksa.blog.enums.BlogStatus;
 import com.riksa.blog.service.BlogEngagementService;
 import com.riksa.blog.service.BlogModerationService;
 import com.riksa.blog.service.BlogService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -32,7 +33,14 @@ public class BlogController {
             @RequestParam(defaultValue = "20") int size) {
 
         UUID userId = getCurrentUserId();
-        var pageResult = blogService.listPosts(status, categoryId, page, size);
+        // Non-moderators can only see APPROVED posts
+        boolean isModerator = SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_MODERATOR")
+                        || a.getAuthority().equals("ROLE_ADMIN"));
+        BlogStatus effectiveStatus = isModerator ? status : BlogStatus.APPROVED;
+        int effectiveSize = Math.min(Math.max(size, 1), 100);
+        var pageResult = blogService.listPosts(effectiveStatus, categoryId, page, effectiveSize);
 
         var content = pageResult.getContent().stream()
                 .map(post -> BlogMapper.toResponse(post,
@@ -49,7 +57,7 @@ public class BlogController {
     }
 
     @PostMapping
-    public ResponseEntity<BlogPostResponse> createPost(@RequestBody BlogPostRequest request) {
+    public ResponseEntity<BlogPostResponse> createPost(@RequestBody @Valid BlogPostRequest request) {
         UUID userId = getCurrentUserId();
         var post = blogService.createPost(
                 userId,
@@ -65,6 +73,14 @@ public class BlogController {
     public ResponseEntity<BlogPostResponse> getPost(@PathVariable UUID id) {
         UUID userId = getCurrentUserId();
         var post = blogService.getPost(id);
+        // Non-moderators can only see APPROVED posts
+        boolean isModerator = SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_MODERATOR")
+                        || a.getAuthority().equals("ROLE_ADMIN"));
+        if (post.getStatus() != BlogStatus.APPROVED && !isModerator) {
+            throw new IllegalArgumentException("Blog post not found: " + id);
+        }
         blogEngagementService.trackView(id, userId);
         return ResponseEntity.ok(BlogMapper.toResponse(post,
                 blogEngagementService.isLiked(id, userId)));
