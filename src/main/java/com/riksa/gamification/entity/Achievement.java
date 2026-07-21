@@ -1,6 +1,7 @@
 package com.riksa.gamification.entity;
 
 import com.riksa.common.enums.AchievementCriteriaType;
+import com.riksa.common.enums.AchievementRarity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -39,6 +40,17 @@ public class Achievement {
 
     @Column(name = "icon_url", nullable = false)
     private String iconUrl;
+
+    @Column(name = "category_id")
+    private UUID categoryId;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "rarity", nullable = false, columnDefinition = "\"AchievementRarity\"")
+    private AchievementRarity rarity = AchievementRarity.COMMON;
+
+    @Column(name = "xp_reward", nullable = false)
+    private int xpReward = 0;
 
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();

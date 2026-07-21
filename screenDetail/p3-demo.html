@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>P3.S1 vs P3.S6 — RIKSA</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0a0a0a;
+    color: #e7e7e7;
+    padding: 24px;
+  }
+  h1 { color: #fff; font-size: 18px; margin-bottom: 4px; }
+  .sub { color: #888; font-size: 13px; margin-bottom: 24px; }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    max-width: 900px;
+  }
+  .phone {
+    background: #000;
+    border-radius: 28px;
+    overflow: hidden;
+    border: 1px solid #222;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  }
+  .label {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+  }
+  .label b { color: #f5c542; }
+  .header {
+    padding: 16px;
+    border-bottom: 1px solid #222;
+  }
+  .header .title { font-size: 16px; font-weight: 600; color: #fff; }
+  .header .subtitle { font-size: 12px; color: #888; margin-top: 2px; }
+  .back { color: #888; margin-right: 8px; }
+
+  /* P3.S1 — Gamification Profile */
+  .gradient-card {
+    background: linear-gradient(135deg, #312e81 0%, #4338ca 100%);
+    padding: 20px;
+    text-align: center;
+    border-radius: 0;
+  }
+  .avatar {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f5c542, #d4a017);
+    margin: 0 auto 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; font-weight: 700; color: #1a1a1a;
+    border: 3px solid #f5c542;
+  }
+  .name { font-size: 16px; font-weight: 600; color: #fff; }
+  .province { font-size: 12px; color: #c7c7e8; margin-top: 2px; }
+  .rank-badge {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 12px;
+    background: rgba(245, 197, 66, 0.15);
+    border: 1px solid #f5c542;
+    border-radius: 999px;
+    font-size: 11px;
+    color: #f5c542;
+  }
+
+  /* 2x2 grid */
+  .grid-2x2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: #0a0a0a;
+  }
+  .cell {
+    padding: 18px;
+    text-align: center;
+    border-right: 1px solid #222;
+    border-bottom: 1px solid #222;
+  }
+  .cell:nth-child(2n) { border-right: none; }
+  .cell:nth-child(n+3) { border-bottom: none; }
+  .cell .num { font-size: 22px; font-weight: 700; }
+  .cell .lbl { font-size: 11px; color: #888; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .gold { color: #f5c542; }
+  .red { color: #ff6b6b; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid #222;
+    padding: 0 8px;
+  }
+  .tab {
+    padding: 12px 12px;
+    font-size: 12px;
+    color: #888;
+    position: relative;
+  }
+  .tab.active { color: #f5c542; }
+  .tab.active::after {
+    content: "";
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 2px;
+    background: #f5c542;
+  }
+  .tab-content { padding: 16px; min-height: 240px; }
+  .xp-row {
+    display: flex; align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  .xp-row .ico { margin-right: 12px; font-size: 18px; }
+  .xp-row .src { font-size: 13px; color: #ddd; flex: 1; }
+  .xp-row .ts { font-size: 10px; color: #666; display: block; margin-top: 2px; }
+  .xp-row .amt { font-size: 13px; color: #f5c542; font-weight: 600; }
+
+  /* P3.S6 — User Profile */
+  .banner {
+    height: 90px;
+    background: linear-gradient(135deg, #312e81 0%, #4338ca 100%);
+    position: relative;
+  }
+  .banner::after {
+    content: "🏔️";
+    position: absolute;
+    right: 16px; bottom: 8px;
+    font-size: 28px; opacity: 0.4;
+  }
+  .profile-head {
+    padding: 0 16px 16px;
+    margin-top: -40px;
+  }
+  .profile-avatar {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f5c542, #d4a017);
+    border: 3px solid #f5c542;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px; font-weight: 700; color: #1a1a1a;
+  }
+  .edit-btn {
+    float: right;
+    margin-top: 48px;
+    padding: 6px 14px;
+    border: 1px solid #444;
+    border-radius: 999px;
+    font-size: 11px;
+    color: #ddd;
+  }
+  .pname { font-size: 17px; font-weight: 700; color: #fff; margin-top: 12px; }
+  .handle { font-size: 12px; color: #666; }
+  .bio { font-size: 12px; color: #aaa; margin-top: 8px; line-height: 1.5; }
+  .meta { font-size: 11px; color: #666; margin-top: 6px; }
+  .follows { font-size: 11px; color: #888; margin-top: 6px; }
+  .follows b { color: #ddd; }
+
+  /* 1x4 bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    border-top: 1px solid #222;
+    border-bottom: 1px solid #222;
+  }
+  .stat {
+    padding: 14px 4px;
+    text-align: center;
+    border-right: 1px solid #222;
+  }
+  .stat:last-child { border-right: none; }
+  .stat .num { font-size: 16px; font-weight: 700; }
+  .stat .lbl { font-size: 9px; color: #888; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .rank-card {
+    background: linear-gradient(135deg, #312e81 0%, #4338ca 100%);
+    margin: 16px;
+    padding: 14px;
+    border-radius: 12px;
+  }
+  .rank-card .top { display: flex; align-items: center; gap: 8px; }
+  .rank-card .rname { font-size: 13px; color: #f5c542; font-weight: 600; }
+  .rank-card .next { font-size: 11px; color: #c7c7e8; margin-top: 6px; }
+  .progress {
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .progress .fill { height: 100%; width: 62%; background: linear-gradient(90deg, #f5c542, #d4a017); }
+
+  .showcase {
+    padding: 0 16px 8px;
+  }
+  .showcase-title { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .badges { display: flex; gap: 8px; overflow-x: auto; }
+  .badge {
+    flex: 0 0 auto;
+    width: 56px; height: 56px;
+    border-radius: 12px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+  }
+  .badge.locked { filter: grayscale(1); opacity: 0.4; }
+
+  .post {
+    padding: 14px 16px;
+    border-top: 1px solid #1a1a1a;
+  }
+  .post .ph { display: flex; align-items: center; gap: 8px; }
+  .post .pa { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #312e81, #4338ca); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; }
+  .post .pn { font-size: 13px; font-weight: 600; color: #ddd; }
+  .post .ph-meta { font-size: 10px; color: #666; }
+  .post .pt { font-size: 13px; color: #ccc; margin: 8px 0; line-height: 1.5; }
+  .post .vote { display: flex; align-items: center; gap: 12px; font-size: 11px; color: #888; }
+  .post .vote .up { color: #4ade80; }
+
+  .ex { margin-top: 32px; padding: 16px; background: #111; border-radius: 12px; border-left: 3px solid #f5c542; max-width: 900px; }
+  .ex h3 { color: #f5c542; font-size: 14px; margin-bottom: 12px; }
+  .ex ul { padding-left: 18px; font-size: 13px; color: #bbb; line-height: 1.8; }
+  .ex ul b { color: #fff; }
+</style>
+</head>
+<body>
+
+<h1>P3.S1 vs P3.S6 — what's the difference?</h1>
+<div class="sub">Side-by-side. Same user, two different screens.</div>
+
+<div class="row">
+
+  <!-- ============== P3.S1 — GAMIFICATION PROFILE ============== -->
+  <div>
+    <div class="label">P3.S1 · <b>Gamification Profile</b> (self-facing)</div>
+    <div class="phone">
+      <div class="header">
+        <div class="title"><span class="back">←</span> Gamification</div>
+        <div class="subtitle">Your progress</div>
+      </div>
+
+      <div class="gradient-card">
+        <div class="avatar">SP</div>
+        <div class="name">Sok Pisey</div>
+        <div class="province">Phnom Penh</div>
+        <div class="rank-badge">⭐ Rising Scholar · Tier 3</div>
+      </div>
+
+      <!-- THE 2x2 GRID -->
+      <div class="grid-2x2">
+        <div class="cell">
+          <div class="num gold">5,550</div>
+          <div class="lbl">Total XP</div>
+        </div>
+        <div class="cell">
+          <div class="num red">13</div>
+          <div class="lbl">Current Streak</div>
+        </div>
+        <div class="cell">
+          <div class="num">21</div>
+          <div class="lbl">Highest Streak</div>
+        </div>
+        <div class="cell">
+          <div class="num">42</div>
+          <div class="lbl">Lessons Done</div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active">XP History</div>
+        <div class="tab">Achievements</div>
+        <div class="tab">Rank History</div>
+      </div>
+
+      <div class="tab-content">
+        <div class="xp-row">
+          <div class="ico">🪙</div>
+          <div class="src">Lesson completed: Fractions 101<span class="ts">Today, 9:42 AM</span></div>
+          <div class="amt">+80</div>
+        </div>
+        <div class="xp-row">
+          <div class="ico">🪙</div>
+          <div class="src">Daily streak bonus<span class="ts">Yesterday</span></div>
+          <div class="amt">+15</div>
+        </div>
+        <div class="xp-row">
+          <div class="ico">🪙</div>
+          <div class="src">Lesson completed: Intro to Algorithms<span class="ts">2 days ago</span></div>
+          <div class="amt">+60</div>
+        </div>
+        <div class="xp-row">
+          <div class="ico">🪙</div>
+          <div class="src">Achievement: 7-Day Streak<span class="ts">5 days ago</span></div>
+          <div class="amt">+100</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== P3.S6 — USER PROFILE (X-style) ============== -->
+  <div>
+    <div class="label">P3.S6 · <b>User Profile</b> (public-facing)</div>
+    <div class="phone">
+      <div class="header">
+        <div class="title"><span class="back">←</span> Sok Pisey</div>
+        <div class="subtitle">42 posts</div>
+      </div>
+
+      <div class="banner"></div>
+
+      <div class="profile-head">
+        <div class="edit-btn">Edit Profile</div>
+        <div class="profile-avatar">SP</div>
+        <div class="pname">Sok Pisey</div>
+        <div class="handle">@sokpisey</div>
+        <div class="bio">📚 Learning STEM &amp; Tech | 🏙️ Phnom Penh | 🔥 13-day streak | Goal: Top 10</div>
+        <div class="meta">🏔️ Phnom Penh · Joined March 2026</div>
+        <div class="follows"><b>128</b> Following · <b>342</b> Followers</div>
+      </div>
+
+      <!-- THE 1x4 BAR -->
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="num gold">5,550</div>
+          <div class="lbl">Total XP</div>
+        </div>
+        <div class="stat">
+          <div class="num red">13</div>
+          <div class="lbl">Streak</div>
+        </div>
+        <div class="stat">
+          <div class="num">42</div>
+          <div class="lbl">Lessons</div>
+        </div>
+        <div class="stat">
+          <div class="num gold">#15</div>
+          <div class="lbl">Prov. Rank</div>
+        </div>
+      </div>
+
+      <div class="rank-card">
+        <div class="top"><span>⭐</span><span class="rname">Rising Scholar · Tier 3</span></div>
+        <div class="next">450 XP to Gold Scholar</div>
+        <div class="progress"><div class="fill"></div></div>
+      </div>
+
+      <div class="showcase">
+        <div class="showcase-title">Achievements</div>
+        <div class="badges">
+          <div class="badge">🥇</div>
+          <div class="badge">🔥</div>
+          <div class="badge">🎓</div>
+          <div class="badge locked">🏆</div>
+          <div class="badge locked">💎</div>
+          <div class="badge locked">👑</div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active">Posts</div>
+        <div class="tab">Replies</div>
+        <div class="tab">Lessons</div>
+        <div class="tab">XP History</div>
+      </div>
+
+      <div class="post">
+        <div class="ph">
+          <div class="pa">SP</div>
+          <div>
+            <div class="pn">Sok Pisey</div>
+            <div class="ph-meta">@sokpisey · 2h · STEM</div>
+          </div>
+        </div>
+        <div class="pt">Just finished Fractions 101! 🔥 The teach-back reflection actually made me understand it properly this time.</div>
+        <div class="vote">
+          <span class="up">▲ 24</span><span>▼</span><span>💬 5</span><span>📤</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ex">
+  <h3>What you're looking at</h3>
+  <ul>
+    <li><b>Left = P3.S1 Gamification Profile.</b> Private dashboard. Header says "Your progress". The 2×2 grid shows 4 stats about <b>you only</b>: Total XP, Current Streak, <b>Highest Streak (21)</b>, Lessons Done. Below it: tabs for XP ledger, achievements, rank history.</li>
+    <li><b>Right = P3.S6 User Profile.</b> Public profile (X/Twitter style). Banner, avatar, bio, follower counts. The stats bar is a 1×4 horizontal row: Total XP, Streak, Lessons, <b>Province Rank (#15)</b>. Below it: rank progression card, achievement showcase, then tabs for Posts / Replies / Lessons / XP History.</li>
+    <li><b>The 4th cell is the tell.</b> P3.S1 shows <b>Highest Streak</b> (depth about yourself). P3.S6 shows <b>Province Rank</b> (social standing others care about). Same first 3 stats, different 4th = different purpose.</li>
+  </ul>
+</div>
+
+</body>
+</html>

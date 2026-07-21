@@ -3,10 +3,18 @@ package com.riksa.gamification.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.repository.UserRepository;
+import com.riksa.blog.repository.BlogLikeRepository;
+import com.riksa.blog.repository.BlogPostRepository;
+import com.riksa.common.enums.AchievementCriteriaType;
+import com.riksa.common.enums.TierType;
 import com.riksa.gamification.dto.*;
 import com.riksa.gamification.entity.*;
 import com.riksa.gamification.repository.*;
-import com.riksa.common.enums.TierType;
+import com.riksa.learning.repository.LessonCompletionRepository;
+import com.riksa.learning.repository.LessonRepository;
+import com.riksa.social.repository.CategoryRepository;
+import com.riksa.social.repository.PostRepository;
+import com.riksa.social.repository.ReactionRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -37,6 +45,14 @@ class GamificationServiceTest {
     @Mock private RankHistoryRepository rankHistoryRepository;
     @Mock private StreakMilestoneRepository streakMilestoneRepository;
     @Mock private UserRepository userRepository;
+    // ── repos for achievement progress computation ──
+    @Mock private LessonCompletionRepository lessonCompletionRepository;
+    @Mock private LessonRepository lessonRepository;
+    @Mock private CategoryRepository categoryRepository;
+    @Mock private PostRepository postRepository;
+    @Mock private ReactionRepository reactionRepository;
+    @Mock private BlogPostRepository blogPostRepository;
+    @Mock private BlogLikeRepository blogLikeRepository;
     @Spy  private ObjectMapper objectMapper = new ObjectMapper()
             .configure(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
 
@@ -191,20 +207,31 @@ class GamificationServiceTest {
         a1.setName("First Lesson");
         a1.setDescription("Complete your first lesson");
         a1.setIconUrl("icon1.png");
+        a1.setCriteriaType(AchievementCriteriaType.COMPLETE_N_COURSES);
+        a1.setCriteriaValue(1L);
 
         Achievement a2 = new Achievement();
         a2.setId(UUID.randomUUID());
         a2.setName("Streak Master");
         a2.setDescription("Reach a 7-day streak");
         a2.setIconUrl("icon2.png");
+        a2.setCriteriaType(AchievementCriteriaType.MAINTAIN_STREAK);
+        a2.setCriteriaValue(7L);
 
         UserAchievement ua1 = new UserAchievement();
         ua1.setUserId(userId);
         ua1.setAchievementId(a1.getId());
         ua1.setUnlockedAt(OffsetDateTime.now());
 
+        UserGamification ug = new UserGamification();
+        ug.setUserId(userId);
+        ug.setTotalXp(100);
+        ug.setCurrentStreak(3);
+
         when(achievementRepository.findAll()).thenReturn(List.of(a1, a2));
         when(userAchievementRepository.findByUserId(userId)).thenReturn(List.of(ua1));
+        when(userGamificationRepository.findByUserId(userId)).thenReturn(Optional.of(ug));
+        when(lessonCompletionRepository.countByUserId(userId)).thenReturn(1L);
 
         List<AchievementResponse> result = gamificationService.getAchievements(userId);
 

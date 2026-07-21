@@ -13,7 +13,6 @@ import java.util.UUID;
 
 @Repository
 public interface LessonRepository extends JpaRepository<Lesson, UUID> {
-
     @Query("""
         SELECT l FROM Lesson l
         WHERE (:categoryId IS NULL OR l.category.id = :categoryId)
@@ -23,4 +22,6 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
     Page<Lesson> findByFilters(@Param("categoryId") UUID categoryId,
                                @Param("difficulty") DifficultyLevel difficulty,
                                Pageable pageable);
+
+    long countByCategoryId(UUID categoryId);
 }

@@ -1,5 +1,5 @@
 -- ============================================================================
--- V14: Backfill user_gamification rows for existing users
+-- V15: Backfill user_gamification rows for existing users
 --
 -- When the gamification module was first built, no row was created in
 -- user_gamification at registration time. This means existing users who

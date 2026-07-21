@@ -4,6 +4,7 @@ import com.riksa.blog.entity.BlogPost;
 import com.riksa.blog.enums.BlogStatus;
 import com.riksa.blog.event.BlogApprovedEvent;
 import com.riksa.blog.event.BlogRejectedEvent;
+import com.riksa.blog.event.BlogPostApprovedEvent;
 import com.riksa.blog.repository.BlogPostRepository;
 import com.riksa.common.event.EventPublisher;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class BlogModerationService {
         post = blogPostRepository.save(post);
 
         eventPublisher.publish(new BlogApprovedEvent(this, postId, post.getAuthorId(), moderatorId));
+        eventPublisher.publish(new BlogPostApprovedEvent(this, post.getId(), post.getAuthorId()));
         return post;
     }
 

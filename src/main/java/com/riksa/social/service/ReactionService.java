@@ -3,9 +3,11 @@ package com.riksa.social.service;
 import com.riksa.social.entity.Post;
 import com.riksa.social.entity.Reaction;
 import com.riksa.social.enums.ReactionType;
+import com.riksa.social.event.ReactionReceivedEvent;
 import com.riksa.social.repository.PostRepository;
 import com.riksa.social.repository.ReactionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,7 @@ public class ReactionService {
 
     private final ReactionRepository reactionRepository;
     private final PostRepository postRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public Post react(UUID userId, UUID postId, UUID commentId, ReactionType type) {
@@ -45,7 +48,15 @@ public class ReactionService {
             reaction.setCommentId(commentId);
             reaction.setType(type);
             reactionRepository.save(reaction);
-            return adjustPostCounter(postId, +1);
+            Post updatedPost = adjustPostCounter(postId, +1);
+
+            // Notify achievement system that the post owner received a reaction
+            if (postId != null) {
+                Post post = getPost(postId);
+                eventPublisher.publishEvent(new ReactionReceivedEvent(this, postId, post.getAuthorId()));
+            }
+
+            return updatedPost;
         } catch (DataIntegrityViolationException e) {
             Reaction reaction = reactionRepository
                     .findByUserIdAndPostIdAndCommentId(userId, postId, commentId)
