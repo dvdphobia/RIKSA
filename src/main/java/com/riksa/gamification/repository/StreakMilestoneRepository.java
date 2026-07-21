@@ -13,5 +13,5 @@ public interface StreakMilestoneRepository extends JpaRepository<StreakMilestone
      * Find the highest milestone the user qualifies for based on their streak count.
      * Returns the milestone with the largest minStreak that is <= the given streak.
      */
-    Optional<StreakMilestone> findFirstByMinStreakLessThanEqualOrderByMinStreakDesc(int minStreak);
+    Optional<StreakMilestone> findFirstByMinStreakLessThanEqualOrderByMinStreakDesc(long minStreak);
 }

@@ -53,7 +53,7 @@ public class AchievementService {
      * Check streak-based achievements after a streak update.
      */
     @Transactional
-    public void checkStreakAchievements(UUID userId, int currentStreak) {
+    public void checkStreakAchievements(UUID userId, long currentStreak) {
         // No dedicated STREAK criteria type in the current enum, but we check
         // COMPLETE_N_COURSES as a proxy for now. This can be extended with
         // a STREAK_N_DAYS criteria type if needed.

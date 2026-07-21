@@ -12,7 +12,7 @@ import java.util.UUID;
 @NoArgsConstructor
 public class XpTransactionResponse {
     private UUID id;
-    private int amount;
+    private long amount;
     private String sourceType;
     private UUID sourceId;
     private long runningBalance;

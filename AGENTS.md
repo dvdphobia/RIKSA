@@ -48,7 +48,7 @@
 | `GET` | `/api/v1/gamification/me` | Bearer JWT | — | `GamificationProfileResponse` | — |
 | `GET` | `/api/v1/gamification/xp` | Bearer JWT | `?cursor=<base64>&limit=20` | `CursorPage<XpTransactionResponse>` | ✅ |
 | `GET` | `/api/v1/gamification/achievements` | Bearer JWT | — | `List<AchievementResponse>` | — |
-| `GET` | `/api/v1/gamification/rank-history` | Bearer JWT | — | `List<RankHistoryResponse>` | — |
+| `GET` | `/api/v1/gamification/rank-history` | Bearer JWT | `?cursor=<base64>&limit=20` | `CursorPage<RankHistoryResponse>` | ✅ |
 | `GET` | `/api/v1/gamification/streak` | Bearer JWT | — | `StreakResponse` | — |
 | `GET` | `/api/v1/gamification/leaderboard` | Bearer JWT | `?cursor=<base64>&limit=20` | `CursorPage<LeaderboardEntryResponse>` | ✅ |
 
@@ -87,11 +87,12 @@
 
 | # | What | Notes |
 |---|------|-------|
-| 1 | `XP grant / streak bump` hot path | Need a service method that uses `findByIdForUpdate` (PESSIMISTIC_WRITE), increments `totalXp`, inserts `XpTransaction` with `runningBalance`, checks streak (compare `lastCompletedAt` to cutoff), and potentially inserts `RankHistory` on tier change. Callers: lesson completion, task completion, daily challenge. |
-| 2 | `Achievement check/earn` | After XP grant, check if any unearned achievements now meet criteria. Need to compare `totalXp`, completed lessons, streak, etc. against achievement definitions. |
-| 3 | `RankHistory` insertion logic | Detect tier change during XP grant and insert a `RankHistory` row. |
-| 4 | `LeaderboardSnapshot` batch job | Scheduled job that runs daily/weekly to materialize `LeaderboardSnapshot` rows. The entity + repo are already in `com.riksa.leaderboard`. |
-| 5 | Lesson completion → XP pipeline | Wire `Lesson` entity to actual course completion events. The `Lesson` entity (baseXp, difficulty) is designed for this but no completion logic exists yet. |
+| 1 | ~~XP grant / streak bump hot path~~ | ✅ DONE — XpLedgerService, StreakService, RankService, AchievementService + listeners all implemented. LessonCompletedEvent published by LessonCompletionService. |
+| 2 | ~~Achievement check/earn~~ | ✅ DONE — AchievementService + AchievementListener implemented. |
+| 3 | ~~RankHistory insertion logic~~ | ✅ DONE — RankService + RankListener implemented. |
+| 4 | ~~LeaderboardSnapshot batch job~~ | ✅ DONE — LeaderboardRefreshJob (@Scheduled every 5 min) + LeaderboardSnapshotService. |
+| 5 | ~~Lesson completion → XP pipeline~~ | ✅ DONE — LessonController + LessonCompletionService implemented. Publishes LessonCompletedEvent which triggers the full gamification hot path. |
+| 6 | AI Chat module | Schema exists (chat_sessions, chat_messages) but no Java code. Out of scope for v1. |
 
 ---
 

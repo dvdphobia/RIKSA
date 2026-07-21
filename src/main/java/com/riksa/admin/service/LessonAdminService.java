@@ -77,6 +77,18 @@ public class LessonAdminService {
         lessonRepository.delete(lesson);
     }
 
+    @Transactional(readOnly = true)
+    public List<LessonResponse> list(int page, int size) {
+        int safeSize = Math.max(1, Math.min(size, 100));
+        var pageable = org.springframework.data.domain.PageRequest.of(page, safeSize);
+        return lessonRepository.findAll(pageable).stream()
+                .map(lesson -> {
+                    List<Exercise> exercises = exerciseRepository.findByLessonId(lesson.getId());
+                    return toResponse(lesson, exercises);
+                })
+                .toList();
+    }
+
     @Transactional
     public BulkLessonResult bulkCreate(List<LessonCreateRequest> requests) {
         int success = 0;

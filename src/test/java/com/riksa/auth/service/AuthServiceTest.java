@@ -9,6 +9,7 @@ import com.riksa.auth.repository.UserRepository;
 import com.riksa.auth.security.JwtService;
 import com.riksa.auth.token.EmailVerificationTokenRepository;
 import com.riksa.auth.token.RefreshTokenRepository;
+import com.riksa.gamification.repository.UserGamificationRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -35,6 +36,7 @@ class AuthServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtService jwtService;
     @Mock private OtpService otpService;
+    @Mock private UserGamificationRepository userGamificationRepository;
 
     @InjectMocks private AuthService authService;
 

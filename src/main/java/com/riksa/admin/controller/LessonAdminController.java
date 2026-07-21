@@ -49,4 +49,11 @@ public class LessonAdminController {
     public ResponseEntity<BulkLessonResult> bulkCreate(@RequestBody @Valid List<LessonCreateRequest> requests) {
         return ResponseEntity.ok(lessonAdminService.bulkCreate(requests));
     }
+
+    @GetMapping
+    public ResponseEntity<List<LessonResponse>> list(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(lessonAdminService.list(page, size));
+    }
 }

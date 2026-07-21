@@ -22,7 +22,7 @@ public class XpTransaction {
     private UUID userId;
 
     @Column(nullable = false)
-    private int amount;
+    private long amount;
 
     @Column(name = "source_type", nullable = false, length = 50)
     private String sourceType;

@@ -13,10 +13,10 @@ import java.util.UUID;
 public class StreakUpdatedEvent extends DomainEvent {
 
     private final UUID userId;
-    private final int currentStreak;
-    private final int highestStreak;
+    private final long currentStreak;
+    private final long highestStreak;
 
-    public StreakUpdatedEvent(Object source, UUID userId, int currentStreak, int highestStreak) {
+    public StreakUpdatedEvent(Object source, UUID userId, long currentStreak, long highestStreak) {
         super(source);
         this.userId = userId;
         this.currentStreak = currentStreak;

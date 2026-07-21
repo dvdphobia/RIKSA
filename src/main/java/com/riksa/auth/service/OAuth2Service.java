@@ -11,6 +11,8 @@ import com.riksa.auth.repository.UserRepository;
 import com.riksa.auth.security.JwtService;
 import com.riksa.auth.token.RefreshToken;
 import com.riksa.auth.token.RefreshTokenRepository;
+import com.riksa.gamification.entity.UserGamification;
+import com.riksa.gamification.repository.UserGamificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +36,7 @@ public class OAuth2Service {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final GoogleOAuthService googleOAuthService;
+    private final UserGamificationRepository userGamificationRepository;
 
     @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
@@ -97,6 +100,13 @@ public class OAuth2Service {
             }
 
             user = userRepository.save(user);
+
+            // Create gamification row for new Google OAuth users
+            if (!userGamificationRepository.existsByUserId(user.getId())) {
+                UserGamification gamification = new UserGamification();
+                gamification.setUserId(user.getId());
+                userGamificationRepository.save(gamification);
+            }
         }
 
         return buildAuthResponse(user);

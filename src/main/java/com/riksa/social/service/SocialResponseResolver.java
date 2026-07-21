@@ -1,0 +1,138 @@
+package com.riksa.social.service;
+
+import com.riksa.auth.entity.User;
+import com.riksa.auth.repository.UserRepository;
+import com.riksa.social.dto.CategoryResponse;
+import com.riksa.social.dto.CommentPage;
+import com.riksa.social.dto.CommentResponse;
+import com.riksa.social.dto.PageInfo;
+import com.riksa.social.dto.PostResponse;
+import com.riksa.social.dto.SocialMapper;
+import com.riksa.social.dto.UserResponse;
+import com.riksa.social.entity.Category;
+import com.riksa.social.entity.Comment;
+import com.riksa.social.entity.Post;
+import com.riksa.social.entity.Reaction;
+import com.riksa.social.enums.ReactionType;
+import com.riksa.social.repository.CommentRepository;
+import com.riksa.social.repository.ReactionRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Resolves the cross-domain fields on PostResponse / CommentResponse that the
+ * GraphQL schema declares but the existing controllers were leaving null:
+ *   - Post.author      (User from auth domain)
+ *   - Post.myReaction   (current user's reaction on the post)
+ *   - Post.comments     (nested CommentPage)
+ *   - Comment.author    (User from auth domain)
+ *   - Comment.myReaction (current user's reaction on the comment)
+ */
+@Service
+@RequiredArgsConstructor
+public class SocialResponseResolver {
+
+    private final UserRepository userRepository;
+    private final ReactionRepository reactionRepository;
+    private final CommentRepository commentRepository;
+    private final CategoryService categoryService;
+
+    // ── Post ──────────────────────────────────────────────
+
+    public PostResponse resolvePost(Post post, UUID currentUserId) {
+        return SocialMapper.toPostResponse(
+                post,
+                resolveUser(post.getAuthorId()),
+                resolveCategory(post.getCategoryId(), currentUserId),
+                resolveMyReaction(currentUserId, post.getId(), null)
+        );
+    }
+
+    public PostResponse resolvePostWithComments(Post post, UUID currentUserId, int commentLimit) {
+        return SocialMapper.toPostResponse(
+                post,
+                resolveUser(post.getAuthorId()),
+                resolveCategory(post.getCategoryId(), currentUserId),
+                resolveMyReaction(currentUserId, post.getId(), null)
+        );
+    }
+
+    public List<PostResponse> resolvePosts(List<Post> posts, UUID currentUserId) {
+        return posts.stream()
+                .map(post -> resolvePost(post, currentUserId))
+                .toList();
+    }
+
+    // ── Comments ─────────────────────────────────────────
+
+    public CommentPage resolveComments(UUID postId, UUID currentUserId, int limit) {
+        List<Comment> comments = commentRepository
+                .findByPostIdAndParentIdIsNullOrderByCreatedAtAsc(postId, PageRequest.of(0, limit + 1));
+
+        boolean hasNext = comments.size() > limit;
+        if (hasNext) comments = comments.subList(0, limit);
+
+        List<CommentResponse> edges = comments.stream()
+                .map(c -> resolveComment(c, currentUserId))
+                .toList();
+
+        UUID endCursor = hasNext && !comments.isEmpty() ? comments.get(comments.size() - 1).getId() : null;
+        return new CommentPage(edges, new PageInfo(hasNext, endCursor));
+    }
+
+    public CommentPage resolveReplies(UUID parentId, UUID currentUserId, int limit) {
+        List<Comment> replies = commentRepository
+                .findByParentIdOrderByCreatedAtAsc(parentId, PageRequest.of(0, limit + 1));
+
+        boolean hasNext = replies.size() > limit;
+        if (hasNext) replies = replies.subList(0, limit);
+
+        List<CommentResponse> edges = replies.stream()
+                .map(c -> resolveComment(c, currentUserId))
+                .toList();
+
+        UUID endCursor = hasNext && !replies.isEmpty() ? replies.get(replies.size() - 1).getId() : null;
+        return new CommentPage(edges, new PageInfo(hasNext, endCursor));
+    }
+
+    public CommentResponse resolveComment(Comment comment, UUID currentUserId) {
+        return SocialMapper.toCommentResponse(
+                comment,
+                resolveUser(comment.getAuthorId()),
+                resolveMyReaction(currentUserId, null, comment.getId())
+        );
+    }
+
+    // ── Helpers ──────────────────────────────────────────
+
+    public UserResponse resolveUser(UUID userId) {
+        if (userId == null) return null;
+        return userRepository.findById(userId)
+                .map(SocialMapper::toUserResponse)
+                .orElse(null);
+    }
+
+    public CategoryResponse resolveCategory(UUID categoryId, UUID currentUserId) {
+        if (categoryId == null) return null;
+        return categoryService.listCategories().stream()
+                .filter(c -> c.getId().equals(categoryId))
+                .findFirst()
+                .map(c -> SocialMapper.toCategoryResponse(
+                        c,
+                        categoryService.getMemberCount(c.getId()),
+                        categoryService.isMember(currentUserId, c.getId())))
+                .orElse(null);
+    }
+
+    public ReactionType resolveMyReaction(UUID currentUserId, UUID postId, UUID commentId) {
+        if (currentUserId == null) return null;
+        Optional<Reaction> reaction = reactionRepository
+                .findByUserIdAndPostIdAndCommentId(currentUserId, postId, commentId);
+        return reaction.map(Reaction::getType).orElse(null);
+    }
+}

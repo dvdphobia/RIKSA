@@ -23,7 +23,7 @@
    - 8.4 [Blog](#84-blog--apiv1blog)
    - 8.5 [Admin](#85-admin--apiv1admin)
    - 8.6 [Social (GraphQL)](#86-social-graphql--graphql)
-   - 8.7 [Learning (not yet implemented)](#87-learning--not-yet-implemented)
+   - 8.7 [Learning](#87-learning--apiv1lessons)
    - 8.8 [AI Chat (not yet implemented)](#88-ai-chat--not-yet-implemented)
 9. [Event-driven pipeline (the hot path)](#9-event-driven-pipeline-the-hot-path)
 10. [Common infrastructure](#10-common-infrastructure)
@@ -203,9 +203,12 @@ riksa-api/
     │   │   │   ├── entity/         # UserGamification, XpTransaction, RankTier, RankHistory, Achievement, UserAchievement, StreakMilestone
     │   │   │   ├── repository/     # …7 repos with cursor JPQL queries
     │   │   │   └── dto/            # CursorPage<T>, GamificationProfileResponse, XpTransactionResponse, ...
-    │   │   ├── learning/           # ✗ schema + entities only; no controller yet
-    │   │   │   ├── entity/         # Lesson, Exercise
-    │   │   │   ├── repository/     # LessonRepository, ExerciseRepository
+    │   │   ├── learning/           # ★ implemented — lesson catalog + completion + exercise attempts
+    │   │   │   ├── controller/     # LessonController (GET list, GET detail, POST attempt, POST complete)
+    │   │   │   ├── service/        # LessonService, LessonCompletionService, ExerciseAttemptService, ReflectionValidator
+    │   │   │   ├── entity/         # Lesson, Exercise, LessonCompletion, ExerciseAttempt
+    │   │   │   ├── repository/     # LessonRepository, ExerciseRepository, LessonCompletionRepository, ExerciseAttemptRepository
+    │   │   │   ├── dto/            # LessonListResponse, LessonDetailResponse, ExerciseResponse, CompletionRequest/Response, AnswerResult, ExerciseAttemptRequest
     │   │   │   └── event/          # LessonCompletedEvent
     │   │   ├── leaderboard/        # ★ partial — snapshot job + query APIs
     │   │   │   ├── controller/     # LeaderboardController
@@ -262,9 +265,10 @@ riksa-api/
 | V7 | `V7__seed_gamification_data.sql` | 6 rank tiers, 8 streak milestones, 6 achievements |
 | V8 | `V8__add_user_gamification_version.sql` | `user_gamification.version` (optimistic locking) |
 | V9 | `V9__bigint_for_xp_columns.sql` | XP columns → BIGINT |
-| V9 (dup name) | `V9__add_blog_likes_created_at.sql` | `blog_likes.created_at` ⚠️ two files share version 9 — see §13 |
 | V10 | `V10__add_blog_posts_cover_url.sql` | `blog_posts.cover_url` |
 | V11 | `V11__add_blog_rejection_reason.sql` | `blog_posts.rejection_reason` |
+| V12 | `V12__add_blog_likes_created_at.sql` | `blog_likes.created_at` (renamed from duplicate V9) |
+| V13 | `V13__add_lesson_reflection_and_attempts.sql` | `lessons.reflection_prompt`, `lesson_completions.reflection_text` + `score`, `exercise_attempts` table |
 
 ### Key tables (quick reference)
 
@@ -433,12 +437,14 @@ All admin controllers use `@PreAuthorize` at the class level. JWT must carry the
 
 | Verb | Path | Request | Response |
 |---|---|---|---|
+| GET | `/` | `?page=0&size=20` | `List<UserProfileResponse>` |
 | POST | `/{id}/role` | `RoleUpdateRequest {role: "MODERATOR"\|"ADMIN"}` | `UserProfileResponse` |
 
 #### 8.5.2 Lessons — `/api/v1/admin/lessons` (🛡️ MODERATOR)
 
 | Verb | Path | Request | Response | Notes |
 |---|---|---|---|---|
+| GET | `/` | `?page=0&size=20` | `List<LessonResponse>` | Paginated list |
 | POST | `/` | `LessonCreateRequest` (see below) | `201` + `LessonResponse` | `Location` header |
 | PUT | `/{id}` | `LessonUpdateRequest` | `LessonResponse` | |
 | DELETE | `/{id}` | — | `204` | |
@@ -468,7 +474,7 @@ All admin controllers use `@PreAuthorize` at the class level. JWT must carry the
 
 ### 8.6 Social (GraphQL) — `/graphql` (🔐 Bearer)
 
-Single endpoint: `POST /graphql` with `{ "query": "...", "variables": {...} }`. Schema: `src/main/resources/graphql/social.graphqls`. Controllers are Spring `@Controller` classes using `@QueryMapping` / `@MutationMapping` (not `@RestController`).
+Single endpoint: `POST /graphql` with `{ "query": "...", "variables": {...} }`. Schema: `src/main/resources/graphql/social.graphqls`. Controllers are Spring `@Controller` classes using `@QueryMapping` / `@MutationMapping` / `@SchemaMapping` (not `@RestController`). All queries and mutations are implemented.
 
 #### Queries
 | Name | Args | Returns | Status |
@@ -476,7 +482,7 @@ Single endpoint: `POST /graphql` with `{ "query": "...", "variables": {...} }`. 
 | `feed` | `categoryId?, cursor?, limit=20` | `FeedPage { edges: [Post], pageInfo }` | ✅ |
 | `post` | `id` | `Post` | ✅ |
 | `categories` | — | `[Category]` | ✅ |
-| `comments` | `postId, cursor?, limit=20` | `CommentPage` | ❌ **no resolver yet** — mock client-side |
+| `comments` | `postId, cursor?, limit=20` | `CommentPage` | ✅ |
 
 #### Mutations
 | Name | Args | Returns | Status |
@@ -489,7 +495,7 @@ Single endpoint: `POST /graphql` with `{ "query": "...", "variables": {...} }`. 
 | `deleteComment` | `id` | `Boolean` | ✅ |
 | `react` | `input: {postId?, commentId?, type!}` | `Post` | ✅ |
 | `removeReaction` | `postId, commentId` | `Post` | ✅ |
-| `sharePost` | `input: {postId, platform?}` | `Post` | ❌ **no resolver yet** — mock client-side |
+| `sharePost` | `input: {postId, platform?}` | `Post` | ✅ |
 | `joinCategory` | `categoryId` | `Category` | ✅ |
 | `leaveCategory` | `categoryId` | `Category` | ✅ |
 
@@ -498,11 +504,11 @@ Single endpoint: `POST /graphql` with `{ "query": "...", "variables": {...} }`. 
 type Post {
   id: UUID!  title: String!  content: String!  mediaUrl: String
   reactionCount: Int!  commentCount: Int!  shareCount: Int!
-  author: User!            # ⚠️ selecting this currently ERRORS (non-null, returns null)
+  author: User!            # ✅ resolved via SocialResponseResolver
   category: Category!      # ✅
-  myReaction: ReactionType # ⚠️ always null until backend fix
+  myReaction: ReactionType # ✅ resolved via SocialResponseResolver
   createdAt: DateTime!  updatedAt: DateTime!
-  comments(cursor: UUID, limit: Int = 10): CommentPage!  # ⚠️ no field resolver
+  comments(cursor: UUID, limit: Int = 10): CommentPage!  # ✅ field resolver
 }
 type Category { id, name, slug, description, iconUrl, memberCount, joined }
 type Comment  { id, content, author, postId, parentId, myReaction, createdAt, updatedAt, replies }
@@ -512,25 +518,24 @@ enum SharePlatform { TELEGRAM FACEBOOK COPY_LINK }
 ```
 
 #### Integration rules for the Flutter dev
-- **Do not select `author` or nested `comments`/`replies` in live queries** — non-null `author: User!` returning null will error the whole query. Work around by resolving the author via REST `/api/v1/auth/me`-style lookup until the backend adds a field resolver.
-- `comments` query and `sharePost` mutation have **no server resolver** — mock client-side.
-- `myReaction` is currently always null — treat as "no reaction".
-- File a backend ticket for all of the above (see `flutter.md` §6).
+- All GraphQL queries and mutations are now fully implemented server-side.
+- `author`, `myReaction`, `comments`, and `replies` field resolvers work correctly.
+- No client-side mocking needed for social features.
 
 ---
 
-### 8.7 Learning — NOT yet implemented
+### 8.7 Learning — `/api/v1/lessons` (🔐 Bearer)
 
-Entities `Lesson` (`baseXp`, `difficulty`, `categoryId`) and `Exercise` (`question`, `answerKey`, `difficulty`, `points`) exist, plus `LessonRepository`, `ExerciseRepository`, and the `LessonCompletedEvent`. **There is no `LearningController`** (the `controller/` folder is just `.gitkeep`).
+Controller: `LessonController.java`. Entities: `Lesson`, `Exercise`, `LessonCompletion`, `ExerciseAttempt`.
 
-**Proposed contract** (negotiate with backend; build Flutter against fakes in the meantime):
-```
-GET  /api/v1/learning/courses              -> List<CourseResponse>
-GET  /api/v1/learning/lessons/{id}         -> LessonResponse
-POST /api/v1/learning/lessons/{id}/complete -> {xpAwarded, ...}   # emits LessonCompletedEvent
-```
+| Verb | Path | Query/Body | Response | Notes |
+|---|---|---|---|---|
+| GET | `/` | `?categoryId=&difficulty=&page=0&size=20` | `List<LessonListResponse>` | Paginated, filter by category + difficulty |
+| GET | `/{id}` | — | `LessonDetailResponse` | Full lesson + exercises (no answerKey) |
+| POST | `/{id}/exercises/{exerciseId}/attempt` | `ExerciseAttemptRequest {answer}` | `AnswerResult {exerciseId, correct}` | Submit one exercise answer, get correct/incorrect |
+| POST | `/{id}/complete` | `CompletionRequest {reflectionText}` | `CompletionResponse {completionId, lessonId, xpEarned, score, passed}` | All exercises must be correct first. Publishes `LessonCompletedEvent`. |
 
-When `/complete` lands, it should publish `LessonCompletedEvent{userId, lessonId, xpEarned}` — the gamification listeners (§9) consume it.
+**Flow:** Read lesson → practice exercises (attempt each) → write reflection → complete → XP awarded via gamification hot path.
 
 ---
 
@@ -575,7 +580,7 @@ LearningService.completeLesson(userId, lessonId)
 **Listeners in `com.riksa.gamification.listener`:** `XpLedgerListener`, `StreakListener`, `RankListener`, `AchievementListener`.
 **Source event:** `com.riksa.learning.event.LessonCompletedEvent` extends `com.riksa.common.event.DomainEvent`.
 
-> ⚠️ Per `AGENTS.md`, the **read side** (the 6 GET endpoints in §8.2) is done. The **write side** (this hot path) is partially stubbed — the listeners exist but `LearningService.completeLesson` does not. There is no XP-grant entry point yet. Lesson completion → XP pipeline is the hardest remaining piece.
+> ✅ The entire hot path is now implemented. `LessonCompletionService.completeLesson()` publishes `LessonCompletedEvent`, which is consumed by `XpLedgerListener`, `StreakListener`, `RankListener`, and `AchievementListener`. Each listener owns its own table and publishes downstream events.
 
 **Concurrency notes:**
 - `user_gamification.version` is an `@Version` column for **optimistic locking**.
@@ -660,8 +665,8 @@ lib/
 | Blog | REST `/api/v1/blog/**` | ✅ Done | Build fully now |
 | Gamification | REST `/api/v1/gamification/**` | ✅ Done | Build fully now |
 | Leaderboard | REST `/api/v1/leaderboard/**` | ✅ Done | Build fully now |
-| Social | GraphQL `/graphql` | ⚠️ Partial | UI now; some fields broken (§8.6) |
-| Learning | REST | ❌ Stub (only `Lesson` entity) | Build against mocks; wire when backend lands |
+| Social | GraphQL `/graphql` | ✅ Done | Build fully now |
+| Learning | REST `/api/v1/lessons/**` | ✅ Done | Build fully now |
 | AI Chat | — | ❌ Empty | Out of scope for v1 |
 | Admin | — | ❌ Empty (separate web panel) | Out of scope |
 
@@ -711,14 +716,14 @@ Mirrors `screenDetail/screenDesign.md`. For each screen: the UI elements, the AP
 | **P1.S11 Google OAuth Redirect** | "Sign in with Google" button → id token | `POST /api/v1/auth/google` | body `{googleIdToken}` |
 | **P1.S12 Edit Profile** | displayName, bio, gender, province | `GET /api/v1/auth/me`, `PUT /api/v1/auth/me` | `UpdateProfileRequest{displayName, bio, gender, provinceId}` |
 
-### Phase 2 — Core Learning Loop (6 screens) — ⚠️ backend not implemented
+### Phase 2 — Core Learning Loop (6 screens)
 
 | Screen | UI summary | API(s) consumed | Notes |
 |---|---|---|---|
 | **P2.S1 Home / Dashboard** | gamification banner (XP bar + streak), Today's Challenge, Quick Actions, recent activity post | `GET /api/v1/gamification/me`, `GET /api/v1/gamification/streak`, `GET /api/v1/leaderboard/me`, GraphQL `feed` | "Today's Challenge" has no backend yet — mock |
-| **P2.S2 Learn: Lesson Catalog** | tab bar (All/STEM/Tech/History), difficulty pills, "Continue" card, lesson cards | `GET /api/v1/learning/courses` (proposed), `GET /api/v1/learning/lessons/{id}` (proposed) | **Use `FakeLearningRepository`** until backend lands |
-| **P2.S3 Lesson Detail** | lesson overview, exercise count, XP reward, "Start" | `GET /api/v1/learning/lessons/{id}` (proposed) | mock |
-| **P2.S4 Read → Practice → Reflect** | progress bar, question, 4 option cards, "Next" | `POST /api/v1/learning/lessons/{id}/complete` (proposed) | on completion publishes `LessonCompletedEvent` server-side; returns `{xpAwarded, ...}` |
+| **P2.S2 Learn: Lesson Catalog** | tab bar (All/STEM/Tech/History), difficulty pills, "Continue" card, lesson cards | `GET /api/v1/lessons?categoryId=&difficulty=&page=&size=` | Filters by category + difficulty |
+| **P2.S3 Lesson Detail** | lesson overview, exercise count, XP reward, "Start" | `GET /api/v1/lessons/{id}` | Full lesson + exercises (no answerKey exposed) |
+| **P2.S4 Read → Practice → Reflect** | progress bar, question, 4 option cards, "Next" | `POST /api/v1/lessons/{id}/exercises/{exerciseId}/attempt`, `POST /api/v1/lessons/{id}/complete` | Attempt exercises one by one, then submit reflection to complete |
 | **P2.S5 Completion** | score %, XP earned badge, rank-up card, streak update card | response from `/complete` + `GET /api/v1/gamification/me` (refreshed) + `GET /api/v1/gamification/rank-history` | rank-up animation triggers when rank-history shows a new entry |
 | **P2.S6 Resume / In-Progress** | "Continue where you left off" | (no resume endpoint yet — local state) | mock |
 
@@ -772,15 +777,15 @@ Mirrors `screenDetail/screenDesign.md`. For each screen: the UI elements, the AP
 
 Things a newcomer will trip over:
 
-1. **Learning module has no controller.** Entities, repos, and `LessonCompletedEvent` exist; the `controller/`, `dto/`, `service/` packages are `.gitkeep`-only. Build Flutter against fakes.
+1. **Learning module is now implemented.** `LessonController` at `/api/v1/lessons` with GET list, GET detail, POST exercise attempt, POST complete. `LessonCompletionService` publishes `LessonCompletedEvent` which triggers the full gamification hot path (XP, streak, rank, achievements).
 2. **AI Chat module has no code at all** — only DB schema. Out of scope for v1.
-3. **Admin has no list endpoints.** You can create/update/delete lessons, categories, blog moderation, user roles — but there is no `GET /api/v1/admin/lessons` or `GET /api/v1/admin/users`. The admin panel will need these added or aggregate from the public endpoints.
-4. **Social GraphQL has missing resolvers.** `comments(postId, ...)` query and `sharePost(...)` mutation are declared in the schema but have no `@QueryMapping`/`@MutationMapping` — they will error. The `Post.author` field is non-null in the schema but the resolver returns null, so selecting `author` errors the whole query. `myReaction` is always null. Mock all of these client-side and file one backend ticket.
+3. **Admin list endpoints added.** `GET /api/v1/admin/lessons?page=&size=` and `GET /api/v1/admin/users?page=&size=` now exist for the admin panel.
+4. **Social GraphQL resolvers fixed.** `comments(postId, cursor, limit)` query, `sharePost(input)` mutation, `Post.comments` field resolver, and `Comment.replies` field resolver are all implemented. `Post.author` and `Post.myReaction` are now resolved correctly (no longer null).
 5. **Two duplicate blog moderation endpoints.** `PATCH /api/v1/blog/admin/{id}/status?status=...` (on `BlogController`) and `PATCH /api/v1/admin/blog/{id}/status` body `{status, reason}` (on `BlogAdminController`). Both require MODERATOR. Prefer the admin one.
-6. **Two `/leaderboard` endpoints.** `GET /api/v1/gamification/leaderboard` (cursor, live) and `GET /api/v1/leaderboard` (offset-less list, snapshot-backed, scope + date). Pick one for the main UI and be consistent.
-7. **`AGENTS.md` is stale on one point.** It lists `/rank-history` as returning `List<RankHistoryResponse>`; the current `GamificationController` returns `CursorPage<RankHistoryResponse>`. Trust the controller.
+6. **Two `/leaderboard` endpoints.** `GET /api/v1/gamification/leaderboard` (cursor, live) and `GET /api/v1/leaderboard` (snapshot-backed, scope + date). Pick one for the main UI and be consistent.
+7. **Blog events now published.** `BlogApprovedEvent` and `BlogRejectedEvent` are published by `BlogModerationService` on approve/reject. `LeaderboardRefreshedEvent` is published by `LeaderboardRefreshJob` after each refresh cycle.
 8. **`LoginRequest` field names disagree across docs.** `flutter.md` says `{username, password}`, `screenDetail/screenDesign.md` says `{email, password}`. Read `auth/dto/LoginRequest.java` before wiring the form.
-9. **Two Flyway migrations share version `V9`** (`V9__bigint_for_xp_columns.sql` and `V9__add_blog_likes_created_at.sql`). Flyway will fail on fresh installs with "duplicate version" — rename one to `V12` (or higher) before resetting the DB.
+9. **Duplicate V9 Flyway migration fixed.** The blog_likes migration was renamed to `V12__add_blog_likes_created_at.sql`. Migrations V1-V13 are now sequential with no duplicates.
 10. **`ddl-auto=validate`** means the schema is the source of truth. If you add a field to an entity, you must add a migration too, or boot fails.
 11. **No `user_follows`, `users.banner_url`, `user_interests`, `exercise_options` (multiple choice), `daily_challenges`, `posts.view_count`.** The UI references some of these — they will need migrations before the UI can be fully wired.
 12. **Reactions are UPVOTE/DOWNVOTE/HAHA/LOVE** in the DB and schema, but the UI design only shows Reddit-style up/down. The backend hasn't been narrowed — decide which side changes.

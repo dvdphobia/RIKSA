@@ -41,7 +41,7 @@ public class StreakService {
      * @return the updated streak count
      */
     @Transactional
-    public int updateStreak(UUID userId) {
+    public long updateStreak(UUID userId) {
         UserGamification ug = userGamificationRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new IllegalStateException(
                         "UserGamification row not found for user " + userId));
@@ -49,7 +49,7 @@ public class StreakService {
         OffsetDateTime now = OffsetDateTime.now(CAMBODIA_TZ);
         OffsetDateTime lastCompleted = ug.getLastCompletedAt();
 
-        int newStreak;
+        long newStreak;
 
         if (lastCompleted == null) {
             // First completion ever

@@ -2,12 +2,14 @@ package com.riksa.social.controller;
 
 import com.riksa.social.dto.*;
 import com.riksa.social.entity.Post;
-import com.riksa.social.service.CategoryService;
 import com.riksa.social.service.PostService;
+import com.riksa.social.service.ShareService;
+import com.riksa.social.service.SocialResponseResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
+import org.springframework.graphql.data.method.annotation.SchemaMapping;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
@@ -19,13 +21,14 @@ import java.util.UUID;
 public class PostController {
 
     private final PostService postService;
-    private final CategoryService categoryService;
+    private final ShareService shareService;
+    private final SocialResponseResolver resolver;
 
     @QueryMapping("post")
     public PostResponse post(@Argument UUID id) {
         UUID userId = getCurrentUserId();
         Post post = postService.getPost(id);
-        return buildPostResponse(post, userId);
+        return resolver.resolvePost(post, userId);
     }
 
     @MutationMapping("createPost")
@@ -38,14 +41,14 @@ public class PostController {
                 input.mediaUrl(),
                 input.categoryId()
         );
-        return buildPostResponse(post, userId);
+        return resolver.resolvePost(post, userId);
     }
 
     @MutationMapping("updatePost")
     public PostResponse updatePost(@Argument UpdatePostInput input) {
         UUID userId = getCurrentUserId();
         Post post = postService.updatePost(userId, input.id(), input.title(), input.content());
-        return buildPostResponse(post, userId);
+        return resolver.resolvePost(post, userId);
     }
 
     @MutationMapping("deletePost")
@@ -55,18 +58,20 @@ public class PostController {
         return true;
     }
 
-    private PostResponse buildPostResponse(Post post, UUID userId) {
-        var category = categoryService.listCategories().stream()
-                .filter(c -> c.getId().equals(post.getCategoryId()))
-                .findFirst().orElse(null);
+    @MutationMapping("sharePost")
+    public PostResponse sharePost(@Argument SharePostInput input) {
+        UUID userId = getCurrentUserId();
+        Post post = shareService.sharePost(userId, input.postId(), input.platform());
+        return resolver.resolvePost(post, userId);
+    }
 
-        var categoryResponse = category != null
-                ? SocialMapper.toCategoryResponse(category,
-                categoryService.getMemberCount(category.getId()),
-                categoryService.isMember(userId, category.getId()))
-                : null;
+    // ── Field resolver for nested comments on Post ──────────
 
-        return SocialMapper.toPostResponse(post, null, categoryResponse, null);
+    @SchemaMapping(field = "comments", typeName = "Post")
+    public CommentPage postComments(PostResponse post, @Argument UUID cursor, @Argument Integer limit) {
+        UUID userId = getCurrentUserId();
+        int pageLimit = (limit != null && limit > 0) ? Math.min(limit, 50) : 10;
+        return resolver.resolveComments(post.id(), userId, pageLimit);
     }
 
     private UUID getCurrentUserId() {

@@ -12,8 +12,8 @@ import java.util.UUID;
 public class GamificationProfileResponse {
     private UUID userId;
     private long totalXp;
-    private int currentStreak;
-    private int highestStreak;
+    private long currentStreak;
+    private long highestStreak;
     private String currentTier;
     private String currentTierIcon;
     private String nextTier;

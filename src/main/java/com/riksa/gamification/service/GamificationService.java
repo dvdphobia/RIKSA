@@ -237,7 +237,7 @@ public class GamificationService {
         r.setCurrentMilestoneIcon(currentMilestone != null ? currentMilestone.getIconUrl() : null);
         r.setNextMilestoneName(nextMilestone != null ? nextMilestone.getStreakName() : null);
         r.setNextMilestoneMinStreak(nextMilestone != null ? nextMilestone.getMinStreak() : 0);
-        r.setDaysToNext(nextMilestone != null ? nextMilestone.getMinStreak() - user.getCurrentStreak() : 0);
+        r.setDaysToNext(nextMilestone != null ? (int)(nextMilestone.getMinStreak() - user.getCurrentStreak()) : 0);
 
         return r;
     }

@@ -126,7 +126,7 @@ class StreakServiceTest {
 
         when(userGamificationRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(ug));
 
-        int result = streakService.updateStreak(userId);
+        long result = streakService.updateStreak(userId);
 
         assertThat(result).isEqualTo(1);
         assertThat(ug.getCurrentStreak()).isEqualTo(1);
@@ -147,7 +147,7 @@ class StreakServiceTest {
 
         when(userGamificationRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(ug));
 
-        int result = streakService.updateStreak(userId);
+        long result = streakService.updateStreak(userId);
 
         assertThat(result).isEqualTo(6);
         assertThat(ug.getCurrentStreak()).isEqualTo(6);
@@ -165,7 +165,7 @@ class StreakServiceTest {
 
         when(userGamificationRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(ug));
 
-        int result = streakService.updateStreak(userId);
+        long result = streakService.updateStreak(userId);
 
         assertThat(result).isEqualTo(5); // No change
         verify(userGamificationRepository, never()).save(any());
@@ -184,7 +184,7 @@ class StreakServiceTest {
 
         when(userGamificationRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(ug));
 
-        int result = streakService.updateStreak(userId);
+        long result = streakService.updateStreak(userId);
 
         assertThat(result).isEqualTo(1);
         assertThat(ug.getCurrentStreak()).isEqualTo(1);

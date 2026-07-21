@@ -1,5 +1,7 @@
 # RIKSA Backend Build Guide
 
+> **⚠️ DEPRECATED:** This document was the original build plan. It has been superseded by `docs/PROJECT_GUIDE.md` which is the current source of truth. Some details here (e.g., social as REST instead of GraphQL, Spring Boot 3.2 instead of 4.0.6) are outdated. Use PROJECT_GUIDE.md for current architecture and endpoint contracts.
+
 *Single source of truth for the 3 backend developers. Everything needed to build the RIKSA API: architecture, endpoint inventory, file structure, domain boundaries, and task breakdown.*
 
 ---

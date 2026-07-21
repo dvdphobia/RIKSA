@@ -3,12 +3,12 @@ package com.riksa.blog.service;
 import com.riksa.blog.entity.BlogPost;
 import com.riksa.blog.enums.BlogStatus;
 import com.riksa.blog.repository.BlogPostRepository;
+import com.riksa.common.event.EventPublisher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -22,9 +22,11 @@ import static org.mockito.Mockito.*;
 class BlogModerationServiceTest {
 
     @Mock private BlogPostRepository blogPostRepository;
-    @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private EventPublisher eventPublisher;
 
     @InjectMocks private BlogModerationService blogModerationService;
+
+    private final UUID moderatorId = UUID.randomUUID();
 
     @Test
     void approve_pendingPost_setsApproved() {
@@ -36,7 +38,7 @@ class BlogModerationServiceTest {
         when(blogPostRepository.findById(postId)).thenReturn(Optional.of(post));
         when(blogPostRepository.save(any(BlogPost.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        BlogPost result = blogModerationService.approve(postId);
+        BlogPost result = blogModerationService.approve(postId, moderatorId);
 
         assertThat(result.getStatus()).isEqualTo(BlogStatus.APPROVED);
         assertThat(result.getRejectionReason()).isNull();
@@ -51,7 +53,7 @@ class BlogModerationServiceTest {
 
         when(blogPostRepository.findById(postId)).thenReturn(Optional.of(post));
 
-        assertThatThrownBy(() -> blogModerationService.approve(postId))
+        assertThatThrownBy(() -> blogModerationService.approve(postId, moderatorId))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Post already moderated");
     }
@@ -61,7 +63,7 @@ class BlogModerationServiceTest {
         UUID postId = UUID.randomUUID();
         when(blogPostRepository.findById(postId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> blogModerationService.approve(postId))
+        assertThatThrownBy(() -> blogModerationService.approve(postId, moderatorId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Blog post not found");
     }
@@ -76,7 +78,7 @@ class BlogModerationServiceTest {
         when(blogPostRepository.findById(postId)).thenReturn(Optional.of(post));
         when(blogPostRepository.save(any(BlogPost.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        BlogPost result = blogModerationService.reject(postId, "Inappropriate content");
+        BlogPost result = blogModerationService.reject(postId, "Inappropriate content", moderatorId);
 
         assertThat(result.getStatus()).isEqualTo(BlogStatus.REJECTED);
         assertThat(result.getRejectionReason()).isEqualTo("Inappropriate content");
@@ -91,7 +93,7 @@ class BlogModerationServiceTest {
 
         when(blogPostRepository.findById(postId)).thenReturn(Optional.of(post));
 
-        assertThatThrownBy(() -> blogModerationService.reject(postId, "reason"))
+        assertThatThrownBy(() -> blogModerationService.reject(postId, "reason", moderatorId))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Post already moderated");
     }
@@ -101,7 +103,7 @@ class BlogModerationServiceTest {
         UUID postId = UUID.randomUUID();
         when(blogPostRepository.findById(postId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> blogModerationService.reject(postId, "reason"))
+        assertThatThrownBy(() -> blogModerationService.reject(postId, "reason", moderatorId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Blog post not found");
     }

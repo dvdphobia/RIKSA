@@ -3,10 +3,8 @@ package com.riksa.social.controller;
 import com.riksa.social.dto.FeedPage;
 import com.riksa.social.dto.PageInfo;
 import com.riksa.social.dto.PostResponse;
-import com.riksa.social.dto.SocialMapper;
 import com.riksa.social.service.FeedService;
-import com.riksa.social.service.CategoryService;
-import com.riksa.social.service.ReactionService;
+import com.riksa.social.service.SocialResponseResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -22,7 +20,7 @@ import java.util.UUID;
 public class FeedController {
 
     private final FeedService feedService;
-    private final CategoryService categoryService;
+    private final SocialResponseResolver resolver;
 
     @QueryMapping("feed")
     public FeedPage feed(@Argument UUID categoryId,
@@ -33,21 +31,7 @@ public class FeedController {
 
         FeedService.FeedResult result = feedService.getFeed(categoryId, cursor, pageLimit, userId);
 
-        List<PostResponse> edges = result.posts().stream()
-                .map(post -> {
-                    var category = categoryService.listCategories().stream()
-                            .filter(c -> c.getId().equals(post.getCategoryId()))
-                            .findFirst().orElse(null);
-
-                    var categoryResponse = category != null
-                            ? SocialMapper.toCategoryResponse(category,
-                            categoryService.getMemberCount(category.getId()),
-                            categoryService.isMember(userId, category.getId()))
-                            : null;
-
-                    return SocialMapper.toPostResponse(post, null, categoryResponse, null);
-                })
-                .toList();
+        List<PostResponse> edges = resolver.resolvePosts(result.posts(), userId);
 
         return new FeedPage(edges, new PageInfo(result.hasNextPage(), result.endCursor()));
     }

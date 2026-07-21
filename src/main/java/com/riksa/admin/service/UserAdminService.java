@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -15,6 +16,15 @@ import java.util.UUID;
 public class UserAdminService {
 
     private final UserRepository userRepository;
+
+    @Transactional(readOnly = true)
+    public List<UserProfileResponse> list(int page, int size) {
+        int safeSize = Math.max(1, Math.min(size, 100));
+        var pageable = org.springframework.data.domain.PageRequest.of(page, safeSize);
+        return userRepository.findAll(pageable).stream()
+                .map(this::toResponse)
+                .toList();
+    }
 
     @Transactional
     public UserProfileResponse updateRole(UUID userId, String roleStr) {
@@ -36,6 +46,10 @@ public class UserAdminService {
         user.setRole(newRole);
         user = userRepository.save(user);
 
+        return toResponse(user);
+    }
+
+    private UserProfileResponse toResponse(User user) {
         return new UserProfileResponse(
                 user.getId(),
                 user.getUsername(),

@@ -41,6 +41,9 @@ public class Lesson {
     @JoinColumn(name = "category_id")
     private Category category;
 
+    @Column(name = "reflection_prompt", columnDefinition = "TEXT")
+    private String reflectionPrompt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;

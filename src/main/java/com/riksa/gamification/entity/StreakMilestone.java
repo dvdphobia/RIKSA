@@ -18,7 +18,7 @@ public class StreakMilestone {
     private UUID id;
 
     @Column(name = "min_streak", unique = true, nullable = false)
-    private int minStreak;
+    private long minStreak;
 
     @Column(name = "streak_name", nullable = false, length = 100)
     private String streakName;

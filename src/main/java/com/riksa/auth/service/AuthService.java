@@ -11,6 +11,8 @@ import com.riksa.auth.token.EmailVerificationToken;
 import com.riksa.auth.token.EmailVerificationTokenRepository;
 import com.riksa.auth.token.RefreshToken;
 import com.riksa.auth.token.RefreshTokenRepository;
+import com.riksa.gamification.entity.UserGamification;
+import com.riksa.gamification.repository.UserGamificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +29,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class AuthService {
+
+    private final UserGamificationRepository userGamificationRepository;
 
     private final UserRepository userRepository;
     private final ProvinceRepository provinceRepository;
@@ -78,6 +82,12 @@ public class AuthService {
         }
 
         User saved = userRepository.save(user);
+
+        // Create gamification row so the XP hot path doesn't crash on first lesson completion
+        UserGamification gamification = new UserGamification();
+        gamification.setUserId(saved.getId());
+        userGamificationRepository.save(gamification);
+
         sendEmailVerification(saved);
         return buildAuthResponse(saved);
     }

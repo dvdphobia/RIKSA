@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -24,5 +25,12 @@ public class UserAdminController {
             @PathVariable UUID id,
             @RequestBody @Valid RoleUpdateRequest request) {
         return ResponseEntity.ok(userAdminService.updateRole(id, request.getRole()));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<UserProfileResponse>> list(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(userAdminService.list(page, size));
     }
 }

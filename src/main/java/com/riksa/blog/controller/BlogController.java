@@ -109,8 +109,8 @@ public class BlogController {
             @RequestBody(required = false) ModerationRequest request) {
 
         var post = status == BlogStatus.APPROVED
-                ? blogModerationService.approve(id)
-                : blogModerationService.reject(id, request != null ? request.reason() : null);
+                ? blogModerationService.approve(id, getCurrentUserId())
+                : blogModerationService.reject(id, request != null ? request.reason() : null, getCurrentUserId());
 
         return ResponseEntity.ok(BlogMapper.toResponse(post, false));
     }

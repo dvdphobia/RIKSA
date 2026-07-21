@@ -8,11 +8,11 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class StreakResponse {
-    private int currentStreak;
-    private int highestStreak;
+    private long currentStreak;
+    private long highestStreak;
     private String currentMilestoneName;
     private String currentMilestoneIcon;
     private String nextMilestoneName;
-    private int nextMilestoneMinStreak;
+    private long nextMilestoneMinStreak;
     private int daysToNext;
 }

@@ -1,6 +1,7 @@
 package com.riksa.admin.controller;
 
 import com.riksa.admin.dto.ModerationRequest;
+import com.riksa.auth.security.JwtService;
 import com.riksa.blog.dto.BlogMapper;
 import com.riksa.blog.dto.BlogPostResponse;
 import com.riksa.blog.entity.BlogPost;
@@ -21,11 +22,15 @@ import java.util.UUID;
 public class BlogAdminController {
 
     private final BlogModerationService blogModerationService;
+    private final JwtService jwtService;
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<BlogPostResponse> moderate(
             @PathVariable UUID id,
-            @RequestBody @Valid ModerationRequest request) {
+            @RequestBody @Valid ModerationRequest request,
+            @RequestHeader("Authorization") String authHeader) {
+
+        UUID moderatorId = extractUserId(authHeader);
 
         BlogStatus status;
         try {
@@ -36,13 +41,20 @@ public class BlogAdminController {
         }
 
         if (status == BlogStatus.APPROVED) {
-            BlogPost post = blogModerationService.approve(id);
+            BlogPost post = blogModerationService.approve(id, moderatorId);
             return ResponseEntity.ok(BlogMapper.toResponse(post, false));
         } else if (status == BlogStatus.REJECTED) {
-            BlogPost post = blogModerationService.reject(id, request.getReason());
+            BlogPost post = blogModerationService.reject(id, request.getReason(), moderatorId);
             return ResponseEntity.ok(BlogMapper.toResponse(post, false));
         } else {
             throw new IllegalArgumentException("Cannot set status to PENDING via moderation endpoint");
         }
+    }
+
+    private UUID extractUserId(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new IllegalArgumentException("Missing or invalid Authorization header");
+        }
+        return jwtService.getUserId(authHeader.substring(7));
     }
 }
