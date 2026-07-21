@@ -4,14 +4,19 @@ import com.riksa.gamification.event.RankChangedEvent;
 import com.riksa.gamification.event.StreakUpdatedEvent;
 import com.riksa.gamification.event.XpGainedEvent;
 import com.riksa.gamification.service.AchievementService;
+import com.riksa.learning.event.LessonCompletedEvent;
+import com.riksa.learning.repository.LessonCompletionRepository;
+import com.riksa.learning.repository.LessonRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Listens for XP_GAINED, STREAK_UPDATED, and RANK_CHANGED events
+ * Listens for LESSON_COMPLETED, XP_GAINED, STREAK_UPDATED, and RANK_CHANGED events
  * and checks whether any achievements should be unlocked.
+ *
+ * Social/blog achievements are handled separately by {@link SocialAchievementListener}.
  */
 @Slf4j
 @Component
@@ -19,6 +24,26 @@ import org.springframework.stereotype.Component;
 public class AchievementListener {
 
     private final AchievementService achievementService;
+    private final LessonCompletionRepository lessonCompletionRepository;
+    private final LessonRepository lessonRepository;
+
+    @EventListener
+    public void handleLessonCompleted(LessonCompletedEvent event) {
+        log.info("Checking lesson-completion achievements for user {}", event.getUserId());
+        try {
+            // Count total lessons completed by this user
+            long coursesCompleted = lessonCompletionRepository.countByUserId(event.getUserId());
+            achievementService.checkCourseCompletionAchievements(event.getUserId(), (int) coursesCompleted);
+
+            // Fetch the lesson to get its difficulty, then check difficulty achievements
+            lessonRepository.findById(event.getLessonId()).ifPresent(lesson ->
+                    achievementService.checkDifficultyAchievements(
+                            event.getUserId(), lesson.getDifficulty().name()));
+        } catch (Exception e) {
+            log.error("Failed to check lesson-completion achievements for user {}: {}",
+                    event.getUserId(), e.getMessage(), e);
+        }
+    }
 
     @EventListener
     public void handleXpGained(XpGainedEvent event) {

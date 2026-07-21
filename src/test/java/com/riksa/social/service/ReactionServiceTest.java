@@ -10,6 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +24,7 @@ class ReactionServiceTest {
 
     @Mock private ReactionRepository reactionRepository;
     @Mock private PostRepository postRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks private ReactionService reactionService;
 
@@ -32,6 +34,7 @@ class ReactionServiceTest {
         UUID postId = UUID.randomUUID();
         Post post = new Post();
         post.setId(postId);
+        post.setAuthorId(UUID.randomUUID());
         post.setReactionCount(0);
 
         when(reactionRepository.findByUserIdAndPostIdAndCommentId(userId, postId, null))

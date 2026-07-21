@@ -3,10 +3,12 @@ package com.riksa.blog.service;
 import com.riksa.blog.entity.BlogLike;
 import com.riksa.blog.entity.BlogPost;
 import com.riksa.blog.entity.BlogView;
+import com.riksa.blog.event.BlogPostLikedEvent;
 import com.riksa.blog.repository.BlogLikeRepository;
 import com.riksa.blog.repository.BlogPostRepository;
 import com.riksa.blog.repository.BlogViewRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ public class BlogEngagementService {
     private final BlogPostRepository blogPostRepository;
     private final BlogViewRepository blogViewRepository;
     private final BlogLikeRepository blogLikeRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public BlogPost trackView(UUID blogPostId, UUID userId) {
@@ -49,6 +52,9 @@ public class BlogEngagementService {
             like.setBlogPostId(blogPostId);
             blogLikeRepository.save(like);
             post.setLikeCount(post.getLikeCount() + 1);
+
+            // Notify achievement system that the blog author received a like
+            eventPublisher.publishEvent(new BlogPostLikedEvent(this, blogPostId, post.getAuthorId(), userId));
         }
 
         return blogPostRepository.save(post);

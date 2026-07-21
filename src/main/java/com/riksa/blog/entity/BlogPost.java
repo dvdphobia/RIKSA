@@ -4,7 +4,9 @@ import com.riksa.blog.enums.BlogStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -31,7 +33,8 @@ public class BlogPost {
     private String coverUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "\"BlogStatus\"")
     private BlogStatus status = BlogStatus.PENDING;
 
     @Column(name = "view_count", nullable = false)

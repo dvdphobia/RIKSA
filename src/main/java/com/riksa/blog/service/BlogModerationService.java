@@ -2,6 +2,7 @@ package com.riksa.blog.service;
 
 import com.riksa.blog.entity.BlogPost;
 import com.riksa.blog.enums.BlogStatus;
+import com.riksa.blog.event.BlogPostApprovedEvent;
 import com.riksa.blog.repository.BlogPostRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +25,12 @@ public class BlogModerationService {
         }
         post.setStatus(BlogStatus.APPROVED);
         post.setRejectionReason(null);
-        return blogPostRepository.save(post);
+        BlogPost saved = blogPostRepository.save(post);
+
+        // Notify achievement system that a blog post was approved
+        eventPublisher.publishEvent(new BlogPostApprovedEvent(this, saved.getId(), saved.getAuthorId()));
+
+        return saved;
     }
     @Transactional
     public BlogPost reject(UUID postId, String reason){

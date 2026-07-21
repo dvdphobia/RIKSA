@@ -10,6 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +26,7 @@ class BlogEngagementServiceTest {
     @Mock private BlogPostRepository blogPostRepository;
     @Mock private BlogViewRepository blogViewRepository;
     @Mock private BlogLikeRepository blogLikeRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks private BlogEngagementService blogEngagementService;
 
@@ -76,6 +78,7 @@ class BlogEngagementServiceTest {
         UUID userId = UUID.randomUUID();
         BlogPost post = new BlogPost();
         post.setId(postId);
+        post.setAuthorId(UUID.randomUUID());
         post.setLikeCount(0);
 
         when(blogPostRepository.findById(postId)).thenReturn(Optional.of(post));

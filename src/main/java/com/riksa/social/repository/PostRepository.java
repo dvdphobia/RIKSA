@@ -22,4 +22,8 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
                         Pageable pageable);
 
     List<Post> findByAuthorId(UUID authorId);
+    long countByAuthorId(UUID authorId);
+
+    @Query("SELECT COALESCE(SUM(p.reactionCount), 0) FROM Post p WHERE p.authorId = :authorId")
+    long sumReactionCountByAuthorId(@Param("authorId") UUID authorId);
 }

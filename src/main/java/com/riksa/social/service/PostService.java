@@ -39,7 +39,7 @@ public class PostService {
 
         Post saved = postRepository.save(post);
 
-        eventPublisher.publishEvent(new PostCreatedEvent(saved.getId(), authorId, categoryId));
+        eventPublisher.publishEvent(new PostCreatedEvent(this, saved.getId(), authorId, categoryId));
 
         return saved;
     }

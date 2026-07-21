@@ -4,6 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.repository.UserRepository;
+import com.riksa.blog.enums.BlogStatus;
+import com.riksa.blog.repository.BlogLikeRepository;
+import com.riksa.blog.repository.BlogPostRepository;
 import com.riksa.common.exception.InvalidCursorException;
 import com.riksa.common.exception.ResourceNotFoundException;
 import com.riksa.gamification.dto.AchievementResponse;
@@ -27,6 +30,11 @@ import com.riksa.gamification.repository.StreakMilestoneRepository;
 import com.riksa.gamification.repository.UserAchievementRepository;
 import com.riksa.gamification.repository.UserGamificationRepository;
 import com.riksa.gamification.repository.XpTransactionRepository;
+import com.riksa.learning.repository.LessonCompletionRepository;
+import com.riksa.learning.repository.LessonRepository;
+import com.riksa.social.repository.CategoryRepository;
+import com.riksa.social.repository.PostRepository;
+import com.riksa.social.repository.ReactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -52,6 +60,14 @@ public class GamificationService {
     private final StreakMilestoneRepository streakMilestoneRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    // ── repos for achievement progress computation ──
+    private final LessonCompletionRepository lessonCompletionRepository;
+    private final LessonRepository lessonRepository;
+    private final CategoryRepository categoryRepository;
+    private final PostRepository postRepository;
+    private final ReactionRepository reactionRepository;
+    private final BlogPostRepository blogPostRepository;
+    private final BlogLikeRepository blogLikeRepository;
 
     // ── cursor records ──
 
@@ -165,6 +181,9 @@ public class GamificationService {
                         UserAchievement::getAchievementId,
                         UserAchievement::getUnlockedAt));
 
+        // Fetch user gamification state for progress computation
+        UserGamification userGamification = userGamificationRepository.findByUserId(userId).orElse(null);
+
         return all.stream().map(a -> {
             AchievementResponse r = new AchievementResponse();
             r.setId(a.getId());
@@ -173,8 +192,89 @@ public class GamificationService {
             r.setIconUrl(a.getIconUrl());
             r.setEarned(earnedIds.contains(a.getId()));
             r.setUnlockedAt(unlockedAtMap.get(a.getId()));
+            r.setRarity(a.getRarity());
+            r.setXpReward(a.getXpReward());
+
+            // Compute progress
+            int[] progress = computeProgress(a, userId, userGamification);
+            r.setProgress(progress[0]);
+            r.setProgressMax(progress[1]);
+            r.setProgressPercent(progress[1] > 0 ? (double) progress[0] / progress[1] : 0.0);
+
+            // If earned, force progress to max
+            if (r.isEarned()) {
+                r.setProgress(r.getProgressMax());
+                r.setProgressPercent(1.0);
+            }
+
             return r;
         }).toList();
+    }
+
+    /**
+     * Compute current progress toward an achievement based on its criteria type.
+     * Returns [current, max]. For binary achievements, returns [0, 1] when not earned.
+     */
+    private int[] computeProgress(Achievement a, UUID userId, UserGamification userGamification) {
+        long max = a.getCriteriaValue() != null ? a.getCriteriaValue() : 1;
+        if (max <= 0) max = 1; // binary achievements
+
+        return switch (a.getCriteriaType()) {
+            case EARN_XP -> {
+                long xp = userGamification != null ? userGamification.getTotalXp() : 0;
+                yield new int[]{(int) Math.min(xp, max), (int) max};
+            }
+            case COMPLETE_N_COURSES, COMPLETE_COURSE -> {
+                long count = lessonCompletionRepository.countByUserId(userId);
+                yield new int[]{(int) Math.min(count, max), (int) max};
+            }
+            case MAINTAIN_STREAK -> {
+                int streak = userGamification != null ? userGamification.getCurrentStreak() : 0;
+                yield new int[]{Math.min(streak, (int) max), (int) max};
+            }
+            case REACH_RANK -> {
+                // Progress is ordinal-based, but showing 0/1 for binary is simpler
+                yield new int[]{0, 1};
+            }
+            case CREATE_POST -> {
+                long count = postRepository.countByAuthorId(userId);
+                yield new int[]{(int) Math.min(count, max), (int) max};
+            }
+            case RECEIVE_REACTION -> {
+                long count = reactionRepository.countReactionsOnUserPosts(userId);
+                yield new int[]{(int) Math.min(count, max), (int) max};
+            }
+            case WRITE_BLOG_POST -> {
+                long count = blogPostRepository.countByAuthorIdAndStatus(userId, BlogStatus.APPROVED);
+                yield new int[]{(int) Math.min(count, max), (int) max};
+            }
+            case RECEIVE_BLOG_LIKE -> {
+                long count = blogLikeRepository.countLikesOnUserBlogPosts(userId);
+                yield new int[]{(int) Math.min(count, max), (int) max};
+            }
+            case COMPLETE_COURSE_WITH_DIFFICULTY -> {
+                // Binary: completed a lesson with matching difficulty or not
+                yield new int[]{0, 1};
+            }
+            case COMPLETE_COURSE_IN_EVERY_CATEGORY -> {
+                long totalCategories = categoryRepository.count();
+                long categoriesCompleted = lessonCompletionRepository.countDistinctCategoriesCompleted(userId);
+                yield new int[]{(int) Math.min(categoriesCompleted, totalCategories), (int) Math.max(totalCategories, 1)};
+            }
+            case COMPLETE_ALL_IN_CATEGORY -> {
+                if (a.getCategoryId() != null) {
+                    long totalInCat = lessonRepository.countByCategoryId(a.getCategoryId());
+                    long completedInCat = lessonCompletionRepository.countCompletedInCategory(userId, a.getCategoryId());
+                    yield new int[]{(int) Math.min(completedInCat, Math.max(totalInCat, 1)), (int) Math.max(totalInCat, 1)};
+                }
+                yield new int[]{0, 1};
+            }
+            case COMPLETE_ALL_IN_EVERY_CATEGORY -> {
+                long totalLessons = lessonRepository.count();
+                long totalCompleted = lessonCompletionRepository.countByUserId(userId);
+                yield new int[]{(int) Math.min(totalCompleted, Math.max(totalLessons, 1)), (int) Math.max(totalLessons, 1)};
+            }
+        };
     }
 
     // ── rank history (cursor-based) ──
