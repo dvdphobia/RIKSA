@@ -14,10 +14,15 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     @Query("""
         SELECT p FROM Post p
         WHERE (:categoryId IS NULL OR p.categoryId = :categoryId)
-          AND (:cursor IS NULL OR p.createdAt < (SELECT p2.createdAt FROM Post p2 WHERE p2.id = :cursor))
-        ORDER BY p.createdAt DESC
+          AND (:authorId IS NULL OR p.authorId = :authorId)
+          AND (:cursor IS NULL
+            OR p.createdAt < (SELECT p2.createdAt FROM Post p2 WHERE p2.id = :cursor)
+            OR (p.createdAt = (SELECT p2.createdAt FROM Post p2 WHERE p2.id = :cursor)
+                AND p.id < :cursor))
+        ORDER BY p.createdAt DESC, p.id DESC
     """)
     List<Post> findFeed(@Param("categoryId") UUID categoryId,
+                        @Param("authorId") UUID authorId,
                         @Param("cursor") UUID cursor,
                         Pageable pageable);
 

@@ -10,7 +10,10 @@ import com.riksa.learning.repository.LessonRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * Listens for LESSON_COMPLETED, XP_GAINED, STREAK_UPDATED, and RANK_CHANGED events
@@ -27,7 +30,8 @@ public class AchievementListener {
     private final LessonCompletionRepository lessonCompletionRepository;
     private final LessonRepository lessonRepository;
 
-    @EventListener
+    @Async("gamificationTaskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleLessonCompleted(LessonCompletedEvent event) {
         log.info("Checking lesson-completion achievements for user {}", event.getUserId());
         try {

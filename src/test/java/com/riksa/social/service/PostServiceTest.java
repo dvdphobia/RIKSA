@@ -1,5 +1,6 @@
 package com.riksa.social.service;
 
+import com.riksa.common.event.EventPublisher;
 import com.riksa.social.entity.Post;
 import com.riksa.social.event.PostCreatedEvent;
 import com.riksa.social.repository.PostRepository;
@@ -9,7 +10,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -25,7 +25,7 @@ class PostServiceTest {
     @Mock private PostRepository postRepository;
     @Mock private UserCategoryMembershipRepository membershipRepository;
     @Mock private ContentFilterService contentFilterService;
-    @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private EventPublisher eventPublisher;
 
     @InjectMocks private PostService postService;
 
@@ -49,7 +49,7 @@ class PostServiceTest {
         assertThat(result.getAuthorId()).isEqualTo(authorId);
         assertThat(result.getCategoryId()).isEqualTo(categoryId);
         verify(contentFilterService).validate("Physics Question Help with physics homework");
-        verify(eventPublisher).publishEvent(any(PostCreatedEvent.class));
+        verify(eventPublisher).publish(any(PostCreatedEvent.class));
     }
 
     @Test

@@ -765,3 +765,6 @@ applicationEventPublisher.publishEvent(new PostCreatedEvent(post.getId(), userId
 - **Search flow:** User types in Flutter search bar → debounce 300ms → call `searchPosts(categoryId: "abc", query: "python", limit: 20)`. Cursor pagination works the same as feed.
 - **Profile flow:** Tap a user avatar → call `userPosts(userId: "...")` and `userComments(userId: "...")` to populate the profile screen.
 - **Reaction optimistic update:** Flutter should update the reaction button immediately, then fire `react` mutation. If the server returns a different count, reconcile.
+# Deprecated design plan
+
+> This document is retained for historical context and may not match the current implementation. Use [PROJECT_GUIDE.md](PROJECT_GUIDE.md) as the source of truth.

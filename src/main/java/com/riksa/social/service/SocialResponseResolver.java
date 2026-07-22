@@ -21,8 +21,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Resolves the cross-domain fields on PostResponse / CommentResponse that the
@@ -63,8 +67,43 @@ public class SocialResponseResolver {
     }
 
     public List<PostResponse> resolvePosts(List<Post> posts, UUID currentUserId) {
+        if (posts.isEmpty()) return List.of();
+
+        Set<UUID> authorIds = posts.stream()
+                .map(Post::getAuthorId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<UUID, UserResponse> usersById = userRepository.findAllById(authorIds).stream()
+                .collect(Collectors.toMap(User::getId, SocialMapper::toUserResponse));
+
+        Set<UUID> categoryIds = posts.stream()
+                .map(Post::getCategoryId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<UUID, Category> categoriesById = categoryService.listCategories().stream()
+                .filter(category -> categoryIds.contains(category.getId()))
+                .collect(Collectors.toMap(Category::getId, Function.identity()));
+        Map<UUID, CategoryResponse> categoryResponsesById = categoriesById.values().stream()
+                .collect(Collectors.toMap(Category::getId, category -> SocialMapper.toCategoryResponse(
+                        category,
+                        categoryService.getMemberCount(category.getId()),
+                        categoryService.isMember(currentUserId, category.getId()))));
+
+        Map<UUID, ReactionType> reactionsByPostId = Map.of();
+        if (currentUserId != null) {
+            List<UUID> postIds = posts.stream().map(Post::getId).toList();
+            reactionsByPostId = reactionRepository
+                    .findByUserIdAndPostIdInAndCommentIdIsNull(currentUserId, postIds).stream()
+                    .collect(Collectors.toMap(Reaction::getPostId, Reaction::getType));
+        }
+
+        Map<UUID, ReactionType> finalReactionsByPostId = reactionsByPostId;
         return posts.stream()
-                .map(post -> resolvePost(post, currentUserId))
+                .map(post -> SocialMapper.toPostResponse(
+                        post,
+                        usersById.get(post.getAuthorId()),
+                        categoryResponsesById.get(post.getCategoryId()),
+                        finalReactionsByPostId.get(post.getId())))
                 .toList();
     }
 

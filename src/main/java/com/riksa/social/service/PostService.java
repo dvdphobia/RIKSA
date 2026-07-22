@@ -1,11 +1,11 @@
 package com.riksa.social.service;
 
+import com.riksa.common.event.EventPublisher;
 import com.riksa.social.entity.Post;
 import com.riksa.social.event.PostCreatedEvent;
 import com.riksa.social.repository.PostRepository;
 import com.riksa.social.repository.UserCategoryMembershipRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,7 +18,7 @@ public class PostService {
     private final PostRepository postRepository;
     private final UserCategoryMembershipRepository membershipRepository;
     private final ContentFilterService contentFilterService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final EventPublisher eventPublisher;
 
     @Transactional
     public Post createPost(UUID authorId, String title, String content, String mediaUrl, UUID categoryId) {
@@ -39,7 +39,7 @@ public class PostService {
 
         Post saved = postRepository.save(post);
 
-        eventPublisher.publishEvent(new PostCreatedEvent(this, saved.getId(), authorId, categoryId));
+        eventPublisher.publish(new PostCreatedEvent(this, saved.getId(), authorId, categoryId));
 
         return saved;
     }

@@ -20,5 +20,6 @@ public class LessonListResponse {
     private UUID categoryId;
     private String categoryName;
     private int exerciseCount;
+    private boolean completed;
     private OffsetDateTime createdAt;
 }

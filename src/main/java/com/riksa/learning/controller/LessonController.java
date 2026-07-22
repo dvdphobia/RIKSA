@@ -43,8 +43,8 @@ public class LessonController {
             @RequestParam(required = false) DifficultyLevel difficulty,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        extractUserId(authHeader); // validate token
-        return ResponseEntity.ok(lessonService.listLessons(categoryId, difficulty, page, size));
+        UUID userId = extractUserId(authHeader);
+        return ResponseEntity.ok(lessonService.listLessons(userId, categoryId, difficulty, page, size));
     }
 
     @GetMapping("/{id}")

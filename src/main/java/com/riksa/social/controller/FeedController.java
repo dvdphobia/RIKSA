@@ -24,12 +24,13 @@ public class FeedController {
 
     @QueryMapping("feed")
     public FeedPage feed(@Argument UUID categoryId,
+                         @Argument UUID authorId,
                          @Argument UUID cursor,
                          @Argument Integer limit) {
         UUID userId = getCurrentUserId();
         int pageLimit = (limit != null && limit > 0) ? Math.min(limit, 50) : 20;
 
-        FeedService.FeedResult result = feedService.getFeed(categoryId, cursor, pageLimit, userId);
+        FeedService.FeedResult result = feedService.getFeed(categoryId, authorId, cursor, pageLimit);
 
         List<PostResponse> edges = resolver.resolvePosts(result.posts(), userId);
 

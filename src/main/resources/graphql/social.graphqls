@@ -109,7 +109,7 @@ input SharePostInput {
 
 # ── Query ────────────────────────────────────────────
 type Query {
-  feed(categoryId: UUID, cursor: UUID, limit: Int = 20): FeedPage!
+  feed(categoryId: UUID, authorId: UUID, cursor: UUID, limit: Int = 20): FeedPage!
   post(id: UUID!): Post
   categories: [Category!]!
   comments(postId: UUID!, cursor: UUID, limit: Int = 20): CommentPage!

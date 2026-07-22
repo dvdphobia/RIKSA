@@ -3,13 +3,11 @@ package com.riksa.blog.controller;
 import com.riksa.blog.dto.*;
 import com.riksa.blog.enums.BlogStatus;
 import com.riksa.blog.service.BlogEngagementService;
-import com.riksa.blog.service.BlogModerationService;
 import com.riksa.blog.service.BlogService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +21,6 @@ public class BlogController {
 
     private final BlogService blogService;
     private final BlogEngagementService blogEngagementService;
-    private final BlogModerationService blogModerationService;
 
     @GetMapping
     public ResponseEntity<BlogListResponse> listPosts(
@@ -69,6 +66,30 @@ public class BlogController {
         return ResponseEntity.ok(BlogMapper.toResponse(post, false));
     }
 
+    @GetMapping("/my-posts")
+    public ResponseEntity<BlogListResponse> getMyPosts(
+            @RequestParam(required = false) BlogStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        UUID userId = getCurrentUserId();
+        int effectivePage = Math.max(page, 0);
+        int effectiveSize = Math.min(Math.max(size, 1), 100);
+        var pageResult = blogService.getMyPosts(userId, status, effectivePage, effectiveSize);
+
+        var content = pageResult.getContent().stream()
+                .map(post -> BlogMapper.toResponse(post,
+                        blogEngagementService.isLiked(post.getId(), userId)))
+                .toList();
+
+        return ResponseEntity.ok(new BlogListResponse(
+                content,
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages()
+        ));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<BlogPostResponse> getPost(@PathVariable UUID id) {
         UUID userId = getCurrentUserId();
@@ -99,20 +120,6 @@ public class BlogController {
         UUID userId = getCurrentUserIdOrNull();
         blogEngagementService.trackView(id, userId);
         return ResponseEntity.ok().build();
-    }
-
-    @PatchMapping("/admin/{id}/status")
-    @PreAuthorize("hasRole('MODERATOR')")
-    public ResponseEntity<BlogPostResponse> moderatePost(
-            @PathVariable UUID id,
-            @RequestParam BlogStatus status,
-            @RequestBody(required = false) ModerationRequest request) {
-
-        var post = status == BlogStatus.APPROVED
-                ? blogModerationService.approve(id, getCurrentUserId())
-                : blogModerationService.reject(id, request != null ? request.reason() : null, getCurrentUserId());
-
-        return ResponseEntity.ok(BlogMapper.toResponse(post, false));
     }
 
     private UUID getCurrentUserId() {

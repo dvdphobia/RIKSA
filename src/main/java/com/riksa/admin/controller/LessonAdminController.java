@@ -15,7 +15,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/lessons")
-@PreAuthorize("hasRole('MODERATOR')")
+@PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
 @RequiredArgsConstructor
 public class LessonAdminController {
 

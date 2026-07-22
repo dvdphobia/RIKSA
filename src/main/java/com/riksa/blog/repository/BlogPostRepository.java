@@ -14,6 +14,7 @@ public interface BlogPostRepository extends JpaRepository<BlogPost, UUID> {
     Page<BlogPost> findByStatus(BlogStatus status, Pageable pageable);
     Page<BlogPost> findByStatusAndCategoryId(BlogStatus status, UUID categoryId, Pageable pageable);
     Page<BlogPost> findByAuthorId(UUID authorId, Pageable pageable);
+    Page<BlogPost> findByAuthorIdAndStatus(UUID authorId, BlogStatus status, Pageable pageable);
 
     @Query("SELECT COUNT(bp) FROM BlogPost bp WHERE bp.authorId = :authorId AND bp.status = :status")
     long countByAuthorIdAndStatus(@Param("authorId") UUID authorId, @Param("status") BlogStatus status);

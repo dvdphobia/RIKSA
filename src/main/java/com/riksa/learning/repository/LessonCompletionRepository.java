@@ -13,6 +13,7 @@ import java.util.UUID;
 @Repository
 public interface LessonCompletionRepository extends JpaRepository<LessonCompletion, UUID> {
     Optional<LessonCompletion> findByUserIdAndLessonId(UUID userId, UUID lessonId);
+    List<LessonCompletion> findByUserIdAndLessonIdIn(UUID userId, List<UUID> lessonIds);
     long countByUserId(UUID userId);
     boolean existsByUserIdAndLessonId(UUID userId, UUID lessonId);
 

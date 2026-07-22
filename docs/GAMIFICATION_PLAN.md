@@ -355,3 +355,6 @@ INSERT INTO "achievements" (name, description, criteria_type, criteria_value, ic
 | `lesson_completions` table | Not needed by Gamification — created by Learning | Future |
 
 Gamification should **not** call UserRepository or AuthService. It treats `userId` as a UUID and only touches its own tables.
+# Deprecated design plan
+
+> This document is retained for historical context and may not match the current implementation. Use [PROJECT_GUIDE.md](PROJECT_GUIDE.md) as the source of truth.

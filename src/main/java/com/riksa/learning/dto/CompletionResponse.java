@@ -11,8 +11,10 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 public class CompletionResponse {
+    private UUID completionId;
     private UUID lessonId;
     private int xpEarned;
     private int score;
+    private boolean passed;
     private OffsetDateTime completedAt;
 }

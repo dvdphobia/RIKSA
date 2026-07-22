@@ -8,6 +8,7 @@ import com.riksa.learning.dto.LessonListResponse;
 import com.riksa.learning.entity.Exercise;
 import com.riksa.learning.entity.Lesson;
 import com.riksa.learning.repository.ExerciseRepository;
+import com.riksa.learning.repository.LessonCompletionRepository;
 import com.riksa.learning.repository.LessonRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,7 +17,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,20 +29,37 @@ public class LessonService {
 
     private final LessonRepository lessonRepository;
     private final ExerciseRepository exerciseRepository;
+    private final LessonCompletionRepository lessonCompletionRepository;
 
     /**
      * List lessons with optional filtering by category and difficulty.
      * Results are paged (page/size) ordered by createdAt descending.
      */
     @Transactional(readOnly = true)
-    public Page<LessonListResponse> listLessons(UUID categoryId, DifficultyLevel difficulty, int page, int size) {
+    public Page<LessonListResponse> listLessons(UUID userId, UUID categoryId,
+                                                DifficultyLevel difficulty, int page, int size) {
         page = Math.max(page, 0);
         size = Math.min(Math.max(size, 1), 100);
 
         Page<Lesson> lessons = lessonRepository.findByFilters(
                 categoryId, difficulty, PageRequest.of(page, size));
 
-        return lessons.map(this::toListResponse);
+        List<UUID> lessonIds = lessons.stream().map(Lesson::getId).toList();
+        if (lessonIds.isEmpty()) return lessons.map(lesson -> toListResponse(lesson, 0, false));
+
+        Map<UUID, Long> exerciseCounts = exerciseRepository.countByLessonIds(lessonIds).stream()
+                .collect(Collectors.toMap(
+                        ExerciseRepository.LessonExerciseCount::getLessonId,
+                        ExerciseRepository.LessonExerciseCount::getExerciseCount));
+        Set<UUID> completedLessonIds = lessonCompletionRepository
+                .findByUserIdAndLessonIdIn(userId, lessonIds).stream()
+                .map(completion -> completion.getLessonId())
+                .collect(Collectors.toSet());
+
+        return lessons.map(lesson -> toListResponse(
+                lesson,
+                Math.toIntExact(exerciseCounts.getOrDefault(lesson.getId(), 0L)),
+                completedLessonIds.contains(lesson.getId())));
     }
 
     /**
@@ -52,7 +74,7 @@ public class LessonService {
         return toDetailResponse(lesson, exercises);
     }
 
-    private LessonListResponse toListResponse(Lesson lesson) {
+    private LessonListResponse toListResponse(Lesson lesson, int exerciseCount, boolean completed) {
         LessonListResponse r = new LessonListResponse();
         r.setId(lesson.getId());
         r.setTitle(lesson.getTitle());
@@ -61,6 +83,8 @@ public class LessonService {
         r.setBaseXp(lesson.getBaseXp());
         r.setCategoryId(lesson.getCategory() != null ? lesson.getCategory().getId() : null);
         r.setCategoryName(lesson.getCategory() != null ? lesson.getCategory().getName() : null);
+        r.setExerciseCount(exerciseCount);
+        r.setCompleted(completed);
         r.setCreatedAt(lesson.getCreatedAt());
         return r;
     }

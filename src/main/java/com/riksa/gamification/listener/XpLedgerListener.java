@@ -4,8 +4,10 @@ import com.riksa.gamification.service.XpLedgerService;
 import com.riksa.learning.event.LessonCompletedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * Listens for LESSON_COMPLETED events and awards XP.
@@ -19,23 +21,17 @@ public class XpLedgerListener {
 
     private final XpLedgerService xpLedgerService;
 
-    @EventListener
+    @Async("gamificationTaskExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleLessonCompleted(LessonCompletedEvent event) {
         log.info("Processing LESSON_COMPLETED for user {}, lesson {}, XP: {}",
                 event.getUserId(), event.getLessonId(), event.getXpEarned());
 
-        try {
-            xpLedgerService.awardXp(
-                    event.getUserId(),
-                    event.getXpEarned(),
-                    "LESSON_COMPLETION",
-                    event.getLessonId()
-            );
-        } catch (Exception e) {
-            // Log but don't rethrow — we don't want to roll back the lesson completion
-            // if the XP grant fails. The streak/rank/achievement pipeline can retry later.
-            log.error("Failed to award XP for user {} lesson {}: {}",
-                    event.getUserId(), event.getLessonId(), e.getMessage(), e);
-        }
+        xpLedgerService.awardXp(
+                event.getUserId(),
+                event.getXpEarned(),
+                "LESSON_COMPLETION",
+                event.getLessonId()
+        );
     }
 }

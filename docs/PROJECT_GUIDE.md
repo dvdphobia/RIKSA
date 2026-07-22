@@ -425,7 +425,7 @@ Controller: `BlogController.java`. Statuses: `PENDING`, `APPROVED`, `REJECTED`.
 
 **`BlogListResponse`**: `{content: [BlogPostResponse], page, size, totalElements, totalPages}` (offset pagination, not cursor).
 
-> ⚠️ There is a **second moderation endpoint** at `/api/v1/admin/blog/{id}/status` (§8.5) with body-only `status`. The two overlap — prefer the admin one for the admin panel; the one on `BlogController` exists for moderator convenience.
+> Blog moderation is handled only by `/api/v1/admin/blog/{id}/status` (§8.5), which records the moderator ID for audit events.
 
 ---
 
@@ -746,11 +746,11 @@ Mirrors `screenDetail/screenDesign.md`. For each screen: the UI elements, the AP
 | **P4.S2 Community Categories** | list of categories with member count + joined toggle | GraphQL `categories`, `joinCategory`, `leaveCategory` |
 | **P4.S3 Post Detail + Comments** | post + nested comments + reply box | GraphQL `post(id)`, `comments(postId, cursor)` ❌ no resolver — mock, `createComment`, `react`, `removeReaction` |
 | **P4.S4 Compose Post** | title, content, media, category picker | GraphQL `createPost` |
-| **P4.S5 Profile: Posts & Replies Tabs** | user's posts / replies | GraphQL `feed` (filter client-side), `comments` ❌ mock |
+| **P4.S5 Profile: Posts & Replies Tabs** | user's posts / replies | GraphQL `feed(authorId, cursor, limit)` for posts; replies can be derived from the comments query |
 | **P4.S6 Blog List** | tabs (All/Approved/My Posts), featured card, 2-col grid | `GET /api/v1/blog?status=&categoryId=&page=&size=` |
 | **P4.S7 Blog Detail** | cover, title, content, like, view tracking | `GET /api/v1/blog/{id}`, `POST /api/v1/blog/{id}/like`, `POST /api/v1/blog/{id}/view` |
 | **P4.S8 Blog Compose** | title, content, cover URL, category | `POST /api/v1/blog` |
-| **P4.S9 Blog: My Posts** | author's own posts incl. pending/rejected | `GET /api/v1/blog?status=PENDING&...` (only returns non-APPROVED if moderator — for the author, backend needs an "my posts" filter; flag this) |
+| **P4.S9 Blog: My Posts** | author's own posts incl. pending/rejected | `GET /api/v1/blog/my-posts?status=&page=&size=` |
 
 ### Phase 5 — AI Tutor (3 screens) — ❌ out of scope for v1
 
@@ -781,11 +781,10 @@ Things a newcomer will trip over:
 2. **AI Chat module has no code at all** — only DB schema. Out of scope for v1.
 3. **Admin list endpoints added.** `GET /api/v1/admin/lessons?page=&size=` and `GET /api/v1/admin/users?page=&size=` now exist for the admin panel.
 4. **Social GraphQL resolvers fixed.** `comments(postId, cursor, limit)` query, `sharePost(input)` mutation, `Post.comments` field resolver, and `Comment.replies` field resolver are all implemented. `Post.author` and `Post.myReaction` are now resolved correctly (no longer null).
-5. **Two duplicate blog moderation endpoints.** `PATCH /api/v1/blog/admin/{id}/status?status=...` (on `BlogController`) and `PATCH /api/v1/admin/blog/{id}/status` body `{status, reason}` (on `BlogAdminController`). Both require MODERATOR. Prefer the admin one.
 6. **Two `/leaderboard` endpoints.** `GET /api/v1/gamification/leaderboard` (cursor, live) and `GET /api/v1/leaderboard` (snapshot-backed, scope + date). Pick one for the main UI and be consistent.
 7. **Blog events now published.** `BlogApprovedEvent` and `BlogRejectedEvent` are published by `BlogModerationService` on approve/reject. `LeaderboardRefreshedEvent` is published by `LeaderboardRefreshJob` after each refresh cycle.
 8. **`LoginRequest` field names disagree across docs.** `flutter.md` says `{username, password}`, `screenDetail/screenDesign.md` says `{email, password}`. Read `auth/dto/LoginRequest.java` before wiring the form.
-9. **Duplicate V9 Flyway migration fixed.** The blog_likes migration was renamed to `V12__add_blog_likes_created_at.sql`. Migrations V1-V13 are now sequential with no duplicates.
+9. **Duplicate V9 Flyway migration fixed.** The blog-likes timestamp migration is version `V9_1`, which Flyway orders after V9 and before V10.
 10. **`ddl-auto=validate`** means the schema is the source of truth. If you add a field to an entity, you must add a migration too, or boot fails.
 11. **No `user_follows`, `users.banner_url`, `user_interests`, `exercise_options` (multiple choice), `daily_challenges`, `posts.view_count`.** The UI references some of these — they will need migrations before the UI can be fully wired.
 12. **Reactions are UPVOTE/DOWNVOTE/HAHA/LOVE** in the DB and schema, but the UI design only shows Reddit-style up/down. The backend hasn't been narrowed — decide which side changes.

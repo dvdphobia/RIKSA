@@ -101,9 +101,11 @@ public class LessonCompletionService {
 
     private CompletionResponse toResponse(LessonCompletion completion) {
         CompletionResponse r = new CompletionResponse();
+        r.setCompletionId(completion.getId());
         r.setLessonId(completion.getLessonId());
         r.setXpEarned(completion.getXpEarned());
         r.setScore(completion.getScore());
+        r.setPassed(true);
         r.setCompletedAt(completion.getCompletedAt());
         return r;
     }

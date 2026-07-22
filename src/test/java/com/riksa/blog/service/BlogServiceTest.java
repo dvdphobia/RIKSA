@@ -136,9 +136,24 @@ class BlogServiceTest {
         when(blogPostRepository.findByAuthorId(eq(authorId), any(PageRequest.class)))
                 .thenReturn(page);
 
-        Page<BlogPost> result = blogService.getMyPosts(authorId, 0, 10);
+        Page<BlogPost> result = blogService.getMyPosts(authorId, null, 0, 10);
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getAuthorId()).isEqualTo(authorId);
+    }
+
+    @Test
+    void getMyPosts_withStatus_returnsFilteredAuthorPosts() {
+        UUID authorId = UUID.randomUUID();
+        Page<BlogPost> page = new PageImpl<>(List.of());
+        when(blogPostRepository.findByAuthorIdAndStatus(
+                eq(authorId), eq(BlogStatus.REJECTED), any(PageRequest.class)))
+                .thenReturn(page);
+
+        Page<BlogPost> result = blogService.getMyPosts(authorId, BlogStatus.REJECTED, 0, 10);
+
+        assertThat(result).isEmpty();
+        verify(blogPostRepository).findByAuthorIdAndStatus(
+                eq(authorId), eq(BlogStatus.REJECTED), any(PageRequest.class));
     }
 }

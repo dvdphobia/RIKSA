@@ -49,8 +49,11 @@ public class BlogService {
                 .orElseThrow(() -> new IllegalArgumentException("Blog post not found: " + postId));
     }
 
-    public Page<BlogPost> getMyPosts(UUID authorId, int page, int size) {
+    public Page<BlogPost> getMyPosts(UUID authorId, BlogStatus status, int page, int size) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        if (status != null) {
+            return blogPostRepository.findByAuthorIdAndStatus(authorId, status, pageable);
+        }
         return blogPostRepository.findByAuthorId(authorId, pageable);
     }
 }

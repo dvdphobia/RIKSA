@@ -15,9 +15,9 @@ public class FeedService {
 
     private final PostRepository postRepository;
 
-    public FeedResult getFeed(UUID categoryId, UUID cursor, int limit, UUID userId) {
+    public FeedResult getFeed(UUID categoryId, UUID authorId, UUID cursor, int limit) {
         List<Post> rows = postRepository.findFeed(
-                categoryId, cursor, PageRequest.of(0, limit + 1)
+                categoryId, authorId, cursor, PageRequest.of(0, limit + 1)
         );
 
         boolean hasNextPage = rows.size() > limit;

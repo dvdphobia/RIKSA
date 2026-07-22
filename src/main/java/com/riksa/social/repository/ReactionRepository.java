@@ -7,11 +7,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 public interface ReactionRepository extends JpaRepository<Reaction, UUID> {
 
     Optional<Reaction> findByUserIdAndPostIdAndCommentId(UUID userId, UUID postId, UUID commentId);
+
+    List<Reaction> findByUserIdAndPostIdInAndCommentIdIsNull(UUID userId, List<UUID> postIds);
 
     boolean existsByUserIdAndPostIdAndType(UUID userId, UUID postId, ReactionType type);
 
