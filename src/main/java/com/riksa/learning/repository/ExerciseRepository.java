@@ -13,10 +13,10 @@ public interface ExerciseRepository extends JpaRepository<Exercise, UUID> {
     void deleteByLessonId(UUID lessonId);
 
     @Query("""
-        SELECT e.lessonId AS lessonId, COUNT(e) AS exerciseCount
+        SELECT e.lesson.id AS lessonId, COUNT(e) AS exerciseCount
         FROM Exercise e
-        WHERE e.lessonId IN :lessonIds
-        GROUP BY e.lessonId
+        WHERE e.lesson.id IN :lessonIds
+        GROUP BY e.lesson.id
     """)
     List<LessonExerciseCount> countByLessonIds(@Param("lessonIds") List<UUID> lessonIds);
 

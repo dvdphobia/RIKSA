@@ -7,7 +7,7 @@
 ## A. CRITICAL — Will Break at Runtime
 
 ### A1. [DONE] Duplicate V9 Flyway migration
-- Renamed V9__add_blog_likes_created_at.sql -> V9_1__add_blog_likes_created_at.sql
+- Restored the original immutable V9 blog-likes migration and moved the later BIGINT migration to V10.1 so both existing and clean databases migrate safely.
 - Renumbered later local migrations to V14 and V15 after merging the achievement overhaul
 
 ### A2. [DONE] UserGamification row not created on registration
@@ -212,3 +212,12 @@ Requires a test DB (Testcontainers or H2).
 - [DONE] Full unit test suite: 161 tests, 0 failures, 0 errors, 1 opt-in PostgreSQL integration test skipped.
 - [DEFERRED] AI Chat and AI reflection validation remain outside the competition v1 scope by request.
 - [DEFERRED] Follows, interests, daily challenges, prerequisites, upload storage, post pinning, and advanced search require product scope or infrastructure beyond competition v1.
+
+### Live PostgreSQL verification (Jul 23, 2026)
+
+- [DONE] Clean PostgreSQL 17 database: all 16 Flyway migrations applied and Hibernate schema validation passed.
+- [DONE] Auth: registration, profile read/update, invalid/valid login, refresh rotation/replay rejection, logout, email verification, OTP validation, forgot/reset password.
+- [DONE] Learning/gamification: admin content creation, attempts, lesson completion, duplicate prevention, XP, streak, achievements, rank history, and both leaderboards.
+- [DONE] Social/blog/admin: GraphQL post/comment/reaction/share/feed flows, blog author/moderation/like flows, and admin list authorization.
+- [FIXED] Production-only issues found by the live run: invalid Exercise JPQL path, read-only login transaction, non-unique JWT refresh tokens, nullable PostgreSQL query parameters, cursor off-by-one, PostgreSQL enum mappings, and repeat leaderboard refresh replacement.
+- [SECURITY] OTP, Telegram bot, and email verification secrets are no longer written to application logs.

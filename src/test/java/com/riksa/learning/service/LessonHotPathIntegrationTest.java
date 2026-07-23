@@ -14,6 +14,8 @@ import com.riksa.learning.entity.Lesson;
 import com.riksa.learning.repository.ExerciseAttemptRepository;
 import com.riksa.learning.repository.ExerciseRepository;
 import com.riksa.learning.repository.LessonRepository;
+import com.riksa.leaderboard.repository.LeaderboardSnapshotRepository;
+import com.riksa.leaderboard.service.LeaderboardSnapshotService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +41,8 @@ class LessonHotPathIntegrationTest {
     @Autowired LessonCompletionService completionService;
     @Autowired XpTransactionRepository xpTransactionRepository;
     @Autowired RankHistoryRepository rankHistoryRepository;
+    @Autowired LeaderboardSnapshotService leaderboardSnapshotService;
+    @Autowired LeaderboardSnapshotRepository leaderboardSnapshotRepository;
 
     @Test
     void completingLessonDrivesXpStreakAndRankPipeline() throws Exception {
@@ -88,6 +92,17 @@ class LessonHotPathIntegrationTest {
                         .stream().anyMatch(tx -> "LESSON_COMPLETION".equals(tx.getSourceType())));
         await(Duration.ofSeconds(15), () ->
                 !rankHistoryRepository.findByUserIdOrderByChangedAtDesc(userId).isEmpty());
+    }
+
+    @Test
+    void leaderboardRefreshCanReplaceSameDaySnapshot() {
+        leaderboardSnapshotService.refreshSnapshots();
+        long firstCount = leaderboardSnapshotRepository.count();
+
+        leaderboardSnapshotService.refreshSnapshots();
+
+        assertThat(firstCount).isGreaterThan(0);
+        assertThat(leaderboardSnapshotRepository.count()).isEqualTo(firstCount);
     }
 
     private void await(Duration timeout, BooleanSupplier condition) throws Exception {

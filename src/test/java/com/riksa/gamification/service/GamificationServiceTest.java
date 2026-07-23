@@ -134,9 +134,8 @@ class GamificationServiceTest {
         tx1.setRunningBalance(50);
         tx1.setCreatedAt(OffsetDateTime.now());
 
-        when(xpTransactionRepository.findByUserIdAfterCursor(eq(userId), eq(null), eq(null),
-                any()))
-                .thenReturn(List.of(tx1));
+        when(xpTransactionRepository.findByUserIdOrderByCreatedAtDesc(eq(userId), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(tx1)));
 
         CursorPage<XpTransactionResponse> result = gamificationService.getXpHistory(userId, null, 10);
 
@@ -164,9 +163,8 @@ class GamificationServiceTest {
         tx2.setRunningBalance(80);
         tx2.setCreatedAt(OffsetDateTime.now().minusHours(1));
 
-        when(xpTransactionRepository.findByUserIdAfterCursor(eq(userId), eq(null), eq(null),
-                any()))
-                .thenReturn(List.of(tx1, tx2));
+        when(xpTransactionRepository.findByUserIdOrderByCreatedAtDesc(eq(userId), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(tx1, tx2)));
 
         // Stub the spy's writeValueAsBytes to handle OffsetDateTime
         doReturn("{\"t\":\"2026-07-16T00:00:00Z\",\"i\":\"00000000-0000-0000-0000-000000000002\"}".getBytes())
@@ -189,9 +187,8 @@ class GamificationServiceTest {
     @Test
     void getXpHistory_limitClampedToMax50() {
         UUID userId = UUID.randomUUID();
-        when(xpTransactionRepository.findByUserIdAfterCursor(eq(userId), eq(null), eq(null),
-                any()))
-                .thenReturn(List.of());
+        when(xpTransactionRepository.findByUserIdOrderByCreatedAtDesc(eq(userId), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of()));
 
         CursorPage<XpTransactionResponse> result = gamificationService.getXpHistory(userId, null, 1000);
 
@@ -253,8 +250,7 @@ class GamificationServiceTest {
         h1.setNewRank(TierType.SILVER);
         h1.setChangedAt(OffsetDateTime.now());
 
-        when(rankHistoryRepository.findByUserIdAfterCursor(
-                eq(userId), eq(null), eq(null), any()))
+        when(rankHistoryRepository.findByUserIdOrderByChangedAtDesc(eq(userId), any()))
                 .thenReturn(List.of(h1));
 
         CursorPage<RankHistoryResponse> result = gamificationService.getRankHistory(userId, null, 10);
@@ -339,7 +335,7 @@ class GamificationServiceTest {
         silver.setMinXp(1000);
         silver.setIconUrl("silver.png");
 
-        when(userGamificationRepository.findLeaderboardAfterCursor(eq(null), eq(null), any()))
+        when(userGamificationRepository.findAllByOrderByTotalXpDesc(any()))
                 .thenReturn(List.of(ug1, ug2));
         when(userRepository.findAllById(any())).thenReturn(List.of(user1, user2));
         when(rankTierRepository.findAll()).thenReturn(List.of(bronze, silver));
@@ -369,7 +365,7 @@ class GamificationServiceTest {
         ug1.setUserId(userId1);
         ug1.setTotalXp(100);
 
-        when(userGamificationRepository.findLeaderboardAfterCursor(eq(null), eq(null), any()))
+        when(userGamificationRepository.findAllByOrderByTotalXpDesc(any()))
                 .thenReturn(List.of(ug1));
         when(userRepository.findAllById(any())).thenReturn(List.of());
         when(rankTierRepository.findAll()).thenReturn(List.of());

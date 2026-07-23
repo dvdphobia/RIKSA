@@ -264,7 +264,8 @@ riksa-api/
 | V6 | `V6__add_email_verification_tokens.sql` | Email verification tokens table |
 | V7 | `V7__seed_gamification_data.sql` | 6 rank tiers, 8 streak milestones, 6 achievements |
 | V8 | `V8__add_user_gamification_version.sql` | `user_gamification.version` (optimistic locking) |
-| V9 | `V9__bigint_for_xp_columns.sql` | XP columns → BIGINT |
+| V9 | `V9__add_blog_likes_created_at.sql` | Add the blog-like timestamp while preserving deployed Flyway history |
+| V10.1 | `V10_1__bigint_for_xp_columns.sql` | XP columns → BIGINT |
 | V10 | `V10__add_blog_posts_cover_url.sql` | `blog_posts.cover_url` |
 | V11 | `V11__add_blog_rejection_reason.sql` | `blog_posts.rejection_reason` |
 | V12 | `V12__add_blog_likes_created_at.sql` | `blog_likes.created_at` (renamed from duplicate V9) |
@@ -784,7 +785,7 @@ Things a newcomer will trip over:
 6. **Two `/leaderboard` endpoints.** `GET /api/v1/gamification/leaderboard` (cursor, live) and `GET /api/v1/leaderboard` (snapshot-backed, scope + date). Pick one for the main UI and be consistent.
 7. **Blog events now published.** `BlogApprovedEvent` and `BlogRejectedEvent` are published by `BlogModerationService` on approve/reject. `LeaderboardRefreshedEvent` is published by `LeaderboardRefreshJob` after each refresh cycle.
 8. **`LoginRequest` field names disagree across docs.** `flutter.md` says `{username, password}`, `screenDetail/screenDesign.md` says `{email, password}`. Read `auth/dto/LoginRequest.java` before wiring the form.
-9. **Duplicate V9 Flyway migration fixed.** The blog-likes timestamp migration is version `V9_1`, which Flyway orders after V9 and before V10.
+9. **Duplicate V9 Flyway migration fixed without rewriting history.** V9 remains the originally deployed blog-likes timestamp migration; the later BIGINT change is V10.1.
 10. **`ddl-auto=validate`** means the schema is the source of truth. If you add a field to an entity, you must add a migration too, or boot fails.
 11. **No `user_follows`, `users.banner_url`, `user_interests`, `exercise_options` (multiple choice), `daily_challenges`, `posts.view_count`.** The UI references some of these — they will need migrations before the UI can be fully wired.
 12. **Reactions are UPVOTE/DOWNVOTE/HAHA/LOVE** in the DB and schema, but the UI design only shows Reddit-style up/down. The backend hasn't been narrowed — decide which side changes.

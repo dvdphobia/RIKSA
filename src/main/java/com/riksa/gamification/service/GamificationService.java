@@ -138,8 +138,11 @@ public class GamificationService {
         OffsetDateTime cursorCreatedAt = cursor != null ? cursor.t() : null;
         UUID cursorId = cursor != null ? cursor.i() : null;
 
-        List<XpTransaction> rows = xpTransactionRepository.findByUserIdAfterCursor(
-                userId, cursorCreatedAt, cursorId, PageRequest.of(0, limit + 1));
+        List<XpTransaction> rows = cursor == null
+                ? xpTransactionRepository.findByUserIdOrderByCreatedAtDesc(
+                        userId, PageRequest.of(0, limit + 1)).getContent()
+                : xpTransactionRepository.findByUserIdAfterCursor(
+                        userId, cursorCreatedAt, cursorId, PageRequest.of(0, limit + 1));
 
         List<XpTransactionResponse> edges = rows.stream()
                 .limit(limit)
@@ -149,7 +152,7 @@ public class GamificationService {
         boolean hasNext = rows.size() > limit;
         String endCursor = null;
         if (hasNext) {
-            XpTransaction last = rows.get(limit);
+            XpTransaction last = rows.get(limit - 1);
             endCursor = encodeCursor(new XpCursor(last.getCreatedAt(), last.getId()));
         }
 
@@ -287,8 +290,11 @@ public class GamificationService {
         OffsetDateTime cursorChangedAt = cursor != null ? cursor.t() : null;
         UUID cursorId = cursor != null ? cursor.i() : null;
 
-        List<RankHistory> rows = rankHistoryRepository.findByUserIdAfterCursor(
-                userId, cursorChangedAt, cursorId, PageRequest.of(0, limit + 1));
+        List<RankHistory> rows = cursor == null
+                ? rankHistoryRepository.findByUserIdOrderByChangedAtDesc(
+                        userId, PageRequest.of(0, limit + 1))
+                : rankHistoryRepository.findByUserIdAfterCursor(
+                        userId, cursorChangedAt, cursorId, PageRequest.of(0, limit + 1));
 
         List<RankHistoryResponse> edges = rows.stream()
                 .limit(limit)
@@ -305,7 +311,7 @@ public class GamificationService {
         boolean hasNext = rows.size() > limit;
         String endCursor = null;
         if (hasNext) {
-            RankHistory last = rows.get(limit);
+            RankHistory last = rows.get(limit - 1);
             endCursor = encodeCursor(new RankHistoryCursor(last.getChangedAt(), last.getId()));
         }
 
@@ -353,8 +359,10 @@ public class GamificationService {
         UUID cursorUserId = cursor != null ? cursor.u() : null;
         int startRank = cursor != null ? cursor.r() : 0;
 
-        List<UserGamification> rows = userGamificationRepository.findLeaderboardAfterCursor(
-                cursorXp, cursorUserId, PageRequest.of(0, limit + 1));
+        List<UserGamification> rows = cursor == null
+                ? userGamificationRepository.findAllByOrderByTotalXpDesc(PageRequest.of(0, limit + 1))
+                : userGamificationRepository.findLeaderboardAfterCursor(
+                        cursorXp, cursorUserId, PageRequest.of(0, limit + 1));
 
         if (rows.isEmpty()) {
             return new CursorPage<>(List.of(), false, null);
@@ -376,7 +384,7 @@ public class GamificationService {
         boolean hasNext = rows.size() > limit;
         String endCursor = null;
         if (hasNext) {
-            UserGamification last = rows.get(limit);
+            UserGamification last = rows.get(limit - 1);
             int lastRank = startRank + limit;
             endCursor = encodeCursor(new LeaderboardCursor(last.getTotalXp(), last.getUserId(), lastRank));
         }

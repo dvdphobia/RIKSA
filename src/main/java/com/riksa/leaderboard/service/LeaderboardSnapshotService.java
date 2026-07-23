@@ -26,6 +26,7 @@ public class LeaderboardSnapshotService {
     public void refreshSnapshots() {
         LocalDate today = LocalDate.now();
         log.info("Refreshing leaderboard snapshots for {}", today);
+        snapshotRepository.deleteBySnapshotDate(today);
 
         // COUNTRY scope
         List<LeaderboardSnapshot> countrySnapshots = jdbcTemplate.query("""
@@ -33,10 +34,15 @@ public class LeaderboardSnapshotService {
                 ug.user_id,
                 (ug.total_xp + (ug.current_streak * 5)) AS score,
                 RANK() OVER (ORDER BY (ug.total_xp + (ug.current_streak * 5)) DESC) AS rank,
-                rt.tier
+                rt.tier_name
             FROM user_gamification ug
-            JOIN rank_tiers rt ON rt.min_xp <= ug.total_xp
-            ORDER BY rt.min_xp DESC
+            JOIN LATERAL (
+                SELECT tier_name
+                FROM rank_tiers
+                WHERE min_xp <= ug.total_xp
+                ORDER BY min_xp DESC
+                LIMIT 1
+            ) rt ON TRUE
         """, (rs, rowNum) -> {
             LeaderboardSnapshot s = new LeaderboardSnapshot();
             s.setUserId(UUID.fromString(rs.getString("user_id")));
@@ -44,7 +50,7 @@ public class LeaderboardSnapshotService {
             s.setRank(rs.getInt("rank"));
             s.setScope(ScopeType.COUNTRY);
             s.setScopeId("CAMBODIA");
-            s.setRankingTier(TierType.valueOf(rs.getString("tier")));
+            s.setRankingTier(TierType.valueOf(rs.getString("tier_name")));
             s.setSnapshotDate(today);
             return s;
         });
@@ -58,12 +64,18 @@ public class LeaderboardSnapshotService {
                 u.province_id,
                 (ug.total_xp + (ug.current_streak * 5)) AS score,
                 RANK() OVER (PARTITION BY u.province_id ORDER BY (ug.total_xp + (ug.current_streak * 5)) DESC) AS rank,
-                rt.tier
+                rt.tier_name
             FROM users u
             JOIN user_gamification ug ON ug.user_id = u.id
-            JOIN rank_tiers rt ON rt.min_xp <= ug.total_xp
+            JOIN LATERAL (
+                SELECT tier_name
+                FROM rank_tiers
+                WHERE min_xp <= ug.total_xp
+                ORDER BY min_xp DESC
+                LIMIT 1
+            ) rt ON TRUE
             WHERE u.province_id IS NOT NULL
-            ORDER BY u.province_id, rt.min_xp DESC
+            ORDER BY u.province_id, rank
         """, (rs, rowNum) -> {
             LeaderboardSnapshot s = new LeaderboardSnapshot();
             s.setUserId(UUID.fromString(rs.getString("user_id")));
@@ -71,7 +83,7 @@ public class LeaderboardSnapshotService {
             s.setRank(rs.getInt("rank"));
             s.setScope(ScopeType.PROVINCE);
             s.setScopeId(rs.getString("province_id"));
-            s.setRankingTier(TierType.valueOf(rs.getString("tier")));
+            s.setRankingTier(TierType.valueOf(rs.getString("tier_name")));
             s.setSnapshotDate(today);
             return s;
         });

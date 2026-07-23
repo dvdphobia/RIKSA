@@ -27,9 +27,9 @@ public class TelegramConfig {
 
     @PostConstruct
     public void logConfig() {
-        log.info("Telegram config - enabled: {}, botUsername: {}, botToken: {}...{}", 
-                enabled, botUsername, 
-                botToken != null && botToken.length() > 5 ? botToken.substring(0, 5) : "empty",
-                botToken != null && botToken.length() > 5 ? botToken.substring(botToken.length() - 3) : "");
+        log.info("Telegram config - enabled: {}, botUsername configured: {}, botToken configured: {}",
+                enabled,
+                botUsername != null && !botUsername.isBlank(),
+                botToken != null && !botToken.isBlank());
     }
 }

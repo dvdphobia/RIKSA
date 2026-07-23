@@ -16,7 +16,7 @@ public class TelegramService {
 
     public void sendMessage(String chatId, String text) {
         if (!telegramConfig.isEnabled()) {
-            log.info("Telegram disabled - would have sent message to chatId {}: {}", chatId, text);
+            log.info("Telegram disabled - message delivery skipped");
             return;
         }
 

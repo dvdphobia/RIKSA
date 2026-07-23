@@ -23,5 +23,11 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
                                @Param("difficulty") DifficultyLevel difficulty,
                                Pageable pageable);
 
+    Page<Lesson> findAllByOrderByCreatedAtDesc(Pageable pageable);
+    Page<Lesson> findByCategoryIdOrderByCreatedAtDesc(UUID categoryId, Pageable pageable);
+    Page<Lesson> findByDifficultyOrderByCreatedAtDesc(DifficultyLevel difficulty, Pageable pageable);
+    Page<Lesson> findByCategoryIdAndDifficultyOrderByCreatedAtDesc(
+            UUID categoryId, DifficultyLevel difficulty, Pageable pageable);
+
     long countByCategoryId(UUID categoryId);
 }

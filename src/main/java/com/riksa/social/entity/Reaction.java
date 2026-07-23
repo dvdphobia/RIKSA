@@ -4,6 +4,8 @@ import com.riksa.social.enums.ReactionType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -21,7 +23,8 @@ public class Reaction {
     private UUID id;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "\"ReactionType\"")
     private ReactionType type;
 
     @Column(name = "user_id", nullable = false)

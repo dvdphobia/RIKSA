@@ -41,8 +41,18 @@ public class LessonService {
         page = Math.max(page, 0);
         size = Math.min(Math.max(size, 1), 100);
 
-        Page<Lesson> lessons = lessonRepository.findByFilters(
-                categoryId, difficulty, PageRequest.of(page, size));
+        PageRequest pageable = PageRequest.of(page, size);
+        Page<Lesson> lessons;
+        if (categoryId == null && difficulty == null) {
+            lessons = lessonRepository.findAllByOrderByCreatedAtDesc(pageable);
+        } else if (categoryId != null && difficulty == null) {
+            lessons = lessonRepository.findByCategoryIdOrderByCreatedAtDesc(categoryId, pageable);
+        } else if (categoryId == null) {
+            lessons = lessonRepository.findByDifficultyOrderByCreatedAtDesc(difficulty, pageable);
+        } else {
+            lessons = lessonRepository.findByCategoryIdAndDifficultyOrderByCreatedAtDesc(
+                    categoryId, difficulty, pageable);
+        }
 
         List<UUID> lessonIds = lessons.stream().map(Lesson::getId).toList();
         if (lessonIds.isEmpty()) return lessons.map(lesson -> toListResponse(lesson, 0, false));

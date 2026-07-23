@@ -1,13 +1,8 @@
 -- ============================================================================
--- V9: Change XP-related columns from INTEGER to BIGINT
---
--- XP accumulates indefinitely. INTEGER max (2.1B) is sufficient for a
--- single user but risky for running balances in high-volume systems.
--- BIGINT provides headroom and is consistent with the @Version BIGINT
--- already on user_gamification.
+-- V10.1: Change XP-related columns from INTEGER to BIGINT
 -- ============================================================================
 
--- Drop the view that depends on total_xp before altering
+-- Drop the view that depends on total_xp before altering.
 DROP VIEW IF EXISTS "user_activity_summary";
 
 ALTER TABLE "xp_transactions" ALTER COLUMN "amount" TYPE BIGINT;
@@ -23,7 +18,7 @@ ALTER TABLE "achievements" ALTER COLUMN "criteria_value" TYPE BIGINT;
 
 ALTER TABLE "streak_milestones" ALTER COLUMN "min_streak" TYPE BIGINT;
 
--- Recreate the view
+-- Recreate the view after widening its source columns.
 CREATE OR REPLACE VIEW "user_activity_summary" AS
 SELECT
     u.id AS user_id,

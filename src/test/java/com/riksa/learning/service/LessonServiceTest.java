@@ -35,7 +35,8 @@ class LessonServiceTest {
     void listLessonsPopulatesExerciseCountAndCompletionInBatches() {
         UUID userId = UUID.randomUUID(), lessonId = UUID.randomUUID();
         Lesson lesson = new Lesson(); lesson.setId(lessonId); lesson.setTitle("Algebra");
-        when(lessonRepository.findByFilters(isNull(), eq(DifficultyLevel.EASY), any(Pageable.class)))
+        when(lessonRepository.findByDifficultyOrderByCreatedAtDesc(
+                eq(DifficultyLevel.EASY), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(lesson)));
         ExerciseRepository.LessonExerciseCount count = mock(ExerciseRepository.LessonExerciseCount.class);
         when(count.getLessonId()).thenReturn(lessonId); when(count.getExerciseCount()).thenReturn(3L);

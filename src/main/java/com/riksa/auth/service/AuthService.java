@@ -92,7 +92,7 @@ public class AuthService {
         return buildAuthResponse(saved);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid username or password"));
@@ -256,8 +256,9 @@ public class AuthService {
 
         emailVerificationTokenRepository.save(verificationToken);
 
-        // Stub: In production, send email with verification link
-        log.info("Email verification token for {}: /api/auth/verify-email?token={}", user.getEmail(), token);
+        // Stub: replace this with an email provider before enabling email verification in production.
+        // Never log verification tokens, even in development.
+        log.info("Email verification token generated for {}", user.getEmail());
     }
 
     private AuthResponse buildAuthResponse(User user) {

@@ -15,6 +15,7 @@ import java.util.UUID;
 public interface RankHistoryRepository extends JpaRepository<RankHistory, UUID> {
 
     List<RankHistory> findByUserIdOrderByChangedAtDesc(UUID userId);
+    List<RankHistory> findByUserIdOrderByChangedAtDesc(UUID userId, Pageable pageable);
 
     /**
      * Cursor-based pagination for rank history.
