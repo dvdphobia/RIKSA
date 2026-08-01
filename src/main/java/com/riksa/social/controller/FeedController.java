@@ -1,5 +1,6 @@
 package com.riksa.social.controller;
 
+import com.riksa.common.constants.SocialEndpoints;
 import com.riksa.social.dto.FeedPage;
 import com.riksa.social.dto.PageInfo;
 import com.riksa.social.dto.PostResponse;
@@ -22,7 +23,7 @@ public class FeedController {
     private final FeedService feedService;
     private final SocialResponseResolver resolver;
 
-    @QueryMapping("feed")
+    @QueryMapping(SocialEndpoints.QUERY_FEED)
     public FeedPage feed(@Argument UUID categoryId,
                          @Argument UUID authorId,
                          @Argument UUID cursor,

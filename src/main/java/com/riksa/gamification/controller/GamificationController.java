@@ -1,6 +1,7 @@
 package com.riksa.gamification.controller;
 
 import com.riksa.auth.security.JwtService;
+import com.riksa.common.constants.GamificationEndpoints;
 import com.riksa.gamification.dto.AchievementResponse;
 import com.riksa.gamification.dto.CursorPage;
 import com.riksa.gamification.dto.GamificationProfileResponse;
@@ -21,20 +22,20 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/gamification")
+@RequestMapping(GamificationEndpoints.BASE)
 @RequiredArgsConstructor
 public class GamificationController {
     private final GamificationService gamificationService;
     private final JwtService jwtService;
 
-    @GetMapping("/me")
+    @GetMapping(GamificationEndpoints.ME)
     public ResponseEntity<GamificationProfileResponse> getProfile(
             @RequestHeader("Authorization") String authHeader) {
         UUID userId = extractUserId(authHeader);
         return ResponseEntity.ok(gamificationService.getProfile(userId));
     }
 
-    @GetMapping("/xp")
+    @GetMapping(GamificationEndpoints.XP)
     public ResponseEntity<CursorPage<XpTransactionResponse>> getXpHistory(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam(required = false) String cursor,
@@ -43,14 +44,14 @@ public class GamificationController {
         return ResponseEntity.ok(gamificationService.getXpHistory(userId, cursor, limit));
     }
 
-    @GetMapping("/achievements")
+    @GetMapping(GamificationEndpoints.ACHIEVEMENTS)
     public ResponseEntity<List<AchievementResponse>> getAchievements(
             @RequestHeader("Authorization") String authHeader) {
         UUID userId = extractUserId(authHeader);
         return ResponseEntity.ok(gamificationService.getAchievements(userId));
     }
 
-    @GetMapping("/rank-history")
+    @GetMapping(GamificationEndpoints.RANK_HISTORY)
     public ResponseEntity<CursorPage<RankHistoryResponse>> getRankHistory(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam(required = false) String cursor,
@@ -59,14 +60,14 @@ public class GamificationController {
         return ResponseEntity.ok(gamificationService.getRankHistory(userId, cursor, limit));
     }
 
-    @GetMapping("/streak")
+    @GetMapping(GamificationEndpoints.STREAK)
     public ResponseEntity<StreakResponse> getStreak(
             @RequestHeader("Authorization") String authHeader) {
         UUID userId = extractUserId(authHeader);
         return ResponseEntity.ok(gamificationService.getStreak(userId));
     }
 
-    @GetMapping("/leaderboard")
+    @GetMapping(GamificationEndpoints.LEADERBOARD)
     public ResponseEntity<CursorPage<LeaderboardEntryResponse>> getLeaderboard(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam(required = false) String cursor,

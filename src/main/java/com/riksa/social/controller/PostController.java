@@ -1,5 +1,6 @@
 package com.riksa.social.controller;
 
+import com.riksa.common.constants.SocialEndpoints;
 import com.riksa.social.dto.*;
 import com.riksa.social.entity.Post;
 import com.riksa.social.service.PostService;
@@ -24,14 +25,14 @@ public class PostController {
     private final ShareService shareService;
     private final SocialResponseResolver resolver;
 
-    @QueryMapping("post")
+    @QueryMapping(SocialEndpoints.QUERY_POST)
     public PostResponse post(@Argument UUID id) {
         UUID userId = getCurrentUserId();
         Post post = postService.getPost(id);
         return resolver.resolvePost(post, userId);
     }
 
-    @MutationMapping("createPost")
+    @MutationMapping(SocialEndpoints.MUTATION_CREATE_POST)
     public PostResponse createPost(@Argument CreatePostInput input) {
         UUID userId = getCurrentUserId();
         Post post = postService.createPost(
@@ -44,21 +45,21 @@ public class PostController {
         return resolver.resolvePost(post, userId);
     }
 
-    @MutationMapping("updatePost")
+    @MutationMapping(SocialEndpoints.MUTATION_UPDATE_POST)
     public PostResponse updatePost(@Argument UpdatePostInput input) {
         UUID userId = getCurrentUserId();
         Post post = postService.updatePost(userId, input.id(), input.title(), input.content());
         return resolver.resolvePost(post, userId);
     }
 
-    @MutationMapping("deletePost")
+    @MutationMapping(SocialEndpoints.MUTATION_DELETE_POST)
     public boolean deletePost(@Argument UUID id) {
         UUID userId = getCurrentUserId();
         postService.deletePost(userId, id);
         return true;
     }
 
-    @MutationMapping("sharePost")
+    @MutationMapping(SocialEndpoints.MUTATION_SHARE_POST)
     public PostResponse sharePost(@Argument SharePostInput input) {
         UUID userId = getCurrentUserId();
         Post post = shareService.sharePost(userId, input.postId(), input.platform());

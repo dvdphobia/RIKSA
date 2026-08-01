@@ -7,6 +7,7 @@ import com.riksa.blog.dto.BlogPostResponse;
 import com.riksa.blog.entity.BlogPost;
 import com.riksa.blog.enums.BlogStatus;
 import com.riksa.blog.service.BlogModerationService;
+import com.riksa.common.constants.AdminEndpoints;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/admin/blog")
+@RequestMapping(AdminEndpoints.BASE + AdminEndpoints.BLOG)
 @PreAuthorize("hasAnyRole('MODERATOR', 'ADMIN')")
 @RequiredArgsConstructor
 public class BlogAdminController {
@@ -24,7 +25,7 @@ public class BlogAdminController {
     private final BlogModerationService blogModerationService;
     private final JwtService jwtService;
 
-    @PatchMapping("/{id}/status")
+    @PatchMapping(AdminEndpoints.BLOG_STATUS)
     public ResponseEntity<BlogPostResponse> moderate(
             @PathVariable UUID id,
             @RequestBody @Valid ModerationRequest request,

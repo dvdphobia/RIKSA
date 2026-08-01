@@ -1,5 +1,6 @@
 package com.riksa.leaderboard.controller;
 
+import com.riksa.common.constants.LeaderboardEndpoints;
 import com.riksa.common.enums.ScopeType;
 import com.riksa.leaderboard.dto.LeaderboardMapper;
 import com.riksa.leaderboard.dto.LeaderboardRowResponse;
@@ -19,13 +20,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/leaderboard")
+@RequestMapping(LeaderboardEndpoints.BASE)
 @RequiredArgsConstructor
 public class LeaderboardController {
 
     private final LeaderboardQueryService leaderboardQueryService;
 
-    @GetMapping
+    @GetMapping(LeaderboardEndpoints.ROOT)
     public ResponseEntity<List<LeaderboardRowResponse>> getLeaderboard(
             @RequestParam(defaultValue = "COUNTRY") ScopeType scope,
             @RequestParam(defaultValue = "CAMBODIA") String scopeId,
@@ -38,7 +39,7 @@ public class LeaderboardController {
                 .map(LeaderboardMapper::toRow)
                 .toList());
     }
-    @GetMapping("/me")
+    @GetMapping(LeaderboardEndpoints.ME)
     public ResponseEntity<MyRankResponse> getMyRank(
             @RequestParam(required = false) String scopeId) {
 

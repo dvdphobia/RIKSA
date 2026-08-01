@@ -8,6 +8,7 @@ import com.riksa.auth.security.JwtService;
 import com.riksa.auth.service.AuthService;
 import com.riksa.auth.service.OAuth2Service;
 import com.riksa.auth.token.RefreshTokenRequest;
+import com.riksa.common.constants.AuthEndpoints;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping(AuthEndpoints.BASE)
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -26,33 +27,33 @@ public class AuthController {
     private final OAuth2Service oAuth2Service;
     private final JwtService jwtService;
 
-    @PostMapping("/register")
+    @PostMapping(AuthEndpoints.REGISTER)
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.ok(authService.register(request));
     }
 
-    @PostMapping("/login")
+    @PostMapping(AuthEndpoints.LOGIN)
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
     }
 
-    @PostMapping("/refresh")
+    @PostMapping(AuthEndpoints.REFRESH)
     public ResponseEntity<AuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
         return ResponseEntity.ok(authService.refreshToken(request.getRefreshToken()));
     }
 
-    @PostMapping("/logout")
+    @PostMapping(AuthEndpoints.LOGOUT)
     public ResponseEntity<MessageResponse> logout(@Valid @RequestBody RefreshTokenRequest request) {
         authService.logout(request.getRefreshToken());
         return ResponseEntity.ok(new MessageResponse("Logged out successfully"));
     }
 
-    @PostMapping("/google")
+    @PostMapping(AuthEndpoints.GOOGLE)
     public ResponseEntity<AuthResponse> googleAuth(@Valid @RequestBody GoogleAuthRequest request) {
         return ResponseEntity.ok(oAuth2Service.googleAuth(request));
     }
 
-    @PostMapping("/otp/send")
+    @PostMapping(AuthEndpoints.OTP_SEND)
     public ResponseEntity<Map<String, String>> sendOtp(@Valid @RequestBody OtpSendRequest request) {
         authService.sendOtp(request.getIdentifier());
         return ResponseEntity.ok(Map.of(
@@ -61,7 +62,7 @@ public class AuthController {
         ));
     }
 
-    @PostMapping("/otp/verify")
+    @PostMapping(AuthEndpoints.OTP_VERIFY)
     public ResponseEntity<Map<String, Object>> verifyOtp(@Valid @RequestBody OtpVerifyRequest request) {
         boolean verified = authService.verifyOtp(request.getIdentifier(), request.getCode());
         return ResponseEntity.ok(Map.of(
@@ -70,13 +71,13 @@ public class AuthController {
         ));
     }
 
-    @GetMapping("/me")
+    @GetMapping(AuthEndpoints.ME)
     public ResponseEntity<UserProfileResponse> getProfile(@RequestHeader("Authorization") String authHeader) {
         UUID userId = extractUserId(authHeader);
         return ResponseEntity.ok(authService.getProfile(userId));
     }
 
-    @PutMapping("/me")
+    @PutMapping(AuthEndpoints.ME)
     public ResponseEntity<UserProfileResponse> updateProfile(
             @RequestHeader("Authorization") String authHeader,
             @Valid @RequestBody UpdateProfileRequest request
@@ -91,19 +92,19 @@ public class AuthController {
         ));
     }
 
-    @PostMapping("/forgot-password")
+    @PostMapping(AuthEndpoints.FORGOT_PASSWORD)
     public ResponseEntity<MessageResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         authService.forgotPassword(request.getIdentifier());
         return ResponseEntity.ok(new MessageResponse("If an account exists with that identifier, an OTP has been sent"));
     }
 
-    @PostMapping("/reset-password")
+    @PostMapping(AuthEndpoints.RESET_PASSWORD)
     public ResponseEntity<MessageResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request.getIdentifier(), request.getCode(), request.getNewPassword());
         return ResponseEntity.ok(new MessageResponse("Password has been reset successfully"));
     }
 
-    @PostMapping("/verify-email")
+    @PostMapping(AuthEndpoints.VERIFY_EMAIL)
     public ResponseEntity<Map<String, Object>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
         boolean verified = authService.verifyEmail(request.getToken());
         return ResponseEntity.ok(Map.of(

@@ -1,6 +1,7 @@
 package com.riksa.learning.controller;
 
 import com.riksa.auth.security.JwtService;
+import com.riksa.common.constants.LearningEndpoints;
 import com.riksa.common.enums.DifficultyLevel;
 import com.riksa.learning.dto.AnswerResult;
 import com.riksa.learning.dto.CompletionRequest;
@@ -27,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/lessons")
+@RequestMapping(LearningEndpoints.BASE)
 @RequiredArgsConstructor
 public class LessonController {
 
@@ -36,7 +37,7 @@ public class LessonController {
     private final LessonCompletionService lessonCompletionService;
     private final JwtService jwtService;
 
-    @GetMapping
+    @GetMapping(LearningEndpoints.ROOT)
     public ResponseEntity<Page<LessonListResponse>> listLessons(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam(required = false) UUID categoryId,
@@ -47,7 +48,7 @@ public class LessonController {
         return ResponseEntity.ok(lessonService.listLessons(userId, categoryId, difficulty, page, size));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping(LearningEndpoints.LESSON_BY_ID)
     public ResponseEntity<LessonDetailResponse> getLesson(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable UUID id) {
@@ -55,7 +56,7 @@ public class LessonController {
         return ResponseEntity.ok(lessonService.getLesson(id));
     }
 
-    @PostMapping("/{id}/exercises/{exerciseId}/attempt")
+    @PostMapping(LearningEndpoints.EXERCISE_ATTEMPT)
     public ResponseEntity<AnswerResult> submitAttempt(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable UUID id,
@@ -65,7 +66,7 @@ public class LessonController {
         return ResponseEntity.ok(exerciseAttemptService.submitAttempt(userId, id, exerciseId, request));
     }
 
-    @PostMapping("/{id}/complete")
+    @PostMapping(LearningEndpoints.COMPLETE)
     public ResponseEntity<CompletionResponse> complete(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable UUID id,

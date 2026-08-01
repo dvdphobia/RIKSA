@@ -1,5 +1,6 @@
 package com.riksa.social.controller;
 
+import com.riksa.common.constants.SocialEndpoints;
 import com.riksa.social.dto.CommentPage;
 import com.riksa.social.dto.CommentResponse;
 import com.riksa.social.dto.CreateCommentInput;
@@ -24,7 +25,7 @@ public class CommentController {
     private final CommentService commentService;
     private final SocialResponseResolver resolver;
 
-    @QueryMapping("comments")
+    @QueryMapping(SocialEndpoints.QUERY_COMMENTS)
     public CommentPage comments(@Argument UUID postId,
                                 @Argument UUID cursor,
                                 @Argument Integer limit) {
@@ -33,7 +34,7 @@ public class CommentController {
         return resolver.resolveComments(postId, userId, pageLimit);
     }
 
-    @MutationMapping("createComment")
+    @MutationMapping(SocialEndpoints.MUTATION_CREATE_COMMENT)
     public CommentResponse createComment(@Argument CreateCommentInput input) {
         UUID userId = getCurrentUserId();
         var comment = commentService.createComment(
@@ -45,14 +46,14 @@ public class CommentController {
         return resolver.resolveComment(comment, userId);
     }
 
-    @MutationMapping("updateComment")
+    @MutationMapping(SocialEndpoints.MUTATION_UPDATE_COMMENT)
     public CommentResponse updateComment(@Argument UpdateCommentInput input) {
         UUID userId = getCurrentUserId();
         var comment = commentService.updateComment(userId, input.id(), input.content());
         return resolver.resolveComment(comment, userId);
     }
 
-    @MutationMapping("deleteComment")
+    @MutationMapping(SocialEndpoints.MUTATION_DELETE_COMMENT)
     public boolean deleteComment(@Argument UUID id) {
         UUID userId = getCurrentUserId();
         commentService.deleteComment(userId, id);

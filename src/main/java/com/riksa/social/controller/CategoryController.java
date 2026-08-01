@@ -1,5 +1,6 @@
 package com.riksa.social.controller;
 
+import com.riksa.common.constants.SocialEndpoints;
 import com.riksa.social.dto.CategoryResponse;
 import com.riksa.social.dto.SocialMapper;
 import com.riksa.social.entity.Category;
@@ -21,7 +22,7 @@ public class CategoryController {
 
     private final CategoryService categoryService;
 
-    @QueryMapping("categories")
+    @QueryMapping(SocialEndpoints.QUERY_CATEGORIES)
     public List<CategoryResponse> categories() {
         UUID userId = getCurrentUserId();
         return categoryService.listCategories().stream()
@@ -33,7 +34,7 @@ public class CategoryController {
                 .toList();
     }
 
-    @MutationMapping("joinCategory")
+    @MutationMapping(SocialEndpoints.MUTATION_JOIN_CATEGORY)
     public CategoryResponse joinCategory(@Argument UUID categoryId) {
         UUID userId = getCurrentUserId();
         Category category = categoryService.joinCategory(userId, categoryId);
@@ -44,7 +45,7 @@ public class CategoryController {
         );
     }
 
-    @MutationMapping("leaveCategory")
+    @MutationMapping(SocialEndpoints.MUTATION_LEAVE_CATEGORY)
     public CategoryResponse leaveCategory(@Argument UUID categoryId) {
         UUID userId = getCurrentUserId();
         Category category = categoryService.leaveCategory(userId, categoryId);

@@ -4,6 +4,7 @@ import com.riksa.blog.dto.*;
 import com.riksa.blog.enums.BlogStatus;
 import com.riksa.blog.service.BlogEngagementService;
 import com.riksa.blog.service.BlogService;
+import com.riksa.common.constants.BlogEndpoints;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -15,14 +16,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/blog")
+@RequestMapping(BlogEndpoints.BASE)
 @RequiredArgsConstructor
 public class BlogController {
 
     private final BlogService blogService;
     private final BlogEngagementService blogEngagementService;
 
-    @GetMapping
+    @GetMapping(BlogEndpoints.ROOT)
     public ResponseEntity<BlogListResponse> listPosts(
             @RequestParam(defaultValue = "APPROVED") BlogStatus status,
             @RequestParam(required = false) UUID categoryId,
@@ -53,7 +54,7 @@ public class BlogController {
         ));
     }
 
-    @PostMapping
+    @PostMapping(BlogEndpoints.ROOT)
     public ResponseEntity<BlogPostResponse> createPost(@RequestBody @Valid BlogPostRequest request) {
         UUID userId = getCurrentUserId();
         var post = blogService.createPost(
@@ -66,7 +67,7 @@ public class BlogController {
         return ResponseEntity.ok(BlogMapper.toResponse(post, false));
     }
 
-    @GetMapping("/my-posts")
+    @GetMapping(BlogEndpoints.MY_POSTS)
     public ResponseEntity<BlogListResponse> getMyPosts(
             @RequestParam(required = false) BlogStatus status,
             @RequestParam(defaultValue = "0") int page,
@@ -90,7 +91,7 @@ public class BlogController {
         ));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping(BlogEndpoints.POST)
     public ResponseEntity<BlogPostResponse> getPost(@PathVariable UUID id) {
         UUID userId = getCurrentUserId();
         var post = blogService.getPost(id);
@@ -107,7 +108,7 @@ public class BlogController {
                 blogEngagementService.isLiked(id, userId)));
     }
 
-    @PostMapping("/{id}/like")
+    @PostMapping(BlogEndpoints.LIKE)
     public ResponseEntity<BlogPostResponse> toggleLike(@PathVariable UUID id) {
         UUID userId = getCurrentUserId();
         var post = blogEngagementService.toggleLike(id, userId);
@@ -115,7 +116,7 @@ public class BlogController {
                 blogEngagementService.isLiked(id, userId)));
     }
 
-    @PostMapping("/{id}/view")
+    @PostMapping(BlogEndpoints.VIEW)
     public ResponseEntity<Void> trackView(@PathVariable UUID id) {
         UUID userId = getCurrentUserIdOrNull();
         blogEngagementService.trackView(id, userId);
