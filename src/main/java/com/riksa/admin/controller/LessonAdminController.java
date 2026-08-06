@@ -5,9 +5,11 @@ import com.riksa.admin.service.LessonAdminService;
 import com.riksa.common.constants.AdminEndpoints;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
@@ -49,6 +51,22 @@ public class LessonAdminController {
     @PostMapping(AdminEndpoints.LESSON_BULK)
     public ResponseEntity<BulkLessonResult> bulkCreate(@RequestBody @Valid List<LessonCreateRequest> requests) {
         return ResponseEntity.ok(lessonAdminService.bulkCreate(requests));
+    }
+
+    @PostMapping(value = AdminEndpoints.LESSON_UPLOAD, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<LessonResponse> upload(@RequestParam("file") MultipartFile file) {
+        LessonResponse response = lessonAdminService.uploadMarkdown(file);
+        URI location = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .path(AdminEndpoints.LESSON_BY_ID)
+                .buildAndExpand(response.getId())
+                .toUri();
+        return ResponseEntity.created(location).body(response);
+    }
+
+    @PostMapping(value = AdminEndpoints.LESSON_UPLOAD_BULK, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<BulkLessonResult> uploadBulk(@RequestParam("files") List<MultipartFile> files) {
+        return ResponseEntity.ok(lessonAdminService.uploadMarkdownBulk(files));
     }
 
     @GetMapping(AdminEndpoints.ROOT)

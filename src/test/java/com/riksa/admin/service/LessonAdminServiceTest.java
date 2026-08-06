@@ -13,7 +13,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +31,7 @@ class LessonAdminServiceTest {
     @Mock private LessonRepository lessonRepository;
     @Mock private ExerciseRepository exerciseRepository;
     @Mock private CategoryRepository categoryRepository;
+    @Mock private LessonMarkdownParser markdownParser;
 
     @InjectMocks private LessonAdminService lessonAdminService;
 
@@ -248,5 +251,92 @@ class LessonAdminServiceTest {
         assertThat(result.getSuccessCount()).isEqualTo(1);
         assertThat(result.getFailureCount()).isEqualTo(1);
         assertThat(result.getErrors()).hasSize(1);
+    }
+
+    @Test
+    void uploadMarkdown_validFile_createsLesson() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "lesson.md", "text/markdown", "---\ntitle: T\n---\nbody".getBytes(StandardCharsets.UTF_8));
+
+        ExerciseRequest exerciseReq = new ExerciseRequest();
+        exerciseReq.setQuestion("Q?");
+        exerciseReq.setAnswerKey("A");
+        exerciseReq.setDifficulty(DifficultyLevel.EASY);
+        exerciseReq.setPoints(5);
+
+        LessonCreateRequest parsed = new LessonCreateRequest();
+        parsed.setTitle("T");
+        parsed.setDescription("body");
+        parsed.setDifficulty(DifficultyLevel.EASY);
+        parsed.setBaseXp(10);
+        parsed.setExercises(List.of(exerciseReq));
+
+        when(markdownParser.parse(any(String.class))).thenReturn(parsed);
+        when(lessonRepository.save(any(Lesson.class))).thenAnswer(inv -> {
+            Lesson l = inv.getArgument(0);
+            l.setId(UUID.randomUUID());
+            return l;
+        });
+        when(exerciseRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        LessonResponse result = lessonAdminService.uploadMarkdown(file);
+
+        assertThat(result.getTitle()).isEqualTo("T");
+        assertThat(result.getDescription()).isEqualTo("body");
+        assertThat(result.getExercises()).hasSize(1);
+    }
+
+    @Test
+    void uploadMarkdown_emptyFile_throws() {
+        MockMultipartFile file = new MockMultipartFile("file", "lesson.md", "text/markdown", new byte[0]);
+
+        assertThatThrownBy(() -> lessonAdminService.uploadMarkdown(file))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("empty");
+    }
+
+    @Test
+    void uploadMarkdown_nonMarkdownExtension_throws() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "lesson.txt", "text/plain", "content".getBytes(StandardCharsets.UTF_8));
+
+        assertThatThrownBy(() -> lessonAdminService.uploadMarkdown(file))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(".md");
+    }
+
+    @Test
+    void uploadMarkdownBulk_mixedResults_returnsBulkResult() {
+        MockMultipartFile good = new MockMultipartFile(
+                "files", "good.md", "text/markdown", "good".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile bad = new MockMultipartFile(
+                "files", "bad.md", "text/markdown", "bad".getBytes(StandardCharsets.UTF_8));
+
+        ExerciseRequest exerciseReq = new ExerciseRequest();
+        exerciseReq.setQuestion("Q?");
+        exerciseReq.setAnswerKey("A");
+        exerciseReq.setDifficulty(DifficultyLevel.EASY);
+        exerciseReq.setPoints(5);
+
+        LessonCreateRequest parsed = new LessonCreateRequest();
+        parsed.setTitle("T");
+        parsed.setDifficulty(DifficultyLevel.EASY);
+        parsed.setBaseXp(10);
+        parsed.setExercises(List.of(exerciseReq));
+
+        when(markdownParser.parse("good")).thenReturn(parsed);
+        when(markdownParser.parse("bad")).thenThrow(new IllegalArgumentException("parse error"));
+        when(lessonRepository.save(any(Lesson.class))).thenAnswer(inv -> {
+            Lesson l = inv.getArgument(0);
+            l.setId(UUID.randomUUID());
+            return l;
+        });
+        when(exerciseRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        BulkLessonResult result = lessonAdminService.uploadMarkdownBulk(List.of(good, bad));
+
+        assertThat(result.getSuccessCount()).isEqualTo(1);
+        assertThat(result.getFailureCount()).isEqualTo(1);
+        assertThat(result.getErrors()).containsExactly("bad.md: parse error");
     }
 }

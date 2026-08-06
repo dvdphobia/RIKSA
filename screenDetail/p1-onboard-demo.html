@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>P1 — Onboarding & Profile Setup Wireframe — RIKSA</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0a0a0a;
+    color: #e7e7e7;
+    padding: 24px;
+  }
+  h1 { color: #fff; font-size: 18px; margin-bottom: 4px; }
+  .sub { color: #888; font-size: 13px; margin-bottom: 24px; }
+
+  /* Scrollable row of phone mockups */
+  .row {
+    display: flex;
+    gap: 24px;
+    overflow-x: auto;
+    padding-bottom: 16px;
+    max-width: 100%;
+  }
+  .phone-wrap { flex: 0 0 auto; }
+  .label {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+  }
+  .label b { color: #f5c542; }
+
+  /* Phone frame */
+  .phone {
+    width: 300px;
+    min-height: 600px;
+    background: #000;
+    border-radius: 28px;
+    overflow: hidden;
+    border: 1px solid #222;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---- Shared components ---- */
+  .header {
+    padding: 14px 16px;
+    border-bottom: 1px solid #222;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+  }
+  .header .back { color: #888; font-size: 18px; cursor: pointer; }
+  .header .title { font-size: 15px; font-weight: 600; color: #fff; flex: 1; }
+  .header .step {
+    font-size: 11px;
+    color: #666;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lang-toggle {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    font-size: 11px;
+    color: #888;
+    border: 1px solid #333;
+    padding: 4px 8px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+
+  /* Gold pill button */
+  .pill {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    text-align: center;
+    border: none;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .pill-gold {
+    background: linear-gradient(135deg, #f5c542, #d4a017);
+    color: #1a1a1a;
+  }
+  .pill-gold:disabled,
+  .pill-gold.disabled {
+    background: #2a2a2a;
+    color: #555;
+    cursor: not-allowed;
+  }
+  .pill-outline {
+    background: transparent;
+    border: 1px solid #444;
+    color: #ddd;
+  }
+
+  /* Bottom area for buttons */
+  .bottom-bar {
+    padding: 16px;
+    border-top: 1px solid #222;
+    margin-top: auto;
+  }
+
+  /* ---- P1.S1 Splash ---- */
+  .splash {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 40px 24px;
+  }
+  .splash-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #f5c542, #d4a017);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 42px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 24px rgba(245,197,66,0.25);
+  }
+  .splash-wordmark {
+    font-size: 28px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 4px;
+    margin-bottom: 12px;
+  }
+  .splash-tagline {
+    font-size: 13px;
+    color: #f5c542;
+    text-align: center;
+    line-height: 1.8;
+    margin-bottom: 4px;
+  }
+  .splash-tagline .km {
+    color: #888;
+    font-size: 12px;
+    display: block;
+    margin-top: 4px;
+  }
+
+  /* ---- P1.S2 Province Selector ---- */
+  .province-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: #222;
+    padding: 1px;
+  }
+  .prov-card {
+    background: #0f0f0f;
+    padding: 16px 12px;
+    text-align: center;
+    position: relative;
+    cursor: pointer;
+  }
+  .prov-card.selected {
+    background: #1a1a0a;
+    box-shadow: inset 0 0 0 2px #f5c542;
+  }
+  .prov-card .crest {
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+  .prov-card .pname {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ddd;
+  }
+  .prov-card .pkm {
+    font-size: 11px;
+    color: #666;
+    margin-top: 2px;
+  }
+  .prov-card .ptag {
+    font-size: 10px;
+    color: #888;
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+  .prov-card .check {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #f5c542;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #1a1a1a;
+    font-weight: 700;
+  }
+  .prov-card.selected .check { display: flex; }
+
+  /* ---- P1.S3 Topic Selection ---- */
+  .topic-list {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .topic-card {
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .topic-card.selected {
+    border-color: #f5c542;
+    background: #1a1a0a;
+  }
+  .topic-card .ticon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+  .topic-card.selected .ticon {
+    background: rgba(245,197,66,0.15);
+  }
+  .topic-card .tinfo { flex: 1; }
+  .topic-card .tname {
+    font-size: 14px;
+    font-weight: 600;
+    color: #ddd;
+  }
+  .topic-card .tcount {
+    font-size: 11px;
+    color: #666;
+    margin-top: 2px;
+  }
+  .topic-card .checkmark {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid #333;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+  .topic-card.selected .checkmark {
+    border-color: #f5c542;
+    background: #f5c542;
+    color: #1a1a1a;
+    font-weight: 700;
+  }
+
+  /* ---- P1.S4 Register ---- */
+  .form {
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+  }
+  .form-heading {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .mini-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #f5c542, #d4a017);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 auto 16px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field label {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .input {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    color: #ddd;
+    font-family: inherit;
+  }
+  .input::placeholder { color: #555; }
+  .input:focus { outline: none; border-color: #f5c542; }
+  .input.readonly {
+    background: #0a0a0a;
+    color: #888;
+    border-color: #222;
+  }
+  .field-with-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .field-with-link .input { flex: 1; }
+  .change-link {
+    font-size: 12px;
+    color: #f5c542;
+    text-decoration: underline;
+    white-space: nowrap;
+  }
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0;
+  }
+  .divider::before,
+  .divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #222;
+  }
+  .divider span {
+    font-size: 12px;
+    color: #666;
+  }
+  .form-footer {
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+    padding-top: 8px;
+  }
+  .form-footer a { color: #f5c542; text-decoration: none; }
+  .lang-row {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding: 8px 0;
+  }
+  .lang-row span {
+    font-size: 12px;
+    color: #888;
+    cursor: pointer;
+  }
+  .lang-row span.active { color: #f5c542; }
+
+  /* ---- P1.S12 Edit Profile (Profile Setup) ---- */
+  .profile-setup {
+    flex: 1;
+    overflow-y: auto;
+  }
+  .avatar-section {
+    padding: 24px 16px 16px;
+    text-align: center;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  .avatar-big {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #312e81, #4338ca);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 auto;
+    position: relative;
+    border: 3px solid #f5c542;
+  }
+  .avatar-big .camera {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #f5c542;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    border: 2px solid #000;
+  }
+  .avatar-change {
+    font-size: 12px;
+    color: #f5c542;
+    margin-top: 10px;
+    cursor: pointer;
+  }
+  .form-section {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .char-counter {
+    font-size: 10px;
+    color: #555;
+    text-align: right;
+  }
+  .gender-segments {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .seg {
+    padding: 10px 12px;
+    text-align: center;
+    border: 1px solid #333;
+    border-radius: 10px;
+    font-size: 12px;
+    color: #888;
+    cursor: pointer;
+  }
+  .seg.active {
+    border-color: #f5c542;
+    background: rgba(245,197,66,0.08);
+    color: #f5c542;
+  }
+  .select-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    color: #ddd;
+    cursor: pointer;
+  }
+  .select-display .chevron { color: #666; font-size: 12px; }
+
+  /* Explanation box */
+  .ex {
+    margin-top: 32px;
+    padding: 16px;
+    background: #111;
+    border-radius: 12px;
+    border-left: 3px solid #f5c542;
+    max-width: 100%;
+  }
+  .ex h3 { color: #f5c542; font-size: 14px; margin-bottom: 12px; }
+  .ex ul { padding-left: 18px; font-size: 13px; color: #bbb; line-height: 1.8; }
+  .ex ul b { color: #fff; }
+  .ex p { font-size: 13px; color: #bbb; line-height: 1.7; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>P1 — Onboarding & Profile Setup Wireframe</h1>
+<div class="sub">5 screens: Splash → Province → Topics → Register → Profile Setup. The first 15 seconds of the demo.</div>
+
+<div class="row">
+
+  <!-- ============== P1.S1 — SPLASH ============== -->
+  <div class="phone-wrap">
+    <div class="label">P1.S1 · <b>Splash</b></div>
+    <div class="phone">
+      <div class="splash">
+        <div class="lang-toggle">EN | ភាសាខ្មែរ</div>
+        <div class="splash-logo">រ</div>
+        <div class="splash-wordmark">RIKSA</div>
+        <div class="splash-tagline">
+          Learn. Rise. Lead.
+          <span class="km">សិក្សា។ លើកសសួយ។ ដឹកនាំ។</span>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <button class="pill pill-gold">Get Started</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== P1.S2 — PROVINCE SELECTOR ============== -->
+  <div class="phone-wrap">
+    <div class="label">P1.S2 · <b>Province Selector</b></div>
+    <div class="phone">
+      <div class="header">
+        <span class="back">←</span>
+        <span class="title">Choose your province</span>
+        <span class="step">1 / 3</span>
+      </div>
+      <div class="province-grid">
+        <div class="prov-card selected">
+          <div class="check">✓</div>
+          <div class="crest">🏙️</div>
+          <div class="pname">Phnom Penh</div>
+          <div class="pkm">ភ្នំពេញ</div>
+          <div class="ptag">Capital city</div>
+        </div>
+        <div class="prov-card">
+          <div class="crest">🏛️</div>
+          <div class="pname">Siem Reap</div>
+          <div class="pkm">សៀមរាប</div>
+          <div class="ptag">Temples &amp; heritage</div>
+        </div>
+        <div class="prov-card">
+          <div class="crest">🌾</div>
+          <div class="pname">Battambang</div>
+          <div class="pkm">បាត់ដំបង</div>
+          <div class="ptag">Arts &amp; culture</div>
+        </div>
+        <div class="prov-card">
+          <div class="crest">🌳</div>
+          <div class="pname">Kampong Cham</div>
+          <div class="pkm">កំពង់ចាម</div>
+          <div class="ptag">Riverside hub</div>
+        </div>
+        <div class="prov-card">
+          <div class="crest">🏖️</div>
+          <div class="pname">Sihanoukville</div>
+          <div class="pkm">កំពង់សោល</div>
+          <div class="ptag">Coastal gateway</div>
+        </div>
+        <div class="prov-card">
+          <div class="crest">🏔️</div>
+          <div class="pname">Mondulkiri</div>
+          <div class="pkm">មណ្ឌលគិរី</div>
+          <div class="ptag">Highlands &amp; nature</div>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <button class="pill pill-gold">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== P1.S3 — TOPIC SELECTION ============== -->
+  <div class="phone-wrap">
+    <div class="label">P1.S3 · <b>Topic Selection</b></div>
+    <div class="phone">
+      <div class="header">
+        <span class="back">←</span>
+        <span class="title">What do you want to learn?</span>
+        <span class="step">2 / 3</span>
+      </div>
+      <div class="topic-list">
+        <div class="topic-card selected">
+          <div class="ticon">🔬</div>
+          <div class="tinfo">
+            <div class="tname">STEM</div>
+            <div class="tcount">120 lessons</div>
+          </div>
+          <div class="checkmark">✓</div>
+        </div>
+        <div class="topic-card selected">
+          <div class="ticon">💻</div>
+          <div class="tinfo">
+            <div class="tname">Technology</div>
+            <div class="tcount">85 lessons</div>
+          </div>
+          <div class="checkmark">✓</div>
+        </div>
+        <div class="topic-card">
+          <div class="ticon">📜</div>
+          <div class="tinfo">
+            <div class="tname">History</div>
+            <div class="tcount">60 lessons</div>
+          </div>
+          <div class="checkmark"></div>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <button class="pill pill-gold">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== P1.S4 — REGISTER ============== -->
+  <div class="phone-wrap">
+    <div class="label">P1.S4 · <b>Register</b></div>
+    <div class="phone">
+      <div class="header">
+        <span class="back">←</span>
+        <span class="title">Create account</span>
+        <span class="step">3 / 3</span>
+      </div>
+      <div class="form">
+        <div class="mini-logo">រ</div>
+        <div class="form-heading" style="text-align:center;">Create your account</div>
+
+        <div class="field">
+          <label>Full Name</label>
+          <input class="input" type="text" placeholder="Sok Pisey" />
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input class="input" type="email" placeholder="pisey@example.com" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input class="input" type="password" placeholder="••••••••" />
+        </div>
+        <div class="field">
+          <label>Province</label>
+          <div class="field-with-link">
+            <div class="input readonly">🏙️ Phnom Penh</div>
+            <a class="change-link">Change</a>
+          </div>
+        </div>
+
+        <button class="pill pill-gold">Create Account</button>
+
+        <div class="divider"><span>or</span></div>
+
+        <button class="pill pill-outline">🔵 Sign in with Google</button>
+
+        <div class="form-footer">
+          Already have an account? <a>Log in</a>
+        </div>
+        <div class="lang-row">
+          <span class="active">English</span>
+          <span>ភាសាខ្មែរ</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== P1.S12 — EDIT PROFILE (Profile Setup) ============== -->
+  <div class="phone-wrap">
+    <div class="label">P1.S12 · <b>Profile Setup</b></div>
+    <div class="phone">
+      <div class="header">
+        <span class="back">←</span>
+        <span class="title">Edit profile</span>
+        <span class="step" style="color:#f5c542; cursor:pointer;">Save</span>
+      </div>
+      <div class="profile-setup">
+        <div class="avatar-section">
+          <div class="avatar-big">
+            SP
+            <div class="camera">📷</div>
+          </div>
+          <div class="avatar-change">Change avatar</div>
+        </div>
+        <div class="form-section">
+          <div class="field">
+            <label>Display Name</label>
+            <input class="input" type="text" value="Sok Pisey" />
+          </div>
+          <div class="field">
+            <label>Bio</label>
+            <textarea class="input" rows="2" placeholder="Tell us about yourself..." style="resize:none; font-family:inherit;">Learning STEM &amp; Tech in Phnom Penh 🏙️</textarea>
+            <div class="char-counter">38 / 160</div>
+          </div>
+          <div class="field">
+            <label>Gender</label>
+            <div class="gender-segments">
+              <div class="seg active">Male</div>
+              <div class="seg">Female</div>
+              <div class="seg">Other</div>
+              <div class="seg">Prefer not to say</div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Province</label>
+            <div class="select-display">
+              🏙️ Phnom Penh
+              <span class="chevron">▼</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <button class="pill pill-gold">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="ex">
+  <h3>Onboarding Flow — How it works</h3>
+  <ul>
+    <li><b>P1.S1 Splash</b> — Full black screen, gold RIKSA logo with Khmer "រ", bilingual tagline. "Get Started" pill at bottom. Language toggle in corner. No API call — pure static.</li>
+    <li><b>P1.S2 Province Selector</b> — 2x3 grid of province cards with crest icon, English + Khmer name, tagline. Selected card gets gold border + checkmark. Continue button disabled until one is picked. State held in app, sent with register. No API call yet.</li>
+    <li><b>P1.S3 Topic Selection</b> — 3 vertical cards (STEM, Technology, History) with icon + lesson count. Multi-select — tap to toggle checkmark circle. Topics map to category memberships AFTER registration (Phase 4 categories). No API call at this step.</li>
+    <li><b>P1.S4 Register</b> — Mini logo, form: Full Name, Email, Password, Province (readonly from S2 with "Change" link). Gold "Create Account" button. Google OAuth option below divider. Language toggle at bottom. <b>POST /api/v1/auth/register</b> with {fullName, email, password, provinceId}.</li>
+    <li><b>P1.S12 Profile Setup</b> — Avatar picker (preset for now — no upload endpoint), Display Name, Bio textarea with 160 char counter, Gender segmented selector, Province dropdown. <b>GET /api/v1/auth/me</b> to load, <b>PUT /api/v1/auth/me</b> to save.</li>
+  </ul>
+  <p><b>Flow sequence:</b> Splash → Province → Topics → Register (lands on Home) → later, Profile Setup via Edit Profile from Home or Profile screen. The first 3 screens are pre-registration state collection. Province is required at register time; topics persist post-registration via category join.</p>
+</div>
+
+</body>
+</html>

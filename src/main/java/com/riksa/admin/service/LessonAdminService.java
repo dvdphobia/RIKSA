@@ -11,7 +11,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -24,6 +27,7 @@ public class LessonAdminService {
     private final LessonRepository lessonRepository;
     private final ExerciseRepository exerciseRepository;
     private final CategoryRepository categoryRepository;
+    private final LessonMarkdownParser markdownParser;
 
     @Transactional
     public LessonResponse create(LessonCreateRequest req) {
@@ -35,6 +39,7 @@ public class LessonAdminService {
         lesson.setDifficulty(req.getDifficulty());
         lesson.setBaseXp(req.getBaseXp());
         lesson.setCategory(category);
+        lesson.setReflectionPrompt(req.getReflectionPrompt());
         lesson = lessonRepository.save(lesson);
 
         List<Exercise> exercises = buildExercises(req.getExercises(), lesson);
@@ -53,6 +58,7 @@ public class LessonAdminService {
         if (req.getDifficulty() != null) lesson.setDifficulty(req.getDifficulty());
         if (req.getBaseXp() != null) lesson.setBaseXp(req.getBaseXp());
         if (req.getCategoryId() != null) lesson.setCategory(resolveCategory(req.getCategoryId()));
+        if (req.getReflectionPrompt() != null) lesson.setReflectionPrompt(req.getReflectionPrompt());
 
         // Replace exercises if provided
         List<Exercise> exercises;
@@ -108,6 +114,47 @@ public class LessonAdminService {
         return new BulkLessonResult(success, failure, errors);
     }
 
+    @Transactional
+    public LessonResponse uploadMarkdown(MultipartFile file) {
+        return create(parseMarkdownFile(file));
+    }
+
+    @Transactional
+    public BulkLessonResult uploadMarkdownBulk(List<MultipartFile> files) {
+        int success = 0;
+        int failure = 0;
+        List<String> errors = new ArrayList<>();
+
+        for (int i = 0; i < files.size(); i++) {
+            MultipartFile file = files.get(i);
+            String label = file.getOriginalFilename() != null ? file.getOriginalFilename() : "file " + i;
+            try {
+                create(parseMarkdownFile(file));
+                success++;
+            } catch (Exception e) {
+                failure++;
+                errors.add(label + ": " + e.getMessage());
+                log.warn("Markdown upload failed for {}: {}", label, e.getMessage());
+            }
+        }
+        return new BulkLessonResult(success, failure, errors);
+    }
+
+    private LessonCreateRequest parseMarkdownFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Uploaded file is empty");
+        }
+        String filename = file.getOriginalFilename();
+        if (filename != null && !filename.toLowerCase().endsWith(".md") && !filename.toLowerCase().endsWith(".markdown")) {
+            throw new IllegalArgumentException("Only .md files are supported, got: " + filename);
+        }
+        try {
+            return markdownParser.parse(new String(file.getBytes(), StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Could not read uploaded file: " + e.getMessage());
+        }
+    }
+
     // --- helpers ---
 
     private Category resolveCategory(UUID categoryId) {
@@ -136,6 +183,7 @@ public class LessonAdminService {
         resp.setDifficulty(lesson.getDifficulty().name());
         resp.setBaseXp(lesson.getBaseXp());
         resp.setCategoryId(lesson.getCategory() != null ? lesson.getCategory().getId() : null);
+        resp.setReflectionPrompt(lesson.getReflectionPrompt());
         resp.setExercises(exercises.stream().map(e ->
                 new ExerciseResponse(e.getId(), e.getQuestion(), e.getDifficulty().name(), e.getPoints())
         ).toList());

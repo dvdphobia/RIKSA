@@ -31,4 +31,6 @@ public final class AdminEndpoints {
     public static final String LESSONS = "/lessons";
     public static final String LESSON_BY_ID = "/{id}";
     public static final String LESSON_BULK = "/bulk";
+    public static final String LESSON_UPLOAD = "/upload";
+    public static final String LESSON_UPLOAD_BULK = "/upload/bulk";
 }

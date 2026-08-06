@@ -24,6 +24,7 @@ public class LessonUpdateRequest {
     @Min(0)
     private Integer baseXp;
     private UUID categoryId;
+    private String reflectionPrompt;
 
     @Valid
     @NotEmpty

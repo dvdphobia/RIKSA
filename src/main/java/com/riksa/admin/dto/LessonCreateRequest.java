@@ -28,6 +28,8 @@ public class LessonCreateRequest {
 
     private UUID categoryId;
 
+    private String reflectionPrompt;
+
     @NotEmpty
     @Valid
     private List<ExerciseRequest> exercises;

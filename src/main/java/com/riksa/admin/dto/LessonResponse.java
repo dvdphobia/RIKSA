@@ -16,6 +16,7 @@ public class LessonResponse {
     private String difficulty;
     private int baseXp;
     private UUID categoryId;
+    private String reflectionPrompt;
     private List<ExerciseResponse> exercises;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
