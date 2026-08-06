@@ -6,8 +6,10 @@ import com.riksa.social.entity.Category;
 import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
 import com.riksa.social.entity.Reaction;
+import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.enums.ReactionType;
 import com.riksa.social.repository.CommentRepository;
+import com.riksa.social.repository.PostRepository;
 import com.riksa.social.repository.ReactionRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +22,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -30,9 +33,10 @@ class SocialResponseResolverTest {
     @Mock ReactionRepository reactionRepository;
     @Mock CommentRepository commentRepository;
     @Mock CategoryService categoryService;
+    @Mock PostRepository postRepository;
 
     private SocialResponseResolver resolver() {
-        return new SocialResponseResolver(userRepository, reactionRepository, commentRepository, categoryService);
+        return new SocialResponseResolver(userRepository, reactionRepository, commentRepository, categoryService, postRepository);
     }
 
     @Test
@@ -77,9 +81,12 @@ class SocialResponseResolverTest {
     @Test
     void resolveCommentsAndRepliesMapPagination() {
         UUID postId = UUID.randomUUID(), parentId = UUID.randomUUID(), authorId = UUID.randomUUID();
+        Post post = post(authorId, UUID.randomUUID()); post.setId(postId);
         Comment first = comment(postId, null, authorId), second = comment(postId, null, authorId);
         User author = new User(); author.setId(authorId); author.setUsername("u"); author.setDisplayName("User");
-        when(commentRepository.findByPostIdAndParentIdIsNullOrderByCreatedAtAsc(eq(postId), any(Pageable.class)))
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(commentRepository.findByPostIdAndParentIdIsNullAndStatusOrderByCreatedAtAsc(
+                eq(postId), eq(ContentStatus.VISIBLE), any(Pageable.class)))
                 .thenReturn(List.of(first, second));
         when(userRepository.findById(authorId)).thenReturn(Optional.of(author));
         var page = resolver().resolveComments(postId, null, 1);
@@ -88,9 +95,35 @@ class SocialResponseResolverTest {
         assertThat(page.pageInfo().endCursor()).isEqualTo(first.getId());
 
         Comment reply = comment(postId, parentId, authorId);
-        when(commentRepository.findByParentIdOrderByCreatedAtAsc(eq(parentId), any(Pageable.class)))
+        when(commentRepository.findByParentIdAndStatusOrderByCreatedAtAsc(
+                eq(parentId), eq(ContentStatus.VISIBLE), any(Pageable.class)))
                 .thenReturn(List.of(reply));
         assertThat(resolver().resolveReplies(parentId, null, 10).edges()).hasSize(1);
+    }
+
+    @Test
+    void resolveComments_hiddenPost_throwsException() {
+        UUID postId = UUID.randomUUID();
+        Post post = post(UUID.randomUUID(), UUID.randomUUID());
+        post.setId(postId);
+        post.setStatus(ContentStatus.HIDDEN);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        assertThatThrownBy(() -> resolver().resolveComments(postId, null, 10))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Post not found");
+
+        verifyNoInteractions(commentRepository);
+    }
+
+    @Test
+    void resolveComments_missingPost_throwsException() {
+        UUID postId = UUID.randomUUID();
+        when(postRepository.findById(postId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> resolver().resolveComments(postId, null, 10))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Post not found");
     }
 
     private Post post(UUID authorId, UUID categoryId) {

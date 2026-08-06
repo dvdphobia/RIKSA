@@ -13,7 +13,8 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     @Query("""
         SELECT p FROM Post p
-        WHERE (:categoryId IS NULL OR p.categoryId = :categoryId)
+        WHERE p.status = com.riksa.social.enums.ContentStatus.VISIBLE
+          AND (:categoryId IS NULL OR p.categoryId = :categoryId)
           AND (:authorId IS NULL OR p.authorId = :authorId)
           AND (:cursor IS NULL
             OR p.createdAt < (SELECT p2.createdAt FROM Post p2 WHERE p2.id = :cursor)

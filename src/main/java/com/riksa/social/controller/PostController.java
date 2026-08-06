@@ -28,7 +28,7 @@ public class PostController {
     @QueryMapping(SocialEndpoints.QUERY_POST)
     public PostResponse post(@Argument UUID id) {
         UUID userId = getCurrentUserId();
-        Post post = postService.getPost(id);
+        Post post = postService.getVisiblePost(id);
         return resolver.resolvePost(post, userId);
     }
 

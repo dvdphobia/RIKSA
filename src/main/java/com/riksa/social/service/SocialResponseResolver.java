@@ -13,8 +13,10 @@ import com.riksa.social.entity.Category;
 import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
 import com.riksa.social.entity.Reaction;
+import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.enums.ReactionType;
 import com.riksa.social.repository.CommentRepository;
+import com.riksa.social.repository.PostRepository;
 import com.riksa.social.repository.ReactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -45,6 +47,7 @@ public class SocialResponseResolver {
     private final ReactionRepository reactionRepository;
     private final CommentRepository commentRepository;
     private final CategoryService categoryService;
+    private final PostRepository postRepository;
 
     // ── Post ──────────────────────────────────────────────
 
@@ -110,8 +113,14 @@ public class SocialResponseResolver {
     // ── Comments ─────────────────────────────────────────
 
     public CommentPage resolveComments(UUID postId, UUID currentUserId, int limit) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
+        if (post.getStatus() == ContentStatus.HIDDEN) {
+            throw new IllegalArgumentException("Post not found: " + postId);
+        }
+
         List<Comment> comments = commentRepository
-                .findByPostIdAndParentIdIsNullOrderByCreatedAtAsc(postId, PageRequest.of(0, limit + 1));
+                .findByPostIdAndParentIdIsNullAndStatusOrderByCreatedAtAsc(postId, ContentStatus.VISIBLE, PageRequest.of(0, limit + 1));
 
         boolean hasNext = comments.size() > limit;
         if (hasNext) comments = comments.subList(0, limit);
@@ -126,7 +135,7 @@ public class SocialResponseResolver {
 
     public CommentPage resolveReplies(UUID parentId, UUID currentUserId, int limit) {
         List<Comment> replies = commentRepository
-                .findByParentIdOrderByCreatedAtAsc(parentId, PageRequest.of(0, limit + 1));
+                .findByParentIdAndStatusOrderByCreatedAtAsc(parentId, ContentStatus.VISIBLE, PageRequest.of(0, limit + 1));
 
         boolean hasNext = replies.size() > limit;
         if (hasNext) replies = replies.subList(0, limit);

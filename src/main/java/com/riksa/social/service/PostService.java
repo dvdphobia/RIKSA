@@ -2,6 +2,7 @@ package com.riksa.social.service;
 
 import com.riksa.common.event.EventPublisher;
 import com.riksa.social.entity.Post;
+import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.event.PostCreatedEvent;
 import com.riksa.social.repository.PostRepository;
 import com.riksa.social.repository.UserCategoryMembershipRepository;
@@ -75,5 +76,13 @@ public class PostService {
     public Post getPost(UUID postId) {
         return postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
+    }
+
+    public Post getVisiblePost(UUID postId) {
+        Post post = getPost(postId);
+        if (post.getStatus() == ContentStatus.HIDDEN) {
+            throw new IllegalArgumentException("Post not found: " + postId);
+        }
+        return post;
     }
 }

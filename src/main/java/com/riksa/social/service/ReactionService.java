@@ -1,9 +1,12 @@
 package com.riksa.social.service;
 
+import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
 import com.riksa.social.entity.Reaction;
+import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.enums.ReactionType;
 import com.riksa.social.event.ReactionReceivedEvent;
+import com.riksa.social.repository.CommentRepository;
 import com.riksa.social.repository.PostRepository;
 import com.riksa.social.repository.ReactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,10 +24,13 @@ public class ReactionService {
 
     private final ReactionRepository reactionRepository;
     private final PostRepository postRepository;
+    private final CommentRepository commentRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public Post react(UUID userId, UUID postId, UUID commentId, ReactionType type) {
+        rejectHiddenTargets(postId, commentId);
+
         Optional<Reaction> existing = reactionRepository
                 .findByUserIdAndPostIdAndCommentId(userId, postId, commentId);
 
@@ -84,5 +90,18 @@ public class ReactionService {
     private Post getPost(UUID postId) {
         return postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
+    }
+
+    private void rejectHiddenTargets(UUID postId, UUID commentId) {
+        if (postId != null && getPost(postId).getStatus() == ContentStatus.HIDDEN) {
+            throw new IllegalArgumentException("Post not found: " + postId);
+        }
+        if (commentId != null) {
+            Comment comment = commentRepository.findById(commentId)
+                    .orElseThrow(() -> new IllegalArgumentException("Comment not found: " + commentId));
+            if (comment.getStatus() == ContentStatus.HIDDEN) {
+                throw new IllegalArgumentException("Comment not found: " + commentId);
+            }
+        }
     }
 }

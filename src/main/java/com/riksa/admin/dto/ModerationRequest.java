@@ -8,7 +8,7 @@ import lombok.Setter;
 @Setter
 public class ModerationRequest {
     @NotNull
-    private String status; // "APPROVED" or "REJECTED"
+    private String status; // blog: "APPROVED"/"REJECTED"; social: "HIDDEN"/"VISIBLE"
 
     private String reason;
 }

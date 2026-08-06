@@ -184,4 +184,29 @@ class PostServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Post not found");
     }
+
+    @Test
+    void getVisiblePost_visiblePost_returnsPost() {
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        assertThat(postService.getVisiblePost(postId)).isSameAs(post);
+    }
+
+    @Test
+    void getVisiblePost_hiddenPost_throwsException() {
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setStatus(com.riksa.social.enums.ContentStatus.HIDDEN);
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        assertThatThrownBy(() -> postService.getVisiblePost(postId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Post not found");
+    }
 }

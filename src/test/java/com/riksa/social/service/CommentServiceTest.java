@@ -52,6 +52,33 @@ class CommentServiceTest {
     }
 
     @Test
+    void createComment_hiddenPost_throwsException() {
+        UUID authorId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setStatus(com.riksa.social.enums.ContentStatus.HIDDEN);
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        assertThatThrownBy(() -> commentService.createComment(authorId, postId, "physics content", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Post not found");
+
+        verify(commentRepository, never()).save(any());
+    }
+
+    @Test
+    void createComment_nonExistentPost_throwsException() {
+        UUID postId = UUID.randomUUID();
+        when(postRepository.findById(postId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> commentService.createComment(UUID.randomUUID(), postId, "physics content", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Post not found");
+    }
+
+    @Test
     void createComment_nonStemContent_throwsException() {
         doThrow(new IllegalArgumentException("Content must be related to STEM, Tech, or History"))
                 .when(contentFilterService).validate(anyString());

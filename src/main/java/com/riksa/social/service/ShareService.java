@@ -2,6 +2,7 @@ package com.riksa.social.service;
 
 import com.riksa.social.entity.Post;
 import com.riksa.social.entity.Share;
+import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.enums.SharePlatform;
 import com.riksa.social.repository.PostRepository;
 import com.riksa.social.repository.ShareRepository;
@@ -22,6 +23,10 @@ public class ShareService {
     public Post sharePost(UUID userId, UUID postId, SharePlatform platform) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
+
+        if (post.getStatus() == ContentStatus.HIDDEN) {
+            throw new IllegalArgumentException("Post not found: " + postId);
+        }
 
         Share share = new Share();
         share.setUserId(userId);

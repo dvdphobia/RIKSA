@@ -27,6 +27,12 @@ public final class AdminEndpoints {
     // --- Audit logs ---
     public static final String AUDIT_LOGS = "/audit-logs";
 
+    // --- Social moderation ---
+    public static final String POSTS = "/posts";
+    public static final String POST_STATUS = "/{id}/status";
+    public static final String COMMENTS = "/comments";
+    public static final String COMMENT_STATUS = "/{id}/status";
+
     // --- Lessons ---
     public static final String LESSONS = "/lessons";
     public static final String LESSON_BY_ID = "/{id}";

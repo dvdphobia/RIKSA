@@ -38,6 +38,22 @@ class ShareServiceTest {
     }
 
     @Test
+    void sharePost_hiddenPost_throwsException() {
+        UUID userId = UUID.randomUUID(), postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setStatus(com.riksa.social.enums.ContentStatus.HIDDEN);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        assertThatThrownBy(() -> new ShareService(shareRepository, postRepository)
+                .sharePost(userId, postId, SharePlatform.TELEGRAM))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Post not found");
+
+        verify(shareRepository, never()).save(any(Share.class));
+    }
+
+    @Test
     void nullPlatformDefaultsToCopyLinkAndMissingPostThrows() {
         UUID userId = UUID.randomUUID(), postId = UUID.randomUUID();
         Post post = new Post(); post.setId(postId);

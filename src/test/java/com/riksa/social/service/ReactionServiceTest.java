@@ -1,8 +1,11 @@
 package com.riksa.social.service;
 
+import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
 import com.riksa.social.entity.Reaction;
+import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.enums.ReactionType;
+import com.riksa.social.repository.CommentRepository;
 import com.riksa.social.repository.PostRepository;
 import com.riksa.social.repository.ReactionRepository;
 import org.junit.jupiter.api.Test;
@@ -24,6 +27,7 @@ class ReactionServiceTest {
 
     @Mock private ReactionRepository reactionRepository;
     @Mock private PostRepository postRepository;
+    @Mock private CommentRepository commentRepository;
     @Mock private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks private ReactionService reactionService;
@@ -136,6 +140,46 @@ class ReactionServiceTest {
 
         // Counter still adjusted even if no reaction found
         assertThat(result.getReactionCount()).isEqualTo(2);
+    }
+
+    @Test
+    void react_hiddenPost_throwsException() {
+        UUID userId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setStatus(ContentStatus.HIDDEN);
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> reactionService.react(userId, postId, null, ReactionType.UPVOTE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Post not found");
+
+        verify(reactionRepository, never()).save(any(Reaction.class));
+    }
+
+    @Test
+    void react_hiddenComment_throwsException() {
+        UUID userId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        UUID commentId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setStatus(ContentStatus.HIDDEN);
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> reactionService.react(userId, postId, commentId, ReactionType.UPVOTE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Comment not found");
+
+        verify(reactionRepository, never()).save(any(Reaction.class));
     }
 
     @Test

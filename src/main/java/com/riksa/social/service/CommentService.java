@@ -2,6 +2,7 @@ package com.riksa.social.service;
 
 import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
+import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.repository.CommentRepository;
 import com.riksa.social.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,12 @@ public class CommentService {
     public Comment createComment(UUID authorId, UUID postId, String content, UUID parentId) {
         contentFilterService.validate(content);
 
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
+        if (post.getStatus() == ContentStatus.HIDDEN) {
+            throw new IllegalArgumentException("Post not found: " + postId);
+        }
+
         Comment comment = new Comment();
         comment.setAuthorId(authorId);
         comment.setPostId(postId);
@@ -30,10 +37,8 @@ public class CommentService {
 
         Comment saved = commentRepository.save(comment);
 
-        postRepository.findById(postId).ifPresent(post -> {
-            post.setCommentCount(post.getCommentCount() + 1);
-            postRepository.save(post);
-        });
+        post.setCommentCount(post.getCommentCount() + 1);
+        postRepository.save(post);
 
         return saved;
     }
