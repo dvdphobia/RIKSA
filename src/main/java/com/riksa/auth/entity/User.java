@@ -72,6 +72,12 @@ public class User {
     @Column(name = "locked_until")
     private OffsetDateTime lockedUntil;
 
+    @Column(name = "suspended_until")
+    private OffsetDateTime suspendedUntil;
+
+    @Column(name = "suspension_reason", length = 255)
+    private String suspensionReason;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 
@@ -85,5 +91,9 @@ public class User {
 
     public boolean isLocked() {
         return lockedUntil != null && lockedUntil.isAfter(OffsetDateTime.now());
+    }
+
+    public boolean isSuspended() {
+        return suspendedUntil != null && suspendedUntil.isAfter(OffsetDateTime.now());
     }
 }

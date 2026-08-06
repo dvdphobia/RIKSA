@@ -1,5 +1,7 @@
 package com.riksa.auth.security;
 
+import com.riksa.auth.entity.User;
+import com.riksa.auth.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +21,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(
@@ -39,13 +42,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             var userId = jwtService.getUserId(token);
             var role = jwtService.getRole(token);
 
-            var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+            boolean suspended = userRepository.findById(userId)
+                    .map(User::isSuspended)
+                    .orElse(true);
 
-            var authentication = new UsernamePasswordAuthenticationToken(
-                    userId, null, authorities
-            );
+            if (!suspended) {
+                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                var authentication = new UsernamePasswordAuthenticationToken(
+                        userId, null, authorities
+                );
+
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
         } else {
             response.setHeader("WWW-Authenticate", "Bearer error=\"invalid_token\"");
         }

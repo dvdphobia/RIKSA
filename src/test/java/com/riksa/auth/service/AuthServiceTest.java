@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.OffsetDateTime;
@@ -123,6 +124,71 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.login(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Account is temporarily locked. Try again later.");
+    }
+
+    @Test
+    void login_suspendedAccount_throwsAccessDenied() {
+        User user = new User();
+        user.setUsername("john");
+        user.setPassword("encoded-password");
+        user.setFailedLoginAttempts(0);
+        OffsetDateTime until = OffsetDateTime.now().plusDays(7);
+        user.setSuspendedUntil(until);
+
+        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+
+        LoginRequest request = new LoginRequest();
+        request.setUsername("john");
+        request.setPassword("Password1");
+
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Account suspended until");
+
+        verify(passwordEncoder, never()).matches(any(), any());
+    }
+
+    @Test
+    void login_expiredSuspension_succeeds() {
+        User user = new User();
+        user.setUsername("john");
+        user.setPassword("encoded-password");
+        user.setFailedLoginAttempts(0);
+        user.setSuspendedUntil(OffsetDateTime.now().minusDays(1));
+        user.setSuspensionReason("old spam");
+
+        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("Password1", "encoded-password")).thenReturn(true);
+        when(jwtService.generateAccessToken(any(), eq("john"), eq("USER"))).thenReturn("access");
+        when(jwtService.generateRefreshToken(any(), eq("john"), eq("USER"))).thenReturn("refresh");
+
+        LoginRequest request = new LoginRequest();
+        request.setUsername("john");
+        request.setPassword("Password1");
+
+        AuthResponse response = authService.login(request);
+
+        assertThat(response).isNotNull();
+    }
+
+    @Test
+    void refreshToken_suspendedUser_throwsAccessDenied() {
+        String token = "some.jwt.token";
+        User user = new User();
+        user.setSuspendedUntil(OffsetDateTime.now().plusDays(7));
+
+        com.riksa.auth.token.RefreshToken stored = new com.riksa.auth.token.RefreshToken();
+        stored.setUser(user);
+        stored.setExpiresAt(OffsetDateTime.now().plusDays(1));
+
+        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(refreshTokenRepository.findByTokenAndRevokedFalse(token)).thenReturn(Optional.of(stored));
+
+        assertThatThrownBy(() -> authService.refreshToken(token))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Account suspended until");
+
+        verify(jwtService, never()).generateAccessToken(any(), any(), any());
     }
 
     @Test

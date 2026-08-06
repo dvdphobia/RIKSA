@@ -16,6 +16,7 @@ import com.riksa.gamification.repository.UserGamificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -101,6 +102,10 @@ public class AuthService {
             throw new IllegalArgumentException("Account is temporarily locked. Try again later.");
         }
 
+        if (user.isSuspended()) {
+            throw new AccessDeniedException("Account suspended until " + user.getSuspendedUntil());
+        }
+
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             handleFailedLogin(user);
             throw new IllegalArgumentException("Invalid username or password");
@@ -131,6 +136,11 @@ public class AuthService {
         refreshTokenRepository.save(stored);
 
         User user = stored.getUser();
+
+        if (user.isSuspended()) {
+            throw new AccessDeniedException("Account suspended until " + user.getSuspendedUntil());
+        }
+
         return buildAuthResponse(user);
     }
 

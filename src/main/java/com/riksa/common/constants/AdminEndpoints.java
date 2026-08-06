@@ -18,10 +18,14 @@ public final class AdminEndpoints {
     // --- Users ---
     public static final String USERS = "/users";
     public static final String USER_ROLE = "/{id}/role";
+    public static final String USER_SUSPENSION = "/{id}/suspension";
 
     // --- Blog moderation ---
     public static final String BLOG = "/blog";
     public static final String BLOG_STATUS = "/{id}/status";
+
+    // --- Audit logs ---
+    public static final String AUDIT_LOGS = "/audit-logs";
 
     // --- Lessons ---
     public static final String LESSONS = "/lessons";
