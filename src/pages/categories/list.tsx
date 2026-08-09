@@ -1,82 +1,140 @@
-import React from "react";
-import { type IResourceComponentsProps, useNavigation } from "@refinedev/core";
+import { useDelete, useNavigation } from "@refinedev/core";
 import { useTable } from "@refinedev/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import type { Category } from "../../lib/types";
+import { formatDate, PageHeader } from "../../components/shared";
+import { DataTable } from "../../components/table/data-table";
+import { Button } from "../../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
-import { DataTable } from "@/components/table/data-table";
-import { Button } from "@/components/ui/button";
-import { LucideEdit, LucideEye } from "lucide-react";
+export const CategoryList = () => {
+  const { create, edit } = useNavigation();
+  const { mutate: deleteCategory } = useDelete();
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
 
-export const CategoryList: React.FC<IResourceComponentsProps> = () => {
-  const columns = React.useMemo<ColumnDef<any>[]>(
+  const columns = useMemo<ColumnDef<Category>[]>(
     () => [
+      { id: "name", accessorKey: "name", header: "Name" },
       {
-        id: "id",
-        accessorKey: "id",
-        header: "ID",
+        id: "slug",
+        accessorKey: "slug",
+        header: "Slug",
+        cell: ({ getValue }) => (
+          <code className="text-xs">{getValue<string>()}</code>
+        ),
       },
       {
-        id: "title",
-        accessorKey: "title",
-        header: "Title",
+        id: "description",
+        accessorKey: "description",
+        header: "Description",
+        cell: ({ getValue }) => (
+          <span className="max-w-md truncate text-muted-foreground">
+            {getValue<string>() ?? "—"}
+          </span>
+        ),
+      },
+      {
+        id: "updatedAt",
+        header: "Updated",
+        cell: ({ row }) => (
+          <span className="text-sm">{formatDate(row.original.updatedAt)}</span>
+        ),
       },
       {
         id: "actions",
-        accessorKey: "id",
-        header: () => <h1 className="flex justify-end">Actions</h1>,
-        cell: function render({ getValue }) {
-          return (
-            <div className="flex flex-nowrap justify-end items-center gap-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  show("categories", getValue() as string);
-                }}
-              >
-                <LucideEye size={16} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  edit("categories", getValue() as string);
-                }}
-              >
-                <LucideEdit size={16} />
-              </Button>
-            </div>
-          );
-        },
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => (
+          <div className="flex justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => edit("categories", row.original.id)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setDeleteTarget(row.original)}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        ),
       },
     ],
-    [],
+    [edit],
   );
 
-  const { edit, show, create } = useNavigation();
-
-  const tableProps = useTable({
+  const table = useTable<Category>({
     columns,
+    refineCoreProps: { resource: "categories" },
   });
 
-  tableProps?.setOptions((prev) => ({
-    ...prev,
-    meta: {
-      ...prev.meta,
-    },
-  }));
-
   return (
-    <div className="p-2">
-      <div className="flex justify-between items-center m-2">
-        <h1 className="scroll-m-20 text-2xl font-extrabold tracking-tight">
-          Categories
-        </h1>
-        <div className="p-2">
-          <Button onClick={() => create("categories")}>Create</Button>
-        </div>
+    <div>
+      <PageHeader
+        title="Categories"
+        description="Lesson categories"
+        actions={
+          <Button onClick={() => create("categories")}>
+            <Plus className="mr-1 h-4 w-4" /> New category
+          </Button>
+        }
+      />
+      <div className="rounded-md border bg-card">
+        <DataTable tableProps={table} />
       </div>
-      <DataTable {...tableProps} />
+
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete "{deleteTarget?.name}"?</DialogTitle>
+            <DialogDescription>
+              Lessons in this category will not be deleted, but their category
+              will be unset. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() =>
+                deleteTarget &&
+                deleteCategory(
+                  { resource: "categories", id: deleteTarget.id },
+                  {
+                    onSuccess: () => {
+                      toast.success("Category deleted");
+                      setDeleteTarget(null);
+                      table.refineCore.tableQuery.refetch();
+                    },
+                    onError: (e) =>
+                      toast.error(e.message || "Delete failed"),
+                  },
+                )
+              }
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

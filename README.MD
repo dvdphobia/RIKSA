@@ -1,43 +1,50 @@
-<div align="center" style="margin: 30px;">
-<a href="https://refine.dev/">
-  <img alt="refine logo" src="https://refine.ams3.cdn.digitaloceanspaces.com/readme/refine-readme-banner.png">
-</a>
+# Riksa Admin
 
-</br>
-</br>
+Web admin panel for the Riksa Learning Platform, built with [Refine](https://refine.dev) (React) + shadcn/ui + Tailwind.
 
-<div align="center">
-    <a href="https://refine.dev">Home Page</a> |
-    <a href="https://discord.gg/refine">Discord</a> |
-    <a href="https://refine.dev/examples/">Examples</a> |
-    <a href="https://refine.dev/blog/">Blog</a> |
-    <a href="https://refine.dev/docs/">Documentation</a>
-</div>
-</div>
+Implements every endpoint documented in [`riksa_app/ADMIN_API.md`](../riksa_app/ADMIN_API.md).
 
-</br>
-</br>
+## Stack
 
-<div align="center"><strong>Build your <a href="https://reactjs.org/">React</a>-based CRUD applications, without constraints.</strong><br>An open source, headless web application framework developed with flexibility in mind.
+- Refine v5 (headless) + React Router v7
+- shadcn/ui + Tailwind CSS
+- TanStack Table / React Query
+- Recharts (dashboard charts)
 
-<br />
-<br />
-
-[![Discord](https://img.shields.io/discord/837692625737613362.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/refine)
-[![Twitter Follow](https://img.shields.io/twitter/follow/refine_dev?style=social)](https://twitter.com/refine_dev)
-
-<a href="https://www.producthunt.com/posts/refine-3?utm_source=badge-top-post-badge&utm_medium=badge&utm_souce=badge-refine&#0045;3" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/top-post-badge.svg?post_id=362220&theme=light&period=daily" alt="refine - 100&#0037;&#0032;open&#0032;source&#0032;React&#0032;framework&#0032;to&#0032;build&#0032;web&#0032;apps&#0032;3x&#0032;faster | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
-
-</div>
-
-## Try this example on your local
+## Setup
 
 ```bash
-npm create refine-app@latest -- --example blog-refine-shadcn
+npm install
+npm run dev        # http://localhost:5173
 ```
 
-## Try this example on CodeSandbox
+## Configuration
 
-<br/>
+`.env`:
 
-[![Open blog-refine-shadcn example from refine](https://codesandbox.io/static/img/play-codesandbox.svg)](https://codesandbox.io/embed/github/refinedev/refine/tree/main/examples/blog-refine-shadcn?view=preview&theme=dark&codemirror=1)
+```
+VITE_API_URL=http://localhost:8080/api/v1
+```
+
+Login requires an account with role `ADMIN` or `MODERATOR`. `USER` accounts are rejected.
+
+## Modules
+
+| Route | Module | Access |
+|---|---|---|
+| `/` | Dashboard (stats, charts, hardest exercises) | MODERATOR+ |
+| `/users` | Search, promote, suspend/unsuspend | ADMIN only |
+| `/lessons` | CRUD, bulk JSON import, markdown upload | MODERATOR+ |
+| `/categories` | CRUD | MODERATOR+ |
+| `/reports` | Report queue (cursor pagination), resolve/dismiss | MODERATOR+ |
+| `/blog` | Approve / reject queue | MODERATOR+ |
+| `/moderation` | Hide / restore posts & comments | MODERATOR+ |
+| `/audit-logs` | Filterable audit trail | ADMIN only |
+
+Users and Audit logs are hidden from the sidebar for `MODERATOR` accounts (enforced by the access-control provider and the backend).
+
+## Notes
+
+- Auth: JWT bearer with automatic single-flight refresh on `401` (`src/lib/api.ts`).
+- Pagination: Refine's 1-based pages are mapped to Spring's 0-based `page` param in `src/providers/data-provider.ts`; reports use cursor pagination via an infinite query.
+- Lesson answer keys are never returned by the API — the edit form keeps existing exercises unless "Replace exercises" is used.

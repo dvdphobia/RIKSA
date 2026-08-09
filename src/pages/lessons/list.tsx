@@ -1,0 +1,330 @@
+import { useDelete, useList, useNavigation } from "@refinedev/core";
+import { useTable } from "@refinedev/react-table";
+import { useMutation } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { apiFetch } from "../../lib/api";
+import type { Category, Lesson } from "../../lib/types";
+import { formatDate, PageHeader, StatusBadge } from "../../components/shared";
+import { DataTable } from "../../components/table/data-table";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
+import { Textarea } from "../../components/ui/textarea";
+import { Pencil, Plus, Trash2, Upload } from "lucide-react";
+
+interface BulkResult {
+  successCount: number;
+  failureCount: number;
+  errors: string[];
+}
+
+export const LessonList = () => {
+  const { create, edit } = useNavigation();
+  const { mutate: deleteLesson } = useDelete();
+  const [deleteTarget, setDeleteTarget] = useState<Lesson | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkJson, setBulkJson] = useState("");
+  const [search, setSearch] = useState("");
+  const [difficulty, setDifficulty] = useState<string | undefined>();
+  const [categoryId, setCategoryId] = useState<string | undefined>();
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const { query: categoriesQuery } = useList<Category>({ resource: "categories" });
+  const categories = categoriesQuery.data?.data ?? [];
+
+  const columns = useMemo<ColumnDef<Lesson>[]>(
+    () => [
+      {
+        id: "title",
+        accessorKey: "title",
+        header: "Title",
+        cell: ({ row }) => (
+          <div>
+            <p className="font-medium">{row.original.title}</p>
+            {row.original.reflectionPrompt && (
+              <p className="max-w-md truncate text-xs text-muted-foreground">
+                Reflection: {row.original.reflectionPrompt}
+              </p>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "difficulty",
+        header: "Difficulty",
+        cell: ({ row }) => <StatusBadge value={row.original.difficulty} />,
+      },
+      { id: "baseXp", accessorKey: "baseXp", header: "XP" },
+      {
+        id: "exercises",
+        header: "Exercises",
+        cell: ({ row }) => row.original.exercises.length,
+      },
+      {
+        id: "updatedAt",
+        header: "Updated",
+        cell: ({ row }) => (
+          <span className="text-sm">{formatDate(row.original.updatedAt)}</span>
+        ),
+      },
+      {
+        id: "actions",
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => (
+          <div className="flex justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => edit("lessons", row.original.id)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setDeleteTarget(row.original)}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [edit],
+  );
+
+  const table = useTable<Lesson>({
+    columns,
+    refineCoreProps: {
+      resource: "lessons",
+      pagination: { pageSize: 20 },
+      filters: {
+        permanent: [
+          { field: "query", operator: "contains", value: search || undefined },
+          { field: "difficulty", operator: "eq", value: difficulty },
+          { field: "categoryId", operator: "eq", value: categoryId },
+        ],
+      },
+    },
+  });
+
+  const refetch = () => table.refineCore.tableQuery.refetch();
+
+  const bulkImport = useMutation({
+    mutationFn: (items: unknown) =>
+      apiFetch<BulkResult>("/admin/lessons/bulk", {
+        method: "POST",
+        body: items,
+      }),
+    onSuccess: (data) => {
+      toast.success(
+        `Imported ${data.successCount} lesson(s)` +
+          (data.failureCount ? `, ${data.failureCount} failed` : ""),
+      );
+      data.errors.forEach((e) => toast.error(e));
+      setBulkOpen(false);
+      setBulkJson("");
+      refetch();
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Import failed"),
+  });
+
+  const upload = useMutation({
+    mutationFn: async (files: File[]) => {
+      if (files.length === 1) {
+        const fd = new FormData();
+        fd.append("file", files[0]);
+        await apiFetch("/admin/lessons/upload", { method: "POST", formData: fd });
+        return { successCount: 1, failureCount: 0, errors: [] };
+      }
+      const fd = new FormData();
+      for (const f of files) fd.append("files", f);
+      return apiFetch<BulkResult>("/admin/lessons/upload/bulk", {
+        method: "POST",
+        formData: fd,
+      });
+    },
+    onSuccess: (data) => {
+      toast.success(
+        `Uploaded ${data.successCount} lesson(s)` +
+          (data.failureCount ? `, ${data.failureCount} failed` : ""),
+      );
+      data.errors.forEach((e) => toast.error(e));
+      refetch();
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Upload failed"),
+  });
+
+  return (
+    <div>
+      <PageHeader
+        title="Lessons"
+        description="Manage lessons and exercises"
+        actions={
+          <>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".md,.markdown"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const selected = Array.from(e.target.files ?? []);
+                e.target.value = "";
+                if (selected.length) upload.mutate(selected);
+              }}
+            />
+            <Button
+              variant="outline"
+              onClick={() => fileInput.current?.click()}
+              disabled={upload.isPending}
+            >
+              <Upload className="mr-1 h-4 w-4" /> Upload .md
+            </Button>
+            <Button variant="outline" onClick={() => setBulkOpen(true)}>
+              Bulk JSON
+            </Button>
+            <Button onClick={() => create("lessons")}>
+              <Plus className="mr-1 h-4 w-4" /> New lesson
+            </Button>
+          </>
+        }
+      />
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Input
+          placeholder="Search lessons by title..."
+          className="max-w-sm"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <Select
+          value={difficulty ?? "all"}
+          onValueChange={(v) => setDifficulty(v === "all" ? undefined : v)}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Difficulty" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All difficulties</SelectItem>
+            <SelectItem value="EASY">EASY</SelectItem>
+            <SelectItem value="MEDIUM">MEDIUM</SelectItem>
+            <SelectItem value="HARD">HARD</SelectItem>
+            <SelectItem value="DIFFICULT">DIFFICULT</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          value={categoryId ?? "all"}
+          onValueChange={(v) => setCategoryId(v === "all" ? undefined : v)}
+        >
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            {categories.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="rounded-md border bg-card">
+        <DataTable tableProps={table} />
+      </div>
+
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete "{deleteTarget?.title}"?</DialogTitle>
+            <DialogDescription>
+              This hard-deletes the lesson, its exercises, and erases all user
+              completion records for it. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() =>
+                deleteTarget &&
+                deleteLesson(
+                  { resource: "lessons", id: deleteTarget.id },
+                  {
+                    onSuccess: () => {
+                      toast.success("Lesson deleted");
+                      setDeleteTarget(null);
+                      refetch();
+                    },
+                    onError: (e) => toast.error(e.message || "Delete failed"),
+                  },
+                )
+              }
+            >
+              Delete permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Bulk import lessons (JSON)</DialogTitle>
+            <DialogDescription>
+              Paste a JSON array of lesson objects (same shape as the create
+              endpoint).
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            rows={12}
+            className="font-mono text-xs"
+            placeholder='[{ "title": "...", "difficulty": "EASY", "exercises": [{ "question": "...", "answerKey": "...", "difficulty": "EASY" }] }]'
+            value={bulkJson}
+            onChange={(e) => setBulkJson(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={bulkImport.isPending}
+              onClick={() => {
+                try {
+                  bulkImport.mutate(JSON.parse(bulkJson));
+                } catch {
+                  toast.error("Invalid JSON");
+                }
+              }}
+            >
+              {bulkImport.isPending ? "Importing..." : "Import"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};

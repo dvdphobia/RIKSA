@@ -33,7 +33,7 @@ import {
   SelectValue,
 } from "../ui/select";
 
-export function DataTable({ ...tableProps }: any) {
+export function DataTable({ tableProps }: any) {
   const {
     reactTable: {
       getHeaderGroups,
@@ -47,9 +47,6 @@ export function DataTable({ ...tableProps }: any) {
       previousPage,
       setPageSize,
       getColumn,
-    },
-    refineCore: {
-      tableQueryResult: { data: tableData },
     },
   } = tableProps;
 
