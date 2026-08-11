@@ -1,14 +1,15 @@
 package com.riksa.admin.dto;
 
+import com.riksa.social.enums.ContentStatus;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
-public class ModerationRequest {
+public class ContentModerationRequest {
     @NotNull
-    private String status; // blog: "APPROVED"/"REJECTED"; social: "HIDDEN"/"VISIBLE"
+    private ContentStatus status;
 
     private String reason;
 }

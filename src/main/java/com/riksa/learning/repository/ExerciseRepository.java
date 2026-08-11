@@ -10,6 +10,7 @@ import java.util.UUID;
 
 public interface ExerciseRepository extends JpaRepository<Exercise, UUID> {
     List<Exercise> findByLessonId(UUID lessonId);
+    List<Exercise> findByLessonIdIn(List<UUID> lessonIds);
     void deleteByLessonId(UUID lessonId);
 
     @Query("""

@@ -1,17 +1,19 @@
 package com.riksa.admin.service;
 
+import com.riksa.admin.dto.AdminUserResponse;
 import com.riksa.admin.dto.SuspensionRequest;
+import com.riksa.common.audit.AuditLogService;
 import com.riksa.auth.entity.Role;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.repository.UserRepository;
-import com.riksa.auth.dto.UserProfileResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -23,27 +25,18 @@ public class UserAdminService {
     private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
-    public List<UserProfileResponse> list(int page, int size) {
+    public Page<AdminUserResponse> list(String query, Role role, Boolean suspended, int page, int size) {
         int safeSize = Math.max(1, Math.min(size, 100));
-        var pageable = org.springframework.data.domain.PageRequest.of(page, safeSize);
-        return userRepository.findAll(pageable).stream()
-                .map(this::toResponse)
-                .toList();
+        String safeQuery = (query == null || query.isBlank()) ? "" : query.trim();
+        return userRepository.search(safeQuery, role, suspended, OffsetDateTime.now(), PageRequest.of(page, safeSize))
+                .map(this::toResponse);
     }
 
     @Transactional
-    public UserProfileResponse updateRole(UUID actorId, UUID userId, String roleStr) {
+    public AdminUserResponse updateRole(UUID actorId, UUID userId, Role newRole) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
-        Role newRole;
-        try {
-            newRole = Role.valueOf(roleStr.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid role: " + roleStr + ". Valid roles: USER, MODERATOR, ADMIN");
-        }
-
-        // Only allow promoting to MODERATOR or ADMIN — can't demote below the actor
         if (newRole == Role.USER) {
             throw new IllegalArgumentException("Cannot set role to USER via admin endpoint");
         }
@@ -59,7 +52,7 @@ public class UserAdminService {
     }
 
     @Transactional
-    public UserProfileResponse suspend(UUID actorId, UUID userId, SuspensionRequest request) {
+    public AdminUserResponse suspend(UUID actorId, UUID userId, SuspensionRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
@@ -87,7 +80,7 @@ public class UserAdminService {
     }
 
     @Transactional
-    public UserProfileResponse unsuspend(UUID actorId, UUID userId) {
+    public AdminUserResponse unsuspend(UUID actorId, UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
@@ -108,20 +101,18 @@ public class UserAdminService {
         return toResponse(user);
     }
 
-    private UserProfileResponse toResponse(User user) {
-        return new UserProfileResponse(
+    private AdminUserResponse toResponse(User user) {
+        return new AdminUserResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getDisplayName(),
                 user.getEmail(),
                 user.getEmailVerified(),
                 user.getAvatarUrl(),
-                user.getBio(),
-                user.getGender(),
-                user.getPhoneNumber(),
-                user.getPhoneVerified(),
                 user.getRole().name(),
-                user.getCountryId(),
+                user.getSuspendedUntil(),
+                user.getSuspensionReason(),
+                user.getLockedUntil(),
                 user.getCreatedAt()
         );
     }

@@ -27,6 +27,17 @@ public final class AdminEndpoints {
     // --- Audit logs ---
     public static final String AUDIT_LOGS = "/audit-logs";
 
+    // --- Stats ---
+    public static final String STATS = "/stats";
+    public static final String STATS_OVERVIEW = "/overview";
+    public static final String STATS_EXERCISES = "/exercises";
+    public static final String STATS_GAMIFICATION = "/gamification";
+    public static final String STATS_SECURITY = "/security";
+
+    // --- Reports ---
+    public static final String REPORTS = "/reports";
+    public static final String REPORT_BY_ID = "/{id}";
+
     // --- Social moderation ---
     public static final String POSTS = "/posts";
     public static final String POST_STATUS = "/{id}/status";

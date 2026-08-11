@@ -1,12 +1,18 @@
 package com.riksa.admin.service;
 
+import com.riksa.admin.dto.CommentModerationResponse;
 import com.riksa.admin.dto.ContentModerationResponse;
+import com.riksa.admin.dto.PostModerationResponse;
+import com.riksa.common.audit.AuditLogService;
 import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
 import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.repository.CommentRepository;
 import com.riksa.social.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +28,22 @@ public class SocialModerationService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final AuditLogService auditLogService;
+
+    @Transactional(readOnly = true)
+    public Page<PostModerationResponse> listPosts(ContentStatus status, int page, int size) {
+        int safeSize = Math.max(1, Math.min(size, 100));
+        return postRepository.findByStatus(status,
+                        PageRequest.of(page, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")))
+                .map(this::toPostResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CommentModerationResponse> listComments(ContentStatus status, int page, int size) {
+        int safeSize = Math.max(1, Math.min(size, 100));
+        return commentRepository.findByStatus(status,
+                        PageRequest.of(page, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")))
+                .map(this::toCommentResponse);
+    }
 
     @Transactional
     public ContentModerationResponse setPostStatus(UUID moderatorId, UUID postId, ContentStatus newStatus, String reason) {
@@ -108,5 +130,19 @@ public class SocialModerationService {
 
     private ContentModerationResponse toResponse(UUID id, ContentStatus status, String reason, UUID hiddenBy, OffsetDateTime hiddenAt) {
         return new ContentModerationResponse(id, status.name(), reason, hiddenBy, hiddenAt);
+    }
+
+    private PostModerationResponse toPostResponse(Post post) {
+        return new PostModerationResponse(
+                post.getId(), post.getTitle(), post.getAuthorId(), post.getCategoryId(),
+                post.getStatus().name(), post.getHiddenReason(), post.getHiddenBy(),
+                post.getHiddenAt(), post.getCreatedAt());
+    }
+
+    private CommentModerationResponse toCommentResponse(Comment comment) {
+        return new CommentModerationResponse(
+                comment.getId(), comment.getContent(), comment.getPostId(), comment.getAuthorId(),
+                comment.getStatus().name(), comment.getHiddenReason(), comment.getHiddenBy(),
+                comment.getHiddenAt(), comment.getCreatedAt());
     }
 }

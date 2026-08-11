@@ -13,15 +13,45 @@ import java.util.UUID;
 
 @Repository
 public interface LessonRepository extends JpaRepository<Lesson, UUID> {
+
     @Query("""
         SELECT l FROM Lesson l
-        WHERE (:categoryId IS NULL OR l.category.id = :categoryId)
-          AND (:difficulty IS NULL OR l.difficulty = :difficulty)
+        WHERE LOWER(l.title) LIKE LOWER(CONCAT('%', :query, '%'))
         ORDER BY l.createdAt DESC
     """)
-    Page<Lesson> findByFilters(@Param("categoryId") UUID categoryId,
-                               @Param("difficulty") DifficultyLevel difficulty,
-                               Pageable pageable);
+    Page<Lesson> searchByTitle(@Param("query") String query, Pageable pageable);
+
+    @Query("""
+        SELECT l FROM Lesson l
+        WHERE LOWER(l.title) LIKE LOWER(CONCAT('%', :query, '%'))
+          AND l.difficulty = :difficulty
+        ORDER BY l.createdAt DESC
+    """)
+    Page<Lesson> searchByTitleAndDifficulty(@Param("query") String query,
+                                            @Param("difficulty") DifficultyLevel difficulty,
+                                            Pageable pageable);
+
+    @Query("""
+        SELECT l FROM Lesson l
+        WHERE LOWER(l.title) LIKE LOWER(CONCAT('%', :query, '%'))
+          AND l.category.id = :categoryId
+        ORDER BY l.createdAt DESC
+    """)
+    Page<Lesson> searchByTitleAndCategoryId(@Param("query") String query,
+                                            @Param("categoryId") UUID categoryId,
+                                            Pageable pageable);
+
+    @Query("""
+        SELECT l FROM Lesson l
+        WHERE LOWER(l.title) LIKE LOWER(CONCAT('%', :query, '%'))
+          AND l.difficulty = :difficulty
+          AND l.category.id = :categoryId
+        ORDER BY l.createdAt DESC
+    """)
+    Page<Lesson> searchByTitleAndDifficultyAndCategoryId(@Param("query") String query,
+                                                         @Param("difficulty") DifficultyLevel difficulty,
+                                                         @Param("categoryId") UUID categoryId,
+                                                         Pageable pageable);
 
     Page<Lesson> findAllByOrderByCreatedAtDesc(Pageable pageable);
     Page<Lesson> findByCategoryIdOrderByCreatedAtDesc(UUID categoryId, Pageable pageable);

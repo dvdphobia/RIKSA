@@ -24,7 +24,7 @@ public interface RankHistoryRepository extends JpaRepository<RankHistory, UUID> 
     @Query("""
         SELECT rh FROM RankHistory rh
         WHERE rh.userId = :userId
-          AND (:cursorChangedAt IS NULL OR rh.changedAt < :cursorChangedAt
+          AND (rh.changedAt < :cursorChangedAt
                OR (rh.changedAt = :cursorChangedAt AND rh.id < :cursorId))
         ORDER BY rh.changedAt DESC, rh.id DESC
     """)

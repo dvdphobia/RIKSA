@@ -1,6 +1,7 @@
 package com.riksa.blog.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.util.UUID;
@@ -16,5 +17,6 @@ public record  BlogPostRequest (
     @Size(max = 2000, message = "Cover URL must be at most 2000 characters")
     String coverUrl,
 
+    @NotNull(message = "Category is required")
     UUID categoryId
 ){}

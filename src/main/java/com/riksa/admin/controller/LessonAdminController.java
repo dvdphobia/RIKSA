@@ -3,8 +3,10 @@ package com.riksa.admin.controller;
 import com.riksa.admin.dto.*;
 import com.riksa.admin.service.LessonAdminService;
 import com.riksa.common.constants.AdminEndpoints;
+import com.riksa.common.enums.DifficultyLevel;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -70,9 +72,17 @@ public class LessonAdminController {
     }
 
     @GetMapping(AdminEndpoints.ROOT)
-    public ResponseEntity<List<LessonResponse>> list(
+    public ResponseEntity<Page<LessonResponse>> list(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) DifficultyLevel difficulty,
+            @RequestParam(required = false) UUID categoryId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(lessonAdminService.list(page, size));
+        return ResponseEntity.ok(lessonAdminService.list(page, size, query, difficulty, categoryId));
+    }
+
+    @GetMapping(AdminEndpoints.LESSON_BY_ID)
+    public ResponseEntity<LessonResponse> get(@PathVariable UUID id) {
+        return ResponseEntity.ok(lessonAdminService.get(id));
     }
 }

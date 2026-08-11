@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -21,6 +22,16 @@ import java.util.UUID;
 public class CategoryAdminController {
 
     private final CategoryAdminService categoryAdminService;
+
+    @GetMapping(AdminEndpoints.ROOT)
+    public ResponseEntity<List<CategoryResponse>> list() {
+        return ResponseEntity.ok(categoryAdminService.list());
+    }
+
+    @GetMapping(AdminEndpoints.CATEGORY_BY_ID)
+    public ResponseEntity<CategoryResponse> get(@PathVariable UUID id) {
+        return ResponseEntity.ok(categoryAdminService.get(id));
+    }
 
     @PostMapping(AdminEndpoints.ROOT)
     public ResponseEntity<CategoryResponse> create(@RequestBody @Valid CategoryRequest request) {

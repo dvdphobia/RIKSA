@@ -17,6 +17,8 @@ public interface LessonCompletionRepository extends JpaRepository<LessonCompleti
     long countByUserId(UUID userId);
     boolean existsByUserIdAndLessonId(UUID userId, UUID lessonId);
 
+    long countByCompletedAtAfter(java.time.OffsetDateTime cutoff);
+
     @Query("""
         SELECT COUNT(DISTINCT l.category.id)
         FROM LessonCompletion lc

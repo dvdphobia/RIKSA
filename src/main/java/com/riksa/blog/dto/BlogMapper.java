@@ -12,6 +12,7 @@ public class BlogMapper {
                 post.getContent(),
                 post.getCoverUrl(),
                 post.getStatus(),
+                post.getRejectionReason(),
                 post.getViewCount(),
                 post.getLikeCount(),
                 post.getCategoryId(),

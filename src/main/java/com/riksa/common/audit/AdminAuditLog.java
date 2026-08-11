@@ -1,4 +1,4 @@
-package com.riksa.admin.entity;
+package com.riksa.common.audit;
 
 import jakarta.persistence.*;
 import lombok.Getter;

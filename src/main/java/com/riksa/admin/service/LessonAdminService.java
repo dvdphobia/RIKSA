@@ -1,6 +1,8 @@
 package com.riksa.admin.service;
 
 import com.riksa.admin.dto.*;
+import com.riksa.common.enums.DifficultyLevel;
+import com.riksa.common.exception.ResourceNotFoundException;
 import com.riksa.learning.entity.Exercise;
 import com.riksa.learning.entity.Lesson;
 import com.riksa.learning.repository.ExerciseRepository;
@@ -9,6 +11,9 @@ import com.riksa.social.entity.Category;
 import com.riksa.social.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,7 +22,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -84,15 +91,36 @@ public class LessonAdminService {
     }
 
     @Transactional(readOnly = true)
-    public List<LessonResponse> list(int page, int size) {
+    public LessonResponse get(UUID id) {
+        Lesson lesson = lessonRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Lesson not found: " + id));
+        return toResponse(lesson, exerciseRepository.findByLessonId(id));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<LessonResponse> list(int page, int size, String query, DifficultyLevel difficulty, UUID categoryId) {
         int safeSize = Math.max(1, Math.min(size, 100));
-        var pageable = org.springframework.data.domain.PageRequest.of(page, safeSize);
-        return lessonRepository.findAll(pageable).stream()
-                .map(lesson -> {
-                    List<Exercise> exercises = exerciseRepository.findByLessonId(lesson.getId());
-                    return toResponse(lesson, exercises);
-                })
-                .toList();
+        String q = query == null ? "" : query.trim();
+        Pageable pageable = PageRequest.of(page, safeSize);
+        Page<Lesson> lessons;
+        if (difficulty != null && categoryId != null) {
+            lessons = lessonRepository.searchByTitleAndDifficultyAndCategoryId(q, difficulty, categoryId, pageable);
+        } else if (difficulty != null) {
+            lessons = lessonRepository.searchByTitleAndDifficulty(q, difficulty, pageable);
+        } else if (categoryId != null) {
+            lessons = lessonRepository.searchByTitleAndCategoryId(q, categoryId, pageable);
+        } else {
+            lessons = lessonRepository.searchByTitle(q, pageable);
+        }
+
+        List<UUID> lessonIds = lessons.getContent().stream().map(Lesson::getId).toList();
+        Map<UUID, List<Exercise>> exercisesByLesson = lessonIds.isEmpty()
+                ? Map.of()
+                : exerciseRepository.findByLessonIdIn(lessonIds).stream()
+                        .collect(Collectors.groupingBy(e -> e.getLesson().getId()));
+
+        return lessons.map(lesson ->
+                toResponse(lesson, exercisesByLesson.getOrDefault(lesson.getId(), List.of())));
     }
 
     @Transactional

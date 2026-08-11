@@ -1,18 +1,17 @@
-package com.riksa.admin.service;
+package com.riksa.common.audit;
 
-import com.riksa.admin.dto.AuditLogResponse;
-import com.riksa.admin.entity.AdminAuditLog;
-import com.riksa.admin.repository.AdminAuditLogRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -91,10 +90,10 @@ class AuditLogServiceTest {
         entity.setDetails(Map.of("amount", 50));
         entity.setCreatedAt(now);
 
-        when(auditLogRepository.search(eq("XP"), eq(targetId), any(Pageable.class)))
+        when(auditLogRepository.findAll(any(Example.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(entity)));
 
-        Page<AuditLogResponse> result = auditLogService.search("XP", targetId, 0, 20);
+        Page<AuditLogResponse> result = auditLogService.search("XP", targetId, actorId, "XP_ADJUST", 0, 20);
 
         assertThat(result.getContent()).hasSize(1);
         AuditLogResponse dto = result.getContent().get(0);
@@ -106,17 +105,31 @@ class AuditLogServiceTest {
         assertThat(dto.getDetails()).containsEntry("amount", 50);
         assertThat(dto.getCreatedAt()).isEqualTo(now);
 
-        verify(auditLogRepository).search("XP", targetId, PageRequest.of(0, 20));
+        ArgumentCaptor<Example<AdminAuditLog>> exampleCaptor = ArgumentCaptor.forClass(Example.class);
+        verify(auditLogRepository).findAll(exampleCaptor.capture(), eq(PageRequest.of(0, 20,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")))));
+        AdminAuditLog probe = exampleCaptor.getValue().getProbe();
+        assertThat(probe.getTargetType()).isEqualTo("XP");
+        assertThat(probe.getTargetId()).isEqualTo(targetId);
+        assertThat(probe.getActorId()).isEqualTo(actorId);
+        assertThat(probe.getAction()).isEqualTo("XP_ADJUST");
     }
 
     @Test
     void search_nullFilters_passesNullsThrough() {
-        when(auditLogRepository.search(isNull(), isNull(), any(Pageable.class)))
+        when(auditLogRepository.findAll(any(Example.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        Page<AuditLogResponse> result = auditLogService.search(null, null, 1, 10);
+        Page<AuditLogResponse> result = auditLogService.search(null, null, null, null, 1, 10);
 
         assertThat(result.getContent()).isEmpty();
-        verify(auditLogRepository).search(null, null, PageRequest.of(1, 10));
+        ArgumentCaptor<Example<AdminAuditLog>> exampleCaptor = ArgumentCaptor.forClass(Example.class);
+        verify(auditLogRepository).findAll(exampleCaptor.capture(), eq(PageRequest.of(1, 10,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")))));
+        AdminAuditLog probe = exampleCaptor.getValue().getProbe();
+        assertThat(probe.getTargetType()).isNull();
+        assertThat(probe.getTargetId()).isNull();
+        assertThat(probe.getActorId()).isNull();
+        assertThat(probe.getAction()).isNull();
     }
 }

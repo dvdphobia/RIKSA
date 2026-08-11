@@ -1,7 +1,7 @@
 package com.riksa.admin.controller;
 
-import com.riksa.admin.dto.AuditLogResponse;
-import com.riksa.admin.service.AuditLogService;
+import com.riksa.common.audit.AuditLogResponse;
+import com.riksa.common.audit.AuditLogService;
 import com.riksa.common.constants.AdminEndpoints;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -23,8 +23,10 @@ public class AuditLogAdminController {
     public ResponseEntity<Page<AuditLogResponse>> list(
             @RequestParam(required = false) String targetType,
             @RequestParam(required = false) UUID targetId,
+            @RequestParam(required = false) UUID actorId,
+            @RequestParam(required = false) String action,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(auditLogService.search(targetType, targetId, page, size));
+        return ResponseEntity.ok(auditLogService.search(targetType, targetId, actorId, action, page, size));
     }
 }

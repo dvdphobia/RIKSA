@@ -2,12 +2,15 @@ package com.riksa.admin.service;
 
 import com.riksa.admin.dto.CategoryRequest;
 import com.riksa.admin.dto.CategoryResponse;
+import com.riksa.common.exception.ResourceNotFoundException;
 import com.riksa.social.entity.Category;
 import com.riksa.social.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -15,6 +18,20 @@ import java.util.UUID;
 public class CategoryAdminService {
 
     private final CategoryRepository categoryRepository;
+
+    @Transactional(readOnly = true)
+    public List<CategoryResponse> list() {
+        return categoryRepository.findAll(Sort.by(Sort.Direction.ASC, "name")).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CategoryResponse get(UUID id) {
+        return categoryRepository.findById(id)
+                .map(this::toResponse)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));
+    }
 
     @Transactional
     public CategoryResponse create(CategoryRequest req) {

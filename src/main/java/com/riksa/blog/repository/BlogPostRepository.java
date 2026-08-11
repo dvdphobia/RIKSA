@@ -12,6 +12,7 @@ import java.util.UUID;
 
 public interface BlogPostRepository extends JpaRepository<BlogPost, UUID> {
     Page<BlogPost> findByStatus(BlogStatus status, Pageable pageable);
+    long countByStatus(BlogStatus status);
     Page<BlogPost> findByStatusAndCategoryId(BlogStatus status, UUID categoryId, Pageable pageable);
     Page<BlogPost> findByAuthorId(UUID authorId, Pageable pageable);
     Page<BlogPost> findByAuthorIdAndStatus(UUID authorId, BlogStatus status, Pageable pageable);

@@ -1,18 +1,23 @@
 package com.riksa.admin.service;
 
+import com.riksa.admin.dto.AdminUserResponse;
 import com.riksa.admin.dto.SuspensionRequest;
+import com.riksa.common.audit.AuditLogService;
 import com.riksa.auth.entity.Role;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.repository.UserRepository;
-import com.riksa.auth.dto.UserProfileResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -44,7 +49,7 @@ class UserAdminServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserProfileResponse result = userAdminService.updateRole(actorId, userId, "MODERATOR");
+        AdminUserResponse result = userAdminService.updateRole(actorId, userId, Role.MODERATOR);
 
         assertThat(result).isNotNull();
         assertThat(user.getRole()).isEqualTo(Role.MODERATOR);
@@ -61,7 +66,7 @@ class UserAdminServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserProfileResponse result = userAdminService.updateRole(actorId, userId, "ADMIN");
+        AdminUserResponse result = userAdminService.updateRole(actorId, userId, Role.ADMIN);
 
         assertThat(user.getRole()).isEqualTo(Role.ADMIN);
     }
@@ -75,23 +80,9 @@ class UserAdminServiceTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
-        assertThatThrownBy(() -> userAdminService.updateRole(actorId, userId, "USER"))
+        assertThatThrownBy(() -> userAdminService.updateRole(actorId, userId, Role.USER))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Cannot set role to USER via admin endpoint");
-    }
-
-    @Test
-    void updateRole_invalidRole_throwsException() {
-        UUID userId = UUID.randomUUID();
-        User user = new User();
-        user.setId(userId);
-        user.setRole(Role.USER);
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-
-        assertThatThrownBy(() -> userAdminService.updateRole(actorId, userId, "SUPERADMIN"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Invalid role");
     }
 
     @Test
@@ -99,24 +90,9 @@ class UserAdminServiceTest {
         UUID userId = UUID.randomUUID();
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userAdminService.updateRole(actorId, userId, "ADMIN"))
+        assertThatThrownBy(() -> userAdminService.updateRole(actorId, userId, Role.ADMIN))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("User not found");
-    }
-
-    @Test
-    void updateRole_caseInsensitive_works() {
-        UUID userId = UUID.randomUUID();
-        User user = new User();
-        user.setId(userId);
-        user.setRole(Role.USER);
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        userAdminService.updateRole(actorId, userId, "moderator");
-
-        assertThat(user.getRole()).isEqualTo(Role.MODERATOR);
     }
 
     @Test
@@ -129,10 +105,32 @@ class UserAdminServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        userAdminService.updateRole(actorId, userId, "MODERATOR");
+        userAdminService.updateRole(actorId, userId, Role.MODERATOR);
 
         verify(auditLogService).record(eq(actorId), eq("USER_ROLE_CHANGE"), eq("USER"), eq(userId),
                 eq(Map.of("oldRole", "USER", "newRole", "MODERATOR")));
+    }
+
+    @Test
+    void list_returnsPageWithSuspensionInfo() {
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setUsername("spammer");
+        user.setDisplayName("Spammer");
+        user.setRole(Role.USER);
+        user.setSuspendedUntil(OffsetDateTime.now().plusDays(7));
+        user.setSuspensionReason("spam");
+
+        when(userRepository.search(eq("spam"), eq(null), eq(true), any(OffsetDateTime.class), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(user)));
+
+        Page<AdminUserResponse> result = userAdminService.list("spam", null, true, 0, 20);
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        AdminUserResponse row = result.getContent().get(0);
+        assertThat(row.username()).isEqualTo("spammer");
+        assertThat(row.suspensionReason()).isEqualTo("spam");
+        assertThat(row.suspendedUntil()).isEqualTo(user.getSuspendedUntil());
     }
 
     @Test
@@ -150,7 +148,7 @@ class UserAdminServiceTest {
         request.setReason("spam");
         request.setUntil(until);
 
-        UserProfileResponse result = userAdminService.suspend(actorId, userId, request);
+        AdminUserResponse result = userAdminService.suspend(actorId, userId, request);
 
         assertThat(result).isNotNull();
         assertThat(user.getSuspendedUntil()).isEqualTo(until);
@@ -273,7 +271,7 @@ class UserAdminServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        UserProfileResponse result = userAdminService.unsuspend(actorId, userId);
+        AdminUserResponse result = userAdminService.unsuspend(actorId, userId);
 
         assertThat(result).isNotNull();
         assertThat(user.getSuspendedUntil()).isNull();

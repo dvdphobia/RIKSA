@@ -1,12 +1,12 @@
-package com.riksa.admin.service;
+package com.riksa.common.audit;
 
-import com.riksa.admin.dto.AuditLogResponse;
-import com.riksa.admin.entity.AdminAuditLog;
-import com.riksa.admin.repository.AdminAuditLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,8 +38,15 @@ public class AuditLogService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AuditLogResponse> search(String targetType, UUID targetId, int page, int size) {
-        return auditLogRepository.search(targetType, targetId, PageRequest.of(page, size))
+    public Page<AuditLogResponse> search(String targetType, UUID targetId, UUID actorId, String action, int page, int size) {
+        AdminAuditLog probe = new AdminAuditLog();
+        probe.setTargetType(targetType);
+        probe.setTargetId(targetId);
+        probe.setActorId(actorId);
+        probe.setAction(action);
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        return auditLogRepository.findAll(Example.of(probe), pageable)
                 .map(this::toResponse);
     }
 

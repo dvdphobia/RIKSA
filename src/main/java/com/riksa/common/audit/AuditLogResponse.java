@@ -1,4 +1,4 @@
-package com.riksa.admin.dto;
+package com.riksa.common.audit;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

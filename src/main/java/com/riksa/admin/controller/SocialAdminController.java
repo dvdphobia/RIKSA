@@ -1,16 +1,18 @@
 package com.riksa.admin.controller;
 
+import com.riksa.admin.dto.CommentModerationResponse;
+import com.riksa.admin.dto.ContentModerationRequest;
 import com.riksa.admin.dto.ContentModerationResponse;
-import com.riksa.admin.dto.ModerationRequest;
+import com.riksa.admin.dto.PostModerationResponse;
 import com.riksa.admin.service.SocialModerationService;
 import com.riksa.common.constants.AdminEndpoints;
+import com.riksa.common.security.SecurityUtils;
 import com.riksa.social.enums.ContentStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -23,32 +25,35 @@ public class SocialAdminController {
 
     private final SocialModerationService socialModerationService;
 
+    @GetMapping(AdminEndpoints.POSTS)
+    public ResponseEntity<Page<PostModerationResponse>> listPosts(
+            @RequestParam(defaultValue = "HIDDEN") ContentStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(socialModerationService.listPosts(status, page, size));
+    }
+
+    @GetMapping(AdminEndpoints.COMMENTS)
+    public ResponseEntity<Page<CommentModerationResponse>> listComments(
+            @RequestParam(defaultValue = "HIDDEN") ContentStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(socialModerationService.listComments(status, page, size));
+    }
+
     @PatchMapping(AdminEndpoints.POSTS + AdminEndpoints.POST_STATUS)
     public ResponseEntity<ContentModerationResponse> moderatePost(
             @PathVariable UUID id,
-            @RequestBody @Valid ModerationRequest request) {
+            @RequestBody @Valid ContentModerationRequest request) {
         return ResponseEntity.ok(socialModerationService.setPostStatus(
-                getCurrentUserId(), id, parseStatus(request.getStatus()), request.getReason()));
+                SecurityUtils.currentUserId(), id, request.getStatus(), request.getReason()));
     }
 
     @PatchMapping(AdminEndpoints.COMMENTS + AdminEndpoints.COMMENT_STATUS)
     public ResponseEntity<ContentModerationResponse> moderateComment(
             @PathVariable UUID id,
-            @RequestBody @Valid ModerationRequest request) {
+            @RequestBody @Valid ContentModerationRequest request) {
         return ResponseEntity.ok(socialModerationService.setCommentStatus(
-                getCurrentUserId(), id, parseStatus(request.getStatus()), request.getReason()));
-    }
-
-    private ContentStatus parseStatus(String status) {
-        try {
-            return ContentStatus.valueOf(status.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid status: " + status + ". Valid values: HIDDEN, VISIBLE");
-        }
-    }
-
-    private UUID getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return UUID.fromString(auth.getName());
+                SecurityUtils.currentUserId(), id, request.getStatus(), request.getReason()));
     }
 }

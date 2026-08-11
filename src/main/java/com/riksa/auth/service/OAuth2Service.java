@@ -42,8 +42,12 @@ public class OAuth2Service {
     private long refreshExpiration;
 
     private static final String[] AVAILABLE_AVATARS = {
-            "avatar-1.png", "avatar-2.png", "avatar-3.png", "avatar-4.png", "avatar-5.png",
-            "avatar-6.png", "avatar-7.png", "avatar-8.png", "avatar-9.png", "avatar-10.png"
+            "/avatars/avatar-1.png", "/avatars/avatar-2.png", "/avatars/avatar-3.png", "/avatars/avatar-4.png", "/avatars/avatar-5.png",
+            "/avatars/avatar-6.png", "/avatars/avatar-7.png", "/avatars/avatar-8.png", "/avatars/avatar-9.png", "/avatars/avatar-10.png",
+             "/avatars/avatar-11.png", "/avatars/avatar-12.png", "/avatars/avatar-13.png", "/avatars/avatar-14.png", "/avatars/avatar-15.png",
+            "/avatars/avatar-16.png", "/avatars/avatar-17.png", "/avatars/avatar-18.png", "/avatars/avatar-19.png", "/avatars/avatar-20.png",
+            "/avatars/avatar-21.png", "/avatars/avatar-22.png", "/avatars/avatar-23.png", "/avatars/avatar-24.png", "/avatars/avatar-25.png",
+            "/avatars/avatar-26.png", "/avatars/avatar-27.png", "/avatars/avatar-28.png", "/avatars/avatar-29.png", "/avatars/avatar-30.png"
     };
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();

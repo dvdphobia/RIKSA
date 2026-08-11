@@ -1,6 +1,7 @@
 package com.riksa.admin.service;
 
 import com.riksa.admin.dto.ContentModerationResponse;
+import com.riksa.common.audit.AuditLogService;
 import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
 import com.riksa.social.enums.ContentStatus;

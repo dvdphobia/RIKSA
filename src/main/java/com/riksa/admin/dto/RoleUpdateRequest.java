@@ -1,5 +1,6 @@
 package com.riksa.admin.dto;
 
+import com.riksa.auth.entity.Role;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -8,5 +9,5 @@ import lombok.Setter;
 @Setter
 public class RoleUpdateRequest {
     @NotNull
-    private String role; // "MODERATOR" or "ADMIN"
+    private Role role;
 }

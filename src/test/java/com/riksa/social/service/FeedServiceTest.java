@@ -32,7 +32,7 @@ class FeedServiceTest {
         Post second = post(UUID.randomUUID());
         Post extra = post(UUID.randomUUID());
 
-        when(postRepository.findFeed(
+        when(postRepository.findFeedAfterCursor(
                 org.mockito.ArgumentMatchers.eq(categoryId),
                 org.mockito.ArgumentMatchers.eq(authorId),
                 org.mockito.ArgumentMatchers.eq(cursor),
@@ -46,7 +46,7 @@ class FeedServiceTest {
         assertThat(result.endCursor()).isEqualTo(second.getId());
 
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(postRepository).findFeed(
+        verify(postRepository).findFeedAfterCursor(
                 org.mockito.ArgumentMatchers.eq(categoryId),
                 org.mockito.ArgumentMatchers.eq(authorId),
                 org.mockito.ArgumentMatchers.eq(cursor),

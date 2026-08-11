@@ -8,6 +8,9 @@ import com.riksa.blog.event.BlogPostApprovedEvent;
 import com.riksa.blog.repository.BlogPostRepository;
 import com.riksa.common.event.EventPublisher;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +21,13 @@ import java.util.UUID;
 public class BlogModerationService {
     private final BlogPostRepository blogPostRepository;
     private final EventPublisher eventPublisher;
+
+    @Transactional(readOnly = true)
+    public Page<BlogPost> list(BlogStatus status, int page, int size) {
+        int safeSize = Math.max(1, Math.min(size, 100));
+        return blogPostRepository.findByStatus(status,
+                PageRequest.of(page, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")));
+    }
 
     @Transactional
     public BlogPost approve(UUID postId, UUID moderatorId){

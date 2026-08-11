@@ -83,3 +83,4 @@ logging:
   level:
     com.riksa: INFO
     org.springframework.security: WARN
+
