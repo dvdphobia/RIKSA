@@ -10,6 +10,9 @@ import com.riksa.auth.security.JwtService;
 import com.riksa.auth.token.EmailVerificationTokenRepository;
 import com.riksa.auth.token.RefreshTokenRepository;
 import com.riksa.gamification.repository.UserGamificationRepository;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -345,6 +348,54 @@ class AuthServiceTest {
         assertThat(profile).isNotNull();
         assertThat(profile.getUsername()).isEqualTo("john");
         assertThat(profile.getEmailVerified()).isTrue();
+    }
+
+    @Test
+    void updateProfile_withBundledAvatar_updatesAvatar() {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setUsername("john");
+        user.setRole(Role.USER);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+
+        UserProfileResponse profile = authService.updateProfile(
+                userId, null, null, null, null, "/avatars/avatar-17.png");
+
+        assertThat(user.getAvatarUrl()).isEqualTo("/avatars/avatar-17.png");
+        assertThat(profile.getAvatarUrl()).isEqualTo("/avatars/avatar-17.png");
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void updateProfile_withNonBundledAvatar_rejectsRequest() {
+        UUID userId = UUID.randomUUID();
+
+        assertThatThrownBy(() -> authService.updateProfile(
+                userId, null, null, null, null, "https://example.com/avatar.png"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("avatarUrl must be one of the bundled preset avatars");
+
+        verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, never()).findById(any(UUID.class));
+    }
+
+    @Test
+    void updateProfileRequest_avatarUrlAcceptsOnlyBundledAvatarPaths() {
+        try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
+            Validator validator = factory.getValidator();
+            UpdateProfileRequest validRequest = new UpdateProfileRequest();
+            validRequest.setAvatarUrl("/avatars/avatar-30.png");
+            UpdateProfileRequest invalidRequest = new UpdateProfileRequest();
+            invalidRequest.setAvatarUrl("/avatars/avatar-31.png");
+
+            assertThat(validator.validate(validRequest)).isEmpty();
+            assertThat(validator.validate(invalidRequest))
+                    .extracting(violation -> violation.getPropertyPath().toString())
+                    .containsExactly("avatarUrl");
+        }
     }
 
     @Test

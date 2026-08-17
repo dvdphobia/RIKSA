@@ -17,7 +17,10 @@
 
 ---
 
-## AUTH — `/api/v1/auth` (Dev A) — REST, public
+## AUTH — `/api/v1/auth` (Dev A) — REST
+
+> Detailed audited contract: `docs/AUTH_API.md`. The two `/me` operations require
+> a Bearer access token; the other auth operations are public.
 
 | Method | Path | Body | Response |
 |--------|------|------|----------|
@@ -26,18 +29,21 @@
 | POST | `/refresh` | `{refreshToken}` | `AuthResponse` (new pair) |
 | POST | `/logout` | `{refreshToken}` | `{message}` |
 | POST | `/google` | `{idToken}` (Google) | `AuthResponse` |
-| POST | `/otp/send` | `{identifier, channel: "SMS"\|"TELEGRAM"}` | `{message, channel, code?}` |
-| POST | `/otp/verify` | `{identifier, channel, code}` | `{verified, message}` |
+| POST | `/otp/send` | `{identifier}` (Telegram chat ID) | `{message, channel: "TELEGRAM"}` |
+| POST | `/otp/verify` | `{identifier, code}` | `{verified, message}` |
 | POST | `/forgot-password` | `{identifier}` | `{message}` |
 | POST | `/reset-password` | `{identifier, code, newPassword}` | `{message}` |
 | POST | `/verify-email` | `{token}` | `{verified, ...}` |
 | GET | `/me` | — (Bearer) | `UserProfileResponse` |
-| PUT | `/me` | `UpdateProfileRequest` (Bearer) | `UserProfileResponse` |
+| PUT | `/me` | `{displayName?, bio?, gender?, provinceId?, avatarUrl?}` (Bearer) | `UserProfileResponse` |
 
 **`AuthResponse`:** `{userId, accessToken, refreshToken, tokenType: "Bearer", username, role}`
-**`UserProfileResponse`:** user fields — `id, username, displayName, avatarUrl, bio, gender, role, phoneNumber, phoneVerified, email, countryId, provinceId, createdAt, updatedAt`
+**`UserProfileResponse`:** `{id, username, displayName, email, emailVerified, avatarUrl, bio, gender, phoneNumber, phoneVerified, role, countryId, createdAt}`. It currently omits province and `updatedAt`.
 
-> OTP via Telegram: `identifier` is the user's Telegram chat ID; they must `/start` the bot first. SMS provider not yet connected (code returned in response for dev).
+For `PUT /me`, `avatarUrl` is a preset asset path only: choose `/avatars/avatar-1.png` through `/avatars/avatar-30.png`. External URLs and other paths are rejected with `400 Bad Request`.
+
+> OTP is Telegram-only: `identifier` is the user's Telegram chat ID and they
+> must `/start` the bot first. The code is not returned in the response.
 
 ---
 

@@ -63,7 +63,7 @@ The backend has only a `Lesson` entity (baseXp, difficulty) and a `LessonComplet
 | Screen | Endpoint |
 |--------|----------|
 | View profile | `GET /api/v1/auth/me` → `UserProfileResponse` |
-| Edit profile | `PUT /api/v1/auth/me` (displayName, bio, avatar, gender, province, etc.) |
+| Edit profile | `PUT /api/v1/auth/me` (displayName, bio, avatarUrl, gender, province, etc.); avatarUrl must be `/avatars/avatar-1.png` through `/avatars/avatar-30.png` |
 
 ### Work breakdown
 - [ ] **Week 4:** profile screen (avatar, displayName, username, bio, province, role badge)

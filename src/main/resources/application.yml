@@ -44,6 +44,9 @@ telegram:
   enabled: ${TELEGRAM_ENABLED:true}
   bot-token: ${TELEGRAM_BOT_TOKEN:}
   bot-username: ${TELEGRAM_BOT_USERNAME:}
+  webhook-url: ${TELEGRAM_WEBHOOK_URL:}
+  webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
+  auth-request-expiration-minutes: ${TELEGRAM_AUTH_REQUEST_EXPIRATION_MINUTES:10}
 
 google:
   client:
@@ -83,4 +86,3 @@ logging:
   level:
     com.riksa: INFO
     org.springframework.security: WARN
-

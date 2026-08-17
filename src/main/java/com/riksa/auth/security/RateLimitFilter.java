@@ -36,7 +36,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        if (!request.getRequestURI().startsWith("/api/v1/auth/")) {
+        String requestUri = request.getRequestURI();
+        if (!requestUri.startsWith("/api/v1/auth/")
+                || requestUri.equals("/api/v1/auth/telegram/status")
+                || requestUri.equals("/api/v1/auth/telegram/webhook")) {
             filterChain.doFilter(request, response);
             return;
         }

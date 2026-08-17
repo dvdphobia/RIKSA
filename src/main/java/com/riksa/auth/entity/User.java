@@ -47,6 +47,9 @@ public class User {
     @Column(name = "telegram_id", unique = true, columnDefinition = "TEXT")
     private String telegramId;
 
+    @Column(name = "telegram_chat_id", unique = true, columnDefinition = "TEXT")
+    private String telegramChatId;
+
     @Column(columnDefinition = "TEXT")
     private String password;
 

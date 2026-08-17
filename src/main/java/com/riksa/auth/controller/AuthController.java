@@ -4,6 +4,13 @@ import com.riksa.auth.dto.*;
 import com.riksa.auth.google.GoogleAuthRequest;
 import com.riksa.auth.otp.OtpSendRequest;
 import com.riksa.auth.otp.OtpVerifyRequest;
+import com.riksa.auth.telegram.TelegramAuthCompleteRequest;
+import com.riksa.auth.telegram.TelegramAuthFlowService;
+import com.riksa.auth.telegram.TelegramAuthRequest;
+import com.riksa.auth.telegram.TelegramAuthStartResponse;
+import com.riksa.auth.telegram.TelegramAuthStatusRequest;
+import com.riksa.auth.telegram.TelegramAuthStatusResponse;
+import com.riksa.auth.telegram.TelegramUpdate;
 import com.riksa.auth.security.JwtService;
 import com.riksa.auth.service.AuthService;
 import com.riksa.auth.service.OAuth2Service;
@@ -26,6 +33,7 @@ public class AuthController {
     private final AuthService authService;
     private final OAuth2Service oAuth2Service;
     private final JwtService jwtService;
+    private final TelegramAuthFlowService telegramAuthFlowService;
 
     @PostMapping(AuthEndpoints.REGISTER)
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
@@ -51,6 +59,48 @@ public class AuthController {
     @PostMapping(AuthEndpoints.GOOGLE)
     public ResponseEntity<AuthResponse> googleAuth(@Valid @RequestBody GoogleAuthRequest request) {
         return ResponseEntity.ok(oAuth2Service.googleAuth(request));
+    }
+
+    @PostMapping(AuthEndpoints.TELEGRAM)
+    public ResponseEntity<AuthResponse> telegramAuth(@Valid @RequestBody TelegramAuthRequest request) {
+        return ResponseEntity.ok(authService.telegramAuth(request));
+    }
+
+    @PostMapping(AuthEndpoints.TELEGRAM_START)
+    public ResponseEntity<TelegramAuthStartResponse> startTelegramAuth() {
+        return ResponseEntity.ok(telegramAuthFlowService.start());
+    }
+
+    @PostMapping(AuthEndpoints.TELEGRAM_STATUS)
+    public ResponseEntity<TelegramAuthStatusResponse> getTelegramAuthStatus(
+            @Valid @RequestBody TelegramAuthStatusRequest request
+    ) {
+        return ResponseEntity.ok(telegramAuthFlowService.status(request.requestToken()));
+    }
+
+    @PostMapping(AuthEndpoints.TELEGRAM_COMPLETE)
+    public ResponseEntity<AuthResponse> completeTelegramAuth(
+            @Valid @RequestBody TelegramAuthCompleteRequest request
+    ) {
+        return ResponseEntity.ok(telegramAuthFlowService.completeLogin(request));
+    }
+
+    @PostMapping(AuthEndpoints.TELEGRAM_LINK)
+    public ResponseEntity<MessageResponse> linkTelegram(
+            @RequestHeader("Authorization") String authHeader,
+            @Valid @RequestBody TelegramAuthCompleteRequest request
+    ) {
+        telegramAuthFlowService.link(extractUserId(authHeader), request);
+        return ResponseEntity.ok(new MessageResponse("Telegram account linked successfully"));
+    }
+
+    @PostMapping(AuthEndpoints.TELEGRAM_WEBHOOK)
+    public ResponseEntity<Void> telegramWebhook(
+            @RequestHeader(name = "X-Telegram-Bot-Api-Secret-Token", required = false) String webhookSecret,
+            @RequestBody TelegramUpdate update
+    ) {
+        telegramAuthFlowService.handleWebhook(webhookSecret, update);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping(AuthEndpoints.OTP_SEND)
@@ -88,7 +138,8 @@ public class AuthController {
                 request.getDisplayName(),
                 request.getBio(),
                 request.getGender(),
-                request.getProvinceId()
+                request.getProvinceId(),
+                request.getAvatarUrl()
         ));
     }
 

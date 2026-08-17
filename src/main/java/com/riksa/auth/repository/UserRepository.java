@@ -24,6 +24,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByTelegramId(String telegramId);
 
+    Optional<User> findByTelegramChatId(String telegramChatId);
+
     Optional<User> findByPhoneNumber(String phoneNumber);
 
     boolean existsByUsername(String username);
@@ -31,6 +33,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     boolean existsByEmail(String email);
 
     boolean existsByPhoneNumber(String phoneNumber);
+
+    boolean existsByTelegramId(String telegramId);
 
     long countByCreatedAtAfter(OffsetDateTime cutoff);
 

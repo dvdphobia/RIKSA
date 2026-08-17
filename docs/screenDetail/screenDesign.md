@@ -182,7 +182,7 @@
 | Verb | Path | Request | Response | Auth |
 |------|------|---------|----------|------|
 | GET | `/api/v1/auth/me` | — | `UserProfileResponse` | 🔐 |
-| PUT | `/api/v1/auth/me` | `{displayName, bio, gender, provinceId}` | `UserProfileResponse` | 🔐 |
+| PUT | `/api/v1/auth/me` | `{displayName, bio, gender, provinceId, avatarUrl}` | `UserProfileResponse` | 🔐 |
 
 ## App Bootstrap (not a screen, called on app launch when a token exists)
 | Verb | Path | Request | Response | Auth |
@@ -196,7 +196,7 @@ Splash → province card → topic cards → register form → land on Home. Sho
 
 ## Notes for the Figma team
 - Province + topic selection happen before registration in the flow, but province is required at `register` time. Topic persistence needs a join-category step after registration (see Phase 4 categories).
-- No avatar/banner upload endpoint exists yet — design the avatar picker as a "choose from preset" or placeholder for now.
+- No avatar/banner upload endpoint exists yet — use the preset avatar picker. Submit `avatarUrl` as one of `/avatars/avatar-1.png` through `/avatars/avatar-30.png`.
 - The Profile screen design includes a banner image; no `banner_url` column exists yet. Use a default gradient with province icon overlay.
 
 ---

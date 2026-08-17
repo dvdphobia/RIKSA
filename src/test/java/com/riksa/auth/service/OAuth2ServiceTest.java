@@ -16,12 +16,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -43,6 +45,7 @@ class OAuth2ServiceTest {
         GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
         payload.setSubject("google-123");
         payload.setEmail("test@gmail.com");
+        payload.setEmailVerified(true);
         payload.set("name", "Test User");
         payload.set("picture", "https://pic.url/avatar.png");
 
@@ -66,6 +69,24 @@ class OAuth2ServiceTest {
 
         assertThat(response).isNotNull();
         verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    void googleAuth_unverifiedEmail_doesNotCreateOrLinkAccount() {
+        GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
+        payload.setSubject("google-123");
+        payload.setEmail("test@gmail.com");
+        payload.setEmailVerified(false);
+        when(googleOAuthService.verify("id-token")).thenReturn(payload);
+        when(userRepository.findByGoogleId("google-123")).thenReturn(Optional.empty());
+
+        GoogleAuthRequest request = new GoogleAuthRequest();
+        request.setIdToken("id-token");
+
+        assertThatThrownBy(() -> oAuth2Service.googleAuth(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Google account must have a verified email address");
+        verify(userRepository, never()).findByEmail(any());
     }
 
     @Test
@@ -93,5 +114,28 @@ class OAuth2ServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.getUsername()).isEqualTo("john");
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void googleAuth_suspendedUser_doesNotReceiveTokens() {
+        User existingUser = new User();
+        existingUser.setId(UUID.randomUUID());
+        existingUser.setUsername("john");
+        existingUser.setGoogleId("google-123");
+        existingUser.setRole(Role.USER);
+        existingUser.setSuspendedUntil(java.time.OffsetDateTime.now().plusDays(1));
+
+        GoogleIdToken.Payload payload = new GoogleIdToken.Payload();
+        payload.setSubject("google-123");
+        when(googleOAuthService.verify("id-token")).thenReturn(payload);
+        when(userRepository.findByGoogleId("google-123")).thenReturn(Optional.of(existingUser));
+
+        GoogleAuthRequest request = new GoogleAuthRequest();
+        request.setIdToken("id-token");
+
+        assertThatThrownBy(() -> oAuth2Service.googleAuth(request))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Account suspended until");
+        verify(jwtService, never()).generateAccessToken(any(), any(), any());
     }
 }

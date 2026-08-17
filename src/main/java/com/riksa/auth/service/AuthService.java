@@ -1,12 +1,14 @@
 package com.riksa.auth.service;
 
 import com.riksa.auth.dto.*;
+import com.riksa.auth.avatar.AvatarCatalog;
 import com.riksa.auth.entity.Role;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.otp.OtpService;
 import com.riksa.auth.repository.ProvinceRepository;
 import com.riksa.auth.repository.UserRepository;
 import com.riksa.auth.security.JwtService;
+import com.riksa.auth.telegram.TelegramAuthRequest;
 import com.riksa.auth.token.EmailVerificationToken;
 import com.riksa.auth.token.EmailVerificationTokenRepository;
 import com.riksa.auth.token.RefreshToken;
@@ -52,15 +54,6 @@ public class AuthService {
 
     @Value("${login.lockout-minutes:15}")
     private int lockoutMinutes;
-
-    private static final String[] AVAILABLE_AVATARS = {
-            "/avatars/avatar-1.png", "/avatars/avatar-2.png", "/avatars/avatar-3.png", "/avatars/avatar-4.png", "/avatars/avatar-5.png",
-            "/avatars/avatar-6.png", "/avatars/avatar-7.png", "/avatars/avatar-8.png", "/avatars/avatar-9.png", "/avatars/avatar-10.png",
-             "/avatars/avatar-11.png", "/avatars/avatar-12.png", "/avatars/avatar-13.png", "/avatars/avatar-14.png", "/avatars/avatar-15.png",
-            "/avatars/avatar-16.png", "/avatars/avatar-17.png", "/avatars/avatar-18.png", "/avatars/avatar-19.png", "/avatars/avatar-20.png",
-            "/avatars/avatar-21.png", "/avatars/avatar-22.png", "/avatars/avatar-23.png", "/avatars/avatar-24.png", "/avatars/avatar-25.png",
-            "/avatars/avatar-26.png", "/avatars/avatar-27.png", "/avatars/avatar-28.png", "/avatars/avatar-29.png", "/avatars/avatar-30.png",
-    };
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -165,13 +158,25 @@ public class AuthService {
     }
 
     @Transactional
-    public UserProfileResponse updateProfile(UUID userId, String displayName, String bio, String gender, UUID provinceId) {
+    public UserProfileResponse updateProfile(
+            UUID userId,
+            String displayName,
+            String bio,
+            String gender,
+            UUID provinceId,
+            String avatarUrl
+    ) {
+        if (avatarUrl != null && !AvatarCatalog.isAvailable(avatarUrl)) {
+            throw new IllegalArgumentException("avatarUrl must be one of the bundled preset avatars");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if (displayName != null) user.setDisplayName(displayName);
         if (bio != null) user.setBio(bio);
         if (gender != null) user.setGender(gender);
+        if (avatarUrl != null) user.setAvatarUrl(avatarUrl);
         if (provinceId != null) {
             provinceRepository.findById(provinceId).ifPresent(user::setProvince);
         }
@@ -186,8 +191,9 @@ public class AuthService {
                 .or(() -> userRepository.findByTelegramId(identifier))
                 .orElseThrow(() -> new IllegalArgumentException("No account found for this identifier"));
 
-        if (user.getTelegramId() != null) {
-            otpService.generateOtp(user.getTelegramId());
+        String telegramChatId = telegramDeliveryChatId(user);
+        if (telegramChatId != null) {
+            otpService.generateOtp(telegramChatId);
         } else {
             throw new IllegalArgumentException("Password reset requires a verified Telegram account. Please contact support.");
         }
@@ -200,7 +206,11 @@ public class AuthService {
                 .or(() -> userRepository.findByTelegramId(identifier))
                 .orElseThrow(() -> new IllegalArgumentException("No account found for this identifier"));
 
-        boolean verified = otpService.verifyOtp(user.getTelegramId(), code);
+        String telegramChatId = telegramDeliveryChatId(user);
+        if (telegramChatId == null) {
+            throw new IllegalArgumentException("This account does not have a linked Telegram chat");
+        }
+        boolean verified = otpService.verifyOtp(telegramChatId, code);
         if (!verified) {
             throw new IllegalArgumentException("Invalid or expired OTP code");
         }
@@ -245,6 +255,52 @@ public class AuthService {
             });
         }
         return verified;
+    }
+
+    @Transactional
+    public AuthResponse telegramAuth(TelegramAuthRequest request) {
+        String telegramId = request.getIdentifier();
+        if (!otpService.verifyOtp(telegramId, request.getCode())) {
+            throw new IllegalArgumentException("Invalid or expired OTP code");
+        }
+
+        User user = userRepository.findByTelegramId(telegramId).orElse(null);
+        if (user == null) {
+            String username = request.getUsername();
+            String displayName = request.getDisplayName();
+            if (username == null || username.isBlank()
+                    || displayName == null || displayName.isBlank()) {
+                throw new IllegalArgumentException(
+                        "Username and display name are required for a new Telegram account"
+                );
+            }
+            if (userRepository.existsByUsername(username)) {
+                throw new IllegalArgumentException("Username is already taken");
+            }
+
+            user = new User();
+            user.setTelegramId(telegramId);
+            user.setTelegramChatId(telegramId);
+            user.setUsername(username);
+            user.setDisplayName(displayName);
+            user.setRole(Role.USER);
+            user.setPhoneVerified(true);
+            user.setAvatarUrl(generateRandomAvatar());
+            user = userRepository.save(user);
+
+            UserGamification gamification = new UserGamification();
+            gamification.setUserId(user.getId());
+            userGamificationRepository.save(gamification);
+        } else {
+            if (user.isSuspended()) {
+                throw new AccessDeniedException("Account suspended until " + user.getSuspendedUntil());
+            }
+            user.setPhoneVerified(true);
+            user.setTelegramChatId(telegramId);
+            user = userRepository.save(user);
+        }
+
+        return buildAuthResponse(user);
     }
 
     // --- Private helpers ---
@@ -309,6 +365,11 @@ public class AuthService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private String generateRandomAvatar() {
-        return AVAILABLE_AVATARS[SECURE_RANDOM.nextInt(AVAILABLE_AVATARS.length)];
+        var availableAvatars = AvatarCatalog.availableAvatars();
+        return availableAvatars.get(SECURE_RANDOM.nextInt(availableAvatars.size()));
+    }
+
+    private String telegramDeliveryChatId(User user) {
+        return user.getTelegramChatId() != null ? user.getTelegramChatId() : user.getTelegramId();
     }
 }

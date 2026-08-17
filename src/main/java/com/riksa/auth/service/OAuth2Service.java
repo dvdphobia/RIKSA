@@ -2,6 +2,7 @@ package com.riksa.auth.service;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.riksa.auth.dto.AuthResponse;
+import com.riksa.auth.avatar.AvatarCatalog;
 import com.riksa.auth.entity.Role;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.google.GoogleAuthRequest;
@@ -16,6 +17,7 @@ import com.riksa.gamification.repository.UserGamificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,15 +43,6 @@ public class OAuth2Service {
     @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
 
-    private static final String[] AVAILABLE_AVATARS = {
-            "/avatars/avatar-1.png", "/avatars/avatar-2.png", "/avatars/avatar-3.png", "/avatars/avatar-4.png", "/avatars/avatar-5.png",
-            "/avatars/avatar-6.png", "/avatars/avatar-7.png", "/avatars/avatar-8.png", "/avatars/avatar-9.png", "/avatars/avatar-10.png",
-             "/avatars/avatar-11.png", "/avatars/avatar-12.png", "/avatars/avatar-13.png", "/avatars/avatar-14.png", "/avatars/avatar-15.png",
-            "/avatars/avatar-16.png", "/avatars/avatar-17.png", "/avatars/avatar-18.png", "/avatars/avatar-19.png", "/avatars/avatar-20.png",
-            "/avatars/avatar-21.png", "/avatars/avatar-22.png", "/avatars/avatar-23.png", "/avatars/avatar-24.png", "/avatars/avatar-25.png",
-            "/avatars/avatar-26.png", "/avatars/avatar-27.png", "/avatars/avatar-28.png", "/avatars/avatar-29.png", "/avatars/avatar-30.png"
-    };
-
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Transactional
@@ -62,10 +55,16 @@ public class OAuth2Service {
 
         User user = userRepository.findByGoogleId(googleId).orElse(null);
 
-        if (user == null && email != null) {
+        if (user == null && (email == null || !Boolean.TRUE.equals(payload.getEmailVerified()))) {
+            throw new IllegalArgumentException("Google account must have a verified email address");
+        }
+
+        if (user == null) {
             user = userRepository.findByEmail(email).orElse(null);
             if (user != null) {
+                requireActive(user);
                 user.setGoogleId(googleId);
+                user.setEmailVerified(true);
                 if (picture != null) {
                     user.setAvatarUrl(picture);
                 }
@@ -77,6 +76,7 @@ public class OAuth2Service {
             user = new User();
             user.setGoogleId(googleId);
             user.setEmail(email);
+            user.setEmailVerified(true);
             user.setRole(Role.USER);
             user.setAvatarUrl(picture != null ? picture : generateRandomAvatar());
             user.setDisplayName(name != null ? name : "User" + UUID.randomUUID().toString().substring(0, 8));
@@ -113,7 +113,15 @@ public class OAuth2Service {
             }
         }
 
+        requireActive(user);
+
         return buildAuthResponse(user);
+    }
+
+    private void requireActive(User user) {
+        if (user.isSuspended()) {
+            throw new AccessDeniedException("Account suspended until " + user.getSuspendedUntil());
+        }
     }
 
     private AuthResponse buildAuthResponse(User user) {
@@ -130,6 +138,7 @@ public class OAuth2Service {
     }
 
     private String generateRandomAvatar() {
-        return AVAILABLE_AVATARS[SECURE_RANDOM.nextInt(AVAILABLE_AVATARS.length)];
+        var availableAvatars = AvatarCatalog.availableAvatars();
+        return availableAvatars.get(SECURE_RANDOM.nextInt(availableAvatars.size()));
     }
 }

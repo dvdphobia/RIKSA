@@ -2,8 +2,11 @@ package com.riksa.auth.telegram;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +34,7 @@ public class TelegramService {
                     .toEntity(String.class);
             log.info("Telegram message sent to chatId {}", chatId);
         } catch (Exception e) {
-            log.error("Failed to send Telegram message to chatId {}: {}", chatId, e.getMessage());
+            log.error("Failed to send Telegram message to chatId {} ({})", chatId, e.getClass().getSimpleName());
             throw new RuntimeException("Failed to send Telegram message");
         }
     }
@@ -47,5 +50,30 @@ public class TelegramService {
         sendMessage(chatId, text);
     }
 
+    public void registerWebhook() {
+        if (!telegramConfig.isEnabled()
+                || telegramConfig.getWebhookUrl() == null
+                || telegramConfig.getWebhookUrl().isBlank()) {
+            return;
+        }
+        if (telegramConfig.getWebhookSecret() == null || telegramConfig.getWebhookSecret().isBlank()) {
+            throw new IllegalStateException("TELEGRAM_WEBHOOK_SECRET is required when TELEGRAM_WEBHOOK_URL is set");
+        }
+
+        String url = TELEGRAM_API_BASE + telegramConfig.getBotToken() + "/setWebhook";
+        RestClient.create().post()
+                .uri(url)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new SetWebhookRequest(
+                        telegramConfig.getWebhookUrl(),
+                        telegramConfig.getWebhookSecret(),
+                        List.of("message")
+                ))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
     private record SendMessageRequest(String chat_id, String text, String parse_mode) {}
+
+    private record SetWebhookRequest(String url, String secret_token, List<String> allowed_updates) {}
 }

@@ -25,11 +25,22 @@ public class TelegramConfig {
     @Value("${telegram.bot-username:}")
     private String botUsername;
 
+    @Value("${telegram.webhook-url:}")
+    private String webhookUrl;
+
+    @Value("${telegram.webhook-secret:}")
+    private String webhookSecret;
+
+    @Value("${telegram.auth-request-expiration-minutes:10}")
+    private int authRequestExpirationMinutes;
+
     @PostConstruct
     public void logConfig() {
-        log.info("Telegram config - enabled: {}, botUsername configured: {}, botToken configured: {}",
+        log.info("Telegram config - enabled: {}, botUsername configured: {}, botToken configured: {}, webhook configured: {}",
                 enabled,
                 botUsername != null && !botUsername.isBlank(),
-                botToken != null && !botToken.isBlank());
+                botToken != null && !botToken.isBlank(),
+                webhookUrl != null && !webhookUrl.isBlank()
+                        && webhookSecret != null && !webhookSecret.isBlank());
     }
 }

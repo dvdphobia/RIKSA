@@ -21,7 +21,9 @@ Own the **app skeleton** (shell, navigation, theme, network, auth) and the entir
 
 ## Backend you consume (REST, `/api/v1/auth`)
 
-All auth endpoints are public (no token). See `api-contract-reference.md` for payloads.
+Auth operations are public except `GET/PUT /me`, which require a Bearer access
+token. See `api-contract-reference.md` and `../AUTH_API.md` for payloads and
+current backend caveats.
 
 | Screen / action | Endpoint |
 |-----------------|----------|
@@ -30,7 +32,7 @@ All auth endpoints are public (no token). See `api-contract-reference.md` for pa
 | Refresh token | `POST /api/v1/auth/refresh` |
 | Logout | `POST /api/v1/auth/logout` |
 | Google sign-in | `POST /api/v1/auth/google` |
-| Send OTP (SMS/Telegram) | `POST /api/v1/auth/otp/send` |
+| Send OTP (Telegram only) | `POST /api/v1/auth/otp/send` |
 | Verify OTP | `POST /api/v1/auth/otp/verify` |
 | Forgot password | `POST /api/v1/auth/forgot-password` |
 | Reset password | `POST /api/v1/auth/reset-password` |
@@ -59,12 +61,12 @@ Deliver everything in `00-foundation-shared.md`. This is your top priority; the 
 - [ ] `AppShell` with bottom navigation (Feed · Learn · Leaderboard · Blog · Profile)
 - [ ] Google sign-in (`google_sign_in` → send id token to `POST /auth/google`)
 - [ ] Harden the dio refresh interceptor (single-flight lock; tested under concurrent 401s)
-- [ ] Province picker (fetch provinces — confirm endpoint with backend; Cambodian provinces)
+- [ ] Province picker (blocked: no province-list endpoint or seed migration yet)
 
 ### Phase 3 — Recovery flows (Week 3)
 - [ ] Forgot password → OTP/email code → reset password flow
 - [ ] Email verification flow
-- [ ] OTP flow UI (SMS + Telegram channels; Telegram requires chat ID — show helper text)
+- [ ] OTP flow UI (Telegram-only and blocked until account-to-Telegram linking is implemented)
 - [ ] Deep link handling (password reset / email verify links)
 
 ### Phase 4 — Handoff + polish (Weeks 4–6)

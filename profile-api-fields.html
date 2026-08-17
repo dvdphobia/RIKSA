@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Profile — API Fields Reference</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #d2991d;
+    --purple: #a371f7;
+    --red: #f85149;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+  }
+  h1 { font-size: 2rem; margin-bottom: 0.25rem; }
+  .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 2rem; }
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+  .section > h2 { margin: 0; }
+  .section-header {
+    display: flex; justify-content: space-between; align-items: center;
+    width: 100%;
+    padding: 1rem 1.25rem;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border);
+    border-left: 0;
+    border-right: 0;
+    border-top: 0;
+    cursor: pointer;
+    user-select: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+  .section-header:hover { background: rgba(255,255,255,0.04); }
+  .section-header:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .section-title { font-size: 1.1rem; }
+  .endpoint {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: var(--green);
+    background: rgba(63,185,80,0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .section-body { padding: 0 1.25rem 1.25rem; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  thead th {
+    text-align: left;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  tbody td {
+    padding: 0.6rem 0.5rem;
+    border-bottom: 1px solid rgba(48,54,61,0.5);
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  .field-name {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--accent);
+    font-size: 0.85rem;
+  }
+  .type {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: var(--orange);
+  }
+  .notes { color: var(--muted); font-size: 0.85rem; }
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+  .badge-list { color: var(--purple); }
+  .badge-cursor { color: var(--green); }
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+  }
+  .summary-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    text-align: center;
+  }
+  .summary-card .number { font-size: 2rem; font-weight: 700; color: var(--accent); }
+  .summary-card .label { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+  .toggle-icon { color: var(--muted); font-size: 0.8rem; transition: transform 0.2s; }
+  .collapsed .section-body { display: none; }
+  .collapsed .toggle-icon { transform: rotate(-90deg); }
+</style>
+</head>
+<body>
+
+<h1>User Profile — API Fields Reference</h1>
+<p class="subtitle">Backend data model for the Figma designer. Click section headers to collapse.</p>
+
+<div class="summary">
+  <div class="summary-card"><div class="number">7</div><div class="label">API Endpoints</div></div>
+  <div class="summary-card"><div class="number">5</div><div class="label">UI Sections</div></div>
+  <div class="summary-card"><div class="number">3</div><div class="label">Cursor-Paginated</div></div>
+</div>
+
+<!-- 1. User Identity -->
+<div class="section" id="s1">
+  <h2><button class="section-header" type="button" aria-expanded="true" aria-controls="s1-body">
+    <span class="section-title">1. User Identity</span>
+    <span class="endpoint">GET /api/v1/auth/me</span>
+    <span class="toggle-icon">▼</span>
+  </button></h2>
+  <div class="section-body" id="s1-body">
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="field-name">id</td><td class="type">UUID</td><td class="notes"></td></tr>
+        <tr><td class="field-name">username</td><td class="type">String</td><td class="notes">@handle</td></tr>
+        <tr><td class="field-name">displayName</td><td class="type">String</td><td class="notes">Shown name on screen</td></tr>
+        <tr><td class="field-name">avatarUrl</td><td class="type">String</td><td class="notes">Profile picture URL</td></tr>
+        <tr><td class="field-name">bio</td><td class="type">String</td><td class="notes">Short user bio / about</td></tr>
+        <tr><td class="field-name">email</td><td class="type">String</td><td class="notes"></td></tr>
+        <tr><td class="field-name">emailVerified</td><td class="type">Boolean</td><td class="notes">Show verified badge?</td></tr>
+        <tr><td class="field-name">phoneNumber</td><td class="type">String</td><td class="notes"></td></tr>
+        <tr><td class="field-name">phoneVerified</td><td class="type">Boolean</td><td class="notes">Show verified badge?</td></tr>
+        <tr><td class="field-name">gender</td><td class="type">String</td><td class="notes"></td></tr>
+        <tr><td class="field-name">countryId</td><td class="type">String</td><td class="notes">Country code (e.g. "ID")</td></tr>
+        <tr><td class="field-name">role</td><td class="type">String</td><td class="notes">e.g. USER, ADMIN</td></tr>
+        <tr><td class="field-name">createdAt</td><td class="type">DateTime</td><td class="notes">Join date</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 2. Gamification Profile -->
+<div class="section" id="s2">
+  <h2><button class="section-header" type="button" aria-expanded="true" aria-controls="s2-body">
+    <span class="section-title">2. Gamification Profile</span>
+    <span class="endpoint">GET /api/v1/gamification/me</span>
+    <span class="toggle-icon">▼</span>
+  </button></h2>
+  <div class="section-body" id="s2-body">
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="field-name">userId</td><td class="type">UUID</td><td class="notes"></td></tr>
+        <tr><td class="field-name">totalXp</td><td class="type">Long</td><td class="notes">Total XP earned — <strong>big number to show off</strong></td></tr>
+        <tr><td class="field-name">currentStreak</td><td class="type">Long</td><td class="notes">Days in a row (also in streak endpoint)</td></tr>
+        <tr><td class="field-name">highestStreak</td><td class="type">Long</td><td class="notes">Best streak ever (also in streak endpoint)</td></tr>
+        <tr><td class="field-name">currentTier</td><td class="type">String</td><td class="notes">e.g. "Gold", "Platinum" — <strong>badge/banner</strong></td></tr>
+        <tr><td class="field-name">currentTierIcon</td><td class="type">String</td><td class="notes">Icon URL for tier badge</td></tr>
+        <tr><td class="field-name">nextTier</td><td class="type">String</td><td class="notes">Next tier name — <strong>null if already at max</strong></td></tr>
+        <tr><td class="field-name">xpToNext</td><td class="type">Long</td><td class="notes">XP needed to reach next tier — <strong>0 if max</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 3. Streak -->
+<div class="section" id="s3">
+  <h2><button class="section-header" type="button" aria-expanded="true" aria-controls="s3-body">
+    <span class="section-title">3. Streak</span>
+    <span class="endpoint">GET /api/v1/gamification/streak</span>
+    <span class="toggle-icon">▼</span>
+  </button></h2>
+  <div class="section-body" id="s3-body">
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="field-name">currentStreak</td><td class="type">Long</td><td class="notes">Days in a row — <strong>use 🔥 fire icon</strong></td></tr>
+        <tr><td class="field-name">highestStreak</td><td class="type">Long</td><td class="notes">Best streak ever</td></tr>
+        <tr><td class="field-name">currentMilestoneName</td><td class="type">String</td><td class="notes">e.g. "7-Day Warrior" — <strong>current badge name</strong></td></tr>
+        <tr><td class="field-name">currentMilestoneIcon</td><td class="type">String</td><td class="notes">Icon URL for current milestone</td></tr>
+        <tr><td class="field-name">nextMilestoneName</td><td class="type">String</td><td class="notes">e.g. "30-Day Champion" — <strong>next badge to chase</strong></td></tr>
+        <tr><td class="field-name">nextMilestoneMinStreak</td><td class="type">Long</td><td class="notes">How many days needed for the next milestone</td></tr>
+        <tr><td class="field-name">daysToNext</td><td class="type">Int</td><td class="notes">Days remaining to hit next milestone — <strong>0 = reached!</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 4. Achievements -->
+<div class="section" id="s4">
+  <h2><button class="section-header" type="button" aria-expanded="true" aria-controls="s4-body">
+    <span class="section-title">4. Achievements <span class="badge badge-list">LIST</span></span>
+    <span class="endpoint">GET /api/v1/gamification/achievements</span>
+    <span class="toggle-icon">▼</span>
+  </button></h2>
+  <div class="section-body" id="s4-body">
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="field-name">id</td><td class="type">UUID</td><td class="notes"></td></tr>
+        <tr><td class="field-name">name</td><td class="type">String</td><td class="notes">Achievement title</td></tr>
+        <tr><td class="field-name">description</td><td class="type">String</td><td class="notes">What the user must do to earn it</td></tr>
+        <tr><td class="field-name">iconUrl</td><td class="type">String</td><td class="notes">Icon — <strong>greyed out if not earned</strong></td></tr>
+        <tr><td class="field-name">earned</td><td class="type">Boolean</td><td class="notes"><strong>true = full color | false = greyed/locked</strong></td></tr>
+        <tr><td class="field-name">unlockedAt</td><td class="type">DateTime</td><td class="notes"><strong>null if not earned</strong></td></tr>
+        <tr><td class="field-name">progress</td><td class="type">Int</td><td class="notes">Current progress count</td></tr>
+        <tr><td class="field-name">progressMax</td><td class="type">Int</td><td class="notes">Target count to earn</td></tr>
+        <tr><td class="field-name">progressPercent</td><td class="type">Double</td><td class="notes">0.0 – 1.0 — <strong>multiply by 100 to fill the progress bar</strong></td></tr>
+        <tr><td class="field-name">rarity</td><td class="type">Enum</td><td class="notes"><strong>COMMON, RARE, EPIC, LEGENDARY</strong> — use for border/glow color</td></tr>
+        <tr><td class="field-name">xpReward</td><td class="type">Int</td><td class="notes">XP granted when unlocked — "Earn +500 XP"</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 5. XP History -->
+<div class="section" id="s5">
+  <h2><button class="section-header" type="button" aria-expanded="true" aria-controls="s5-body">
+    <span class="section-title">5. XP History <span class="badge badge-cursor">CURSOR PAGINATED</span></span>
+    <span class="endpoint">GET /api/v1/gamification/xp</span>
+    <span class="toggle-icon">▼</span>
+  </button></h2>
+  <div class="section-body" id="s5-body">
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="field-name">id</td><td class="type">UUID</td><td class="notes"></td></tr>
+        <tr><td class="field-name">amount</td><td class="type">Long</td><td class="notes">XP gained (always positive) — <strong>show as "+{amount} XP"</strong></td></tr>
+        <tr><td class="field-name">sourceType</td><td class="type">String</td><td class="notes">e.g. "LESSON_COMPLETED", "ACHIEVEMENT_UNLOCKED"</td></tr>
+        <tr><td class="field-name">sourceId</td><td class="type">UUID</td><td class="notes">ID of the thing that gave XP (nullable)</td></tr>
+        <tr><td class="field-name">runningBalance</td><td class="type">Long</td><td class="notes">Total XP after this event</td></tr>
+        <tr><td class="field-name">createdAt</td><td class="type">DateTime</td><td class="notes">When it happened</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:0.75rem; color:var(--muted); font-size:0.85rem;">
+      ⬇ <strong>Wrapper:</strong> <span class="field-name">CursorPage</span> — 
+      <span class="field-name">edges</span> <span class="type">List</span>,
+      <span class="field-name">hasNextPage</span> <span class="type">Boolean</span> (show "Load More" button),
+      <span class="field-name">endCursor</span> <span class="type">String</span> (send as <code>?cursor=</code> query param for next page)
+    </p>
+  </div>
+</div>
+
+<!-- 6. Leaderboard -->
+<div class="section" id="s6">
+  <h2><button class="section-header" type="button" aria-expanded="true" aria-controls="s6-body">
+    <span class="section-title">6. Leaderboard <span class="badge badge-cursor">CURSOR PAGINATED</span></span>
+    <span class="endpoint">GET /api/v1/gamification/leaderboard</span>
+    <span class="toggle-icon">▼</span>
+  </button></h2>
+  <div class="section-body" id="s6-body">
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="field-name">rank</td><td class="type">Int</td><td class="notes">Position — <strong>show 👑 for top 3</strong></td></tr>
+        <tr><td class="field-name">userId</td><td class="type">UUID</td><td class="notes"></td></tr>
+        <tr><td class="field-name">displayName</td><td class="type">String</td><td class="notes">User's display name</td></tr>
+        <tr><td class="field-name">avatarUrl</td><td class="type">String</td><td class="notes">Profile picture</td></tr>
+        <tr><td class="field-name">totalXp</td><td class="type">Long</td><td class="notes">Total XP</td></tr>
+        <tr><td class="field-name">tierName</td><td class="type">String</td><td class="notes">e.g. "Gold"</td></tr>
+        <tr><td class="field-name">tierIcon</td><td class="type">String</td><td class="notes">Tier badge icon</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:0.75rem; color:var(--muted); font-size:0.85rem;">
+      ⬇ <strong>Wrapper:</strong> <span class="field-name">CursorPage</span> — infinite scroll, send <code>endCursor</code> for next batch
+    </p>
+  </div>
+</div>
+
+<!-- 7. Rank History -->
+<div class="section" id="s7">
+  <h2><button class="section-header" type="button" aria-expanded="true" aria-controls="s7-body">
+    <span class="section-title">7. Rank History <span class="badge badge-cursor">CURSOR PAGINATED</span></span>
+    <span class="endpoint">GET /api/v1/gamification/rank-history</span>
+    <span class="toggle-icon">▼</span>
+  </button></h2>
+  <div class="section-body" id="s7-body">
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="field-name">id</td><td class="type">UUID</td><td class="notes"></td></tr>
+        <tr><td class="field-name">scope</td><td class="type">String</td><td class="notes">e.g. "WEEKLY", "ALL_TIME"</td></tr>
+        <tr><td class="field-name">oldRank</td><td class="type">String</td><td class="notes">Previous tier name</td></tr>
+        <tr><td class="field-name">newRank</td><td class="type">String</td><td class="notes">New tier name — <strong>"Silver → Gold" style</strong></td></tr>
+        <tr><td class="field-name">changedAt</td><td class="type">DateTime</td><td class="notes">When the rank changed</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:0.75rem; color:var(--muted); font-size:0.85rem;">
+      ⬇ <strong>Wrapper:</strong> <span class="field-name">CursorPage</span> — paginated timeline
+    </p>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="section" id="s8">
+  <h2><button class="section-header" type="button" aria-expanded="true" aria-controls="s8-body">
+    <span class="section-title">UI Layout Summary</span>
+    <span class="toggle-icon">▼</span>
+  </button></h2>
+  <div class="section-body" id="s8-body">
+    <table>
+      <thead><tr><th>#</th><th>Section</th><th>Source Endpoint(s)</th><th>Design Notes</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td><strong>Header Card</strong></td>
+          <td class="field-name">/auth/me + /gamification/me</td>
+          <td class="notes">
+            Avatar, displayName, @username, bio, join date<br>
+            Current tier badge + icon, total XP,<br>
+            XP progress bar to next tier (xpToNext / (totalXp + xpToNext))
+          </td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><strong>Streak Card</strong></td>
+          <td class="field-name">/gamification/streak</td>
+          <td class="notes">
+            🔥 icon + current streak count<br>
+            Current milestone badge<br>
+            "X days to next milestone" progress text
+          </td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><strong>Achievements Grid</strong></td>
+          <td class="field-name">/gamification/achievements</td>
+          <td class="notes">
+            Tile grid, each with icon + name<br>
+            Progress bar (progressPercent)<br>
+            Rarity color border (COMMON=grey, RARE=blue, EPIC=purple, LEGENDARY=gold)<br>
+            Greyed out if earned=false
+          </td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td><strong>XP History</strong></td>
+          <td class="field-name">/gamification/xp</td>
+          <td class="notes">
+            Vertical timeline<br>
+            "+{amount} XP" per entry<br>
+            Source label (lesson completed, achievement, etc.)<br>
+            "Load More" at bottom
+          </td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td><strong>Leaderboard Tab</strong></td>
+          <td class="field-name">/gamification/leaderboard</td>
+          <td class="notes">
+            Ranked list (👑 for top 3)<br>
+            Avatar + name + XP + tier badge per row<br>
+            Infinite scroll
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.section-header').forEach((button) => {
+  button.addEventListener('click', () => {
+    const section = button.closest('.section');
+    const isCollapsed = section.classList.toggle('collapsed');
+    button.setAttribute('aria-expanded', String(!isCollapsed));
+  });
+});
+</script>
+</body>
+</html>

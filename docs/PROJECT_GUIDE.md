@@ -357,7 +357,7 @@ Controller: `AuthController.java`. DTOs: `RegisterRequest`, `LoginRequest`, `Aut
 | POST | `/reset-password` | `{identifier, code, newPassword}` | `{message}` | 🌐 |
 | POST | `/verify-email` | `{token}` | `{verified: bool, message}` | 🌐 |
 | GET  | `/me` | — | `UserProfileResponse` | 🔐 |
-| PUT  | `/me` | `UpdateProfileRequest {displayName, bio, gender, provinceId}` | `UserProfileResponse` | 🔐 |
+| PUT  | `/me` | `UpdateProfileRequest {displayName, bio, gender, provinceId, avatarUrl?}` — `avatarUrl` must be `/avatars/avatar-1.png` through `/avatars/avatar-30.png` | `UserProfileResponse` | 🔐 |
 
 **`AuthResponse`** — `{userId, accessToken, refreshToken, tokenType:"Bearer", username, role}`.
 

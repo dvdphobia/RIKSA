@@ -181,6 +181,7 @@ docker compose up -d
 ## Development Notes
 
 - The project uses **package-by-feature** under `com.riksa.*`.
+- Flutter Telegram signup/login integration: [`docs/FLUTTER_TELEGRAM_AUTH.md`](docs/FLUTTER_TELEGRAM_AUTH.md).
 - Database schema is managed by **Flyway**. `spring.jpa.hibernate.ddl-auto` is set to `validate`, so all schema changes must be added as new migrations: `V{N}__description.sql`.
 - REST endpoints are under `/api/v1/*`. GraphQL is exposed at `/graphql` for social/community features.
 - Authenticated requests require `Authorization: Bearer <accessToken>` except for `/api/v1/auth/**` and `/actuator/health`.

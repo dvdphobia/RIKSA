@@ -54,4 +54,25 @@ class RateLimitFilterTest {
 
         assertThat(response.getStatus()).isEqualTo(429);
     }
+
+    @Test
+    void telegramStatusAndWebhook_areNotBlockedBySharedAuthRateLimit() throws Exception {
+        RateLimitFilter filter = new RateLimitFilter(0, 60);
+        FilterChain chain = mock(FilterChain.class);
+
+        for (String path : new String[]{
+                "/api/v1/auth/telegram/status",
+                "/api/v1/auth/telegram/webhook"
+        }) {
+            MockHttpServletRequest request = new MockHttpServletRequest();
+            request.setRequestURI(path);
+            MockHttpServletResponse response = new MockHttpServletResponse();
+
+            filter.doFilterInternal(request, response, chain);
+
+            assertThat(response.getStatus()).isEqualTo(200);
+        }
+
+        verify(chain, times(2)).doFilter(any(), any());
+    }
 }
