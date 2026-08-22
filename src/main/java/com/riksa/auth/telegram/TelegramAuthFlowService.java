@@ -9,6 +9,8 @@ import com.riksa.auth.repository.UserRepository;
 import com.riksa.auth.security.JwtService;
 import com.riksa.auth.token.RefreshToken;
 import com.riksa.auth.token.RefreshTokenRepository;
+import com.riksa.common.config.RiksaRedisProperties;
+import com.riksa.common.exception.ServiceUnavailableException;
 import com.riksa.gamification.entity.UserGamification;
 import com.riksa.gamification.repository.UserGamificationRepository;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +47,8 @@ public class TelegramAuthFlowService {
     private final JwtService jwtService;
     private final TelegramConfig telegramConfig;
     private final TelegramService telegramService;
+    private final RedisTelegramChallengeStore redisChallengeStore;
+    private final RiksaRedisProperties redisProperties;
 
     @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
@@ -60,7 +64,7 @@ public class TelegramAuthFlowService {
         TelegramAuthChallenge challenge = new TelegramAuthChallenge();
         challenge.setTokenHash(hash(requestToken));
         challenge.setExpiresAt(expiresAt);
-        challengeRepository.save(challenge);
+        saveChallenge(challenge);
 
         String botUsername = normalizedBotUsername();
         String payload = START_PAYLOAD_PREFIX + requestToken;
@@ -123,7 +127,7 @@ public class TelegramAuthFlowService {
             return;
         }
 
-        Optional<TelegramAuthChallenge> found = challengeRepository.findByTokenHashForUpdate(hash(requestToken));
+        Optional<TelegramAuthChallenge> found = findChallengeOptional(hash(requestToken), true);
         if (found.isEmpty()) {
             telegramService.sendMessage(chatId, "This Riksa login link is invalid or expired. Please request a new one in the app.");
             return;
@@ -152,7 +156,7 @@ public class TelegramAuthFlowService {
 
         otpService.generateOtp(chatId);
         challenge.setStatus(TelegramAuthChallengeStatus.CODE_SENT);
-        challengeRepository.save(challenge);
+        saveChallenge(challenge);
     }
 
     @Transactional
@@ -270,16 +274,14 @@ public class TelegramAuthFlowService {
     private void complete(TelegramAuthChallenge challenge) {
         challenge.setStatus(TelegramAuthChallengeStatus.COMPLETED);
         challenge.setCompletedAt(OffsetDateTime.now());
-        challengeRepository.save(challenge);
+        saveChallenge(challenge);
     }
 
     private TelegramAuthChallenge findChallenge(String requestToken, boolean lock) {
         if (requestToken == null || !REQUEST_TOKEN_PATTERN.matcher(requestToken).matches()) {
             throw new IllegalArgumentException("Telegram request token is invalid");
         }
-        Optional<TelegramAuthChallenge> challenge = lock
-                ? challengeRepository.findByTokenHashForUpdate(hash(requestToken))
-                : challengeRepository.findByTokenHash(hash(requestToken));
+        Optional<TelegramAuthChallenge> challenge = findChallengeOptional(hash(requestToken), lock);
         return challenge.orElseThrow(() -> new IllegalArgumentException("Telegram login request was not found"));
     }
 
@@ -288,6 +290,33 @@ public class TelegramAuthFlowService {
                 && challenge.getStatus() != TelegramAuthChallengeStatus.EXPIRED
                 && challenge.getExpiresAt().isBefore(OffsetDateTime.now())) {
             challenge.setStatus(TelegramAuthChallengeStatus.EXPIRED);
+            saveChallenge(challenge);
+        }
+    }
+
+    private Optional<TelegramAuthChallenge> findChallengeOptional(String tokenHash, boolean lock) {
+        if (redisProperties.isOtpEnabled()) {
+            Optional<TelegramAuthChallenge> redisChallenge;
+            try {
+                redisChallenge = redisChallengeStore.find(tokenHash);
+            } catch (RuntimeException e) {
+                throw new ServiceUnavailableException("Telegram authentication is temporarily unavailable", e);
+            }
+            if (redisChallenge.isPresent()) return redisChallenge;
+        }
+        return lock
+                ? challengeRepository.findByTokenHashForUpdate(tokenHash)
+                : challengeRepository.findByTokenHash(tokenHash);
+    }
+
+    private void saveChallenge(TelegramAuthChallenge challenge) {
+        if (redisProperties.isOtpEnabled() && challenge.getId() == null) {
+            try {
+                redisChallengeStore.save(challenge);
+            } catch (RuntimeException e) {
+                throw new ServiceUnavailableException("Telegram authentication is temporarily unavailable", e);
+            }
+        } else {
             challengeRepository.save(challenge);
         }
     }

@@ -21,6 +21,8 @@ public interface LeaderboardSnapshotRepository extends JpaRepository<Leaderboard
     Optional<LeaderboardSnapshot> findByUserIdAndScopeAndScopeIdAndSnapshotDate(
             UUID userId, ScopeType scope, String scopeId, LocalDate snapshotDate);
 
+    List<LeaderboardSnapshot> findBySnapshotDate(LocalDate snapshotDate);
+
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("DELETE FROM LeaderboardSnapshot s WHERE s.snapshotDate = :snapshotDate")
     void deleteBySnapshotDate(LocalDate snapshotDate);

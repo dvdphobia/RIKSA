@@ -23,5 +23,6 @@ public class UserProfileResponse {
     private Boolean phoneVerified;
     private String role;
     private String countryId;
+    private UUID provinceId;
     private OffsetDateTime createdAt;
 }

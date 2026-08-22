@@ -6,10 +6,12 @@ import com.riksa.common.audit.AuditLogService;
 import com.riksa.auth.entity.Role;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.repository.UserRepository;
+import com.riksa.common.cache.CacheNames;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
@@ -33,6 +35,7 @@ public class UserAdminService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = CacheNames.USER_SECURITY_STATE, key = "#userId.toString()")
     public AdminUserResponse updateRole(UUID actorId, UUID userId, Role newRole) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
@@ -52,6 +55,7 @@ public class UserAdminService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = CacheNames.USER_SECURITY_STATE, key = "#userId.toString()")
     public AdminUserResponse suspend(UUID actorId, UUID userId, SuspensionRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
@@ -80,6 +84,7 @@ public class UserAdminService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = CacheNames.USER_SECURITY_STATE, key = "#userId.toString()")
     public AdminUserResponse unsuspend(UUID actorId, UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));

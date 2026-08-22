@@ -92,4 +92,9 @@ public class LeaderboardSnapshotService {
         log.info("Leaderboard refresh done — {} country + {} province rows",
                 countrySnapshots.size(), provinceSnapshots.size());
     }
+
+    @Transactional(readOnly = true)
+    public List<LeaderboardSnapshot> loadSnapshots(LocalDate date) {
+        return snapshotRepository.findBySnapshotDate(date);
+    }
 }

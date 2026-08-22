@@ -6,6 +6,7 @@ import com.riksa.auth.otp.OtpService;
 import com.riksa.auth.repository.UserRepository;
 import com.riksa.auth.security.JwtService;
 import com.riksa.auth.token.RefreshTokenRepository;
+import com.riksa.common.config.RiksaRedisProperties;
 import com.riksa.gamification.repository.UserGamificationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,12 +43,15 @@ class TelegramAuthFlowServiceTest {
     @Mock private JwtService jwtService;
     @Mock private TelegramConfig telegramConfig;
     @Mock private TelegramService telegramService;
+    @Mock private RedisTelegramChallengeStore redisChallengeStore;
+    @Mock private RiksaRedisProperties redisProperties;
 
     @InjectMocks private TelegramAuthFlowService service;
 
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(service, "refreshExpiration", 2_592_000_000L);
+        lenient().when(redisProperties.isOtpEnabled()).thenReturn(false);
     }
 
     @Test
@@ -65,6 +70,21 @@ class TelegramAuthFlowServiceTest {
         );
         assertThat(response.botAppUrl()).startsWith("tg://resolve?domain=riksa_bot&start=auth_");
         verify(challengeRepository).save(any(TelegramAuthChallenge.class));
+    }
+
+    @Test
+    void start_whenRedisEnabled_storesChallengeInRedis() {
+        when(redisProperties.isOtpEnabled()).thenReturn(true);
+        when(telegramConfig.isEnabled()).thenReturn(true);
+        when(telegramConfig.getBotToken()).thenReturn("bot-token");
+        when(telegramConfig.getBotUsername()).thenReturn("riksa_bot");
+        when(telegramConfig.getWebhookSecret()).thenReturn("webhook-secret");
+        when(telegramConfig.getAuthRequestExpirationMinutes()).thenReturn(10);
+
+        service.start();
+
+        verify(redisChallengeStore).save(any(TelegramAuthChallenge.class));
+        verify(challengeRepository, never()).save(any());
     }
 
     @Test

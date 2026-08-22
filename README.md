@@ -11,10 +11,11 @@ Riksa Learning Platform API — Cambodian educational platform backend serving a
 | Build | Maven 3.9.16 (wrapper included) |
 | ORM | Spring Data JPA / Hibernate |
 | Database | PostgreSQL 17 |
+| Ephemeral data | Redis 8.2 |
 | Migrations | Flyway |
 | Auth | JWT, BCrypt, Google OAuth |
 | OTP | Telegram bot integration |
-| Caching | Spring Cache |
+| Caching | Spring Cache backed by Redis |
 | Monitoring | Spring Actuator |
 
 ## Project Status
@@ -27,7 +28,7 @@ Riksa Learning Platform API — Cambodian educational platform backend serving a
 
 - **Java 21 JDK**
 - **Maven 3.9+** (or use `./mvnw` wrapper)
-- **Docker + Docker Compose plugin** (for PostgreSQL)
+- **Docker + Docker Compose plugin** (for PostgreSQL and Redis)
 
 ### Install on Arch Linux
 
@@ -62,6 +63,11 @@ DB_NAME=riksa_db
 DB_USER=riksa_user
 DB_PASSWORD=riksaPass123
 
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=riksaRedis123
+REDIS_KEY_PREFIX=riksa:dev
+
 JWT_SECRET=your-secure-random-secret-at-least-256-bits
 JWT_ACCESS_EXPIRATION=900000
 JWT_REFRESH_EXPIRATION=2592000000
@@ -76,14 +82,14 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000
 
 ## Running the Project
 
-### Recommended: Local App + PostgreSQL in Docker
+### Recommended: Local App + PostgreSQL and Redis in Docker
 
 Fastest development workflow with hot reload and easy debugging.
 
-**Terminal 1 — start PostgreSQL:**
+**Terminal 1 — start PostgreSQL and Redis:**
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres redis
 ```
 
 **Terminal 2 — start the Spring Boot app:**
@@ -111,7 +117,7 @@ Expected output:
 
 ### Alternative: Full Docker Stack
 
-Builds the app inside Docker and runs both services together.
+Builds the app inside Docker and runs the API, PostgreSQL, and Redis together.
 
 ```bash
 docker compose up --build -d
@@ -185,6 +191,8 @@ docker compose up -d
 - Database schema is managed by **Flyway**. `spring.jpa.hibernate.ddl-auto` is set to `validate`, so all schema changes must be added as new migrations: `V{N}__description.sql`.
 - REST endpoints are under `/api/v1/*`. GraphQL is exposed at `/graphql` for social/community features.
 - Authenticated requests require `Authorization: Bearer <accessToken>` except for `/api/v1/auth/**` and `/actuator/health`.
+- Redis stores rate limits, OTPs, Telegram challenges, short-lived response/security caches, current leaderboards, and scheduler locks. PostgreSQL remains authoritative for durable data.
+- Set `REDIS_RATE_LIMIT_ENABLED`, `REDIS_OTP_ENABLED`, `REDIS_CACHE_ENABLED`, or `REDIS_LEADERBOARD_ENABLED` to `false` to disable an individual Redis feature during rollout. Disabling OTP also keeps Telegram challenges in PostgreSQL.
 
 ## First-Time Startup Fixes
 

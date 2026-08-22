@@ -21,6 +21,7 @@ import static org.mockito.Mockito.*;
 class LeaderboardQueryServiceTest {
 
     @Mock private LeaderboardSnapshotRepository snapshotRepository;
+    @Mock private RedisLeaderboardStore redisLeaderboardStore;
 
     @InjectMocks private LeaderboardQueryService leaderboardQueryService;
 
@@ -82,5 +83,20 @@ class LeaderboardQueryServiceTest {
                 userId, ScopeType.COUNTRY, "CAMBODIA");
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void currentLeaderboard_whenRedisReady_readsRedis() {
+        LeaderboardSnapshot snapshot = new LeaderboardSnapshot();
+        snapshot.setRank(1);
+        when(redisLeaderboardStore.isEnabledAndReady()).thenReturn(true);
+        when(redisLeaderboardStore.getLeaderboard(ScopeType.COUNTRY, "CAMBODIA"))
+                .thenReturn(List.of(snapshot));
+
+        var result = leaderboardQueryService.getLeaderboard(
+                ScopeType.COUNTRY, "CAMBODIA", LocalDate.now());
+
+        assertThat(result).containsExactly(snapshot);
+        verifyNoInteractions(snapshotRepository);
     }
 }

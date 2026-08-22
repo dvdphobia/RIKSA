@@ -1,7 +1,5 @@
 package com.riksa.auth.security;
 
-import com.riksa.auth.entity.User;
-import com.riksa.auth.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,7 +19,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserRepository userRepository;
+    private final UserSecurityStateService userSecurityStateService;
 
     @Override
     protected void doFilterInternal(
@@ -40,14 +38,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (jwtService.isTokenValid(token)) {
             var userId = jwtService.getUserId(token);
-            var role = jwtService.getRole(token);
+            UserSecurityState state = userSecurityStateService.get(userId);
 
-            boolean suspended = userRepository.findById(userId)
-                    .map(User::isSuspended)
-                    .orElse(true);
-
-            if (!suspended) {
-                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+            if (state.active()) {
+                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + state.role()));
 
                 var authentication = new UsernamePasswordAuthenticationToken(
                         userId, null, authorities

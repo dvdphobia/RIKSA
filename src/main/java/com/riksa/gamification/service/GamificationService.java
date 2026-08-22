@@ -38,6 +38,8 @@ import com.riksa.social.repository.ReactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
+import com.riksa.common.cache.CacheNames;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
@@ -99,6 +101,8 @@ public class GamificationService {
     // ── profile ──
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheNames.GAMIFICATION_PROFILE, key = "#userId.toString()",
+            condition = "@redisCacheFeatureSwitch.enabled()")
     public GamificationProfileResponse getProfile(UUID userId) {
         UserGamification user = userGamificationRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -173,6 +177,8 @@ public class GamificationService {
     // ── achievements ──
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheNames.GAMIFICATION_ACHIEVEMENTS, key = "#userId.toString()",
+            condition = "@redisCacheFeatureSwitch.enabled()")
     public List<AchievementResponse> getAchievements(UUID userId) {
         List<Achievement> all = achievementRepository.findAll();
         List<UserAchievement> earned = userAchievementRepository.findByUserId(userId);
@@ -321,6 +327,8 @@ public class GamificationService {
     // ── streak ──
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheNames.GAMIFICATION_STREAK, key = "#userId.toString()",
+            condition = "@redisCacheFeatureSwitch.enabled()")
     public StreakResponse getStreak(UUID userId) {
         UserGamification user = userGamificationRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException(

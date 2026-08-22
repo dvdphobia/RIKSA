@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 
 @Slf4j
 @Component
@@ -14,6 +15,7 @@ public class StreakResetJob {
     private final StreakService streakService;
 
     @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Phnom_Penh")
+    @SchedulerLock(name = "streak-reset", lockAtMostFor = "30m", lockAtLeastFor = "1m")
     public void resetStaleStreaks() {
         int resetCount = streakService.resetStaleStreaks();
         log.info("Scheduled streak reset completed; reset {} users", resetCount);

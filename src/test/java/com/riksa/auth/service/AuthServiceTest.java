@@ -10,6 +10,7 @@ import com.riksa.auth.security.JwtService;
 import com.riksa.auth.token.EmailVerificationTokenRepository;
 import com.riksa.auth.token.RefreshTokenRepository;
 import com.riksa.gamification.repository.UserGamificationRepository;
+import com.riksa.common.event.EventPublisher;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
@@ -40,6 +41,7 @@ class AuthServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtService jwtService;
     @Mock private OtpService otpService;
+    @Mock private EventPublisher eventPublisher;
     @Mock private UserGamificationRepository userGamificationRepository;
 
     @InjectMocks private AuthService authService;

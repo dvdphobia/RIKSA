@@ -22,6 +22,26 @@ spring:
     locations: classpath:db/migration
     validate-on-migrate: true
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:2s}
+      timeout: ${REDIS_TIMEOUT:2s}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
+
+  cache:
+    type: redis
+    redis:
+      key-prefix: "${REDIS_KEY_PREFIX:riksa:dev}:cache:"
+      use-key-prefix: true
+      cache-null-values: false
+      time-to-live: 30s
+
   servlet:
     multipart:
       max-file-size: ${MULTIPART_MAX_FILE_SIZE:2MB}
@@ -39,6 +59,7 @@ otp:
   expiration-minutes: ${OTP_EXPIRATION_MINUTES:5}
   max-attempts: ${OTP_MAX_ATTEMPTS:3}
   code-length: ${OTP_CODE_LENGTH:6}
+  hash-secret: ${OTP_HASH_SECRET:${JWT_SECRET:CHANGE-ME-IN-PRODUCTION-MUST-BE-256-BITS-OR-LONGER}}
 
 telegram:
   enabled: ${TELEGRAM_ENABLED:true}
@@ -59,6 +80,15 @@ rate-limit:
   auth:
     max-requests: ${RATE_LIMIT_AUTH_MAX:5}
     window-seconds: ${RATE_LIMIT_AUTH_WINDOW:60}
+  trust-forward-headers: ${RATE_LIMIT_TRUST_FORWARD_HEADERS:false}
+
+riksa:
+  redis:
+    prefix: ${REDIS_KEY_PREFIX:riksa:dev}
+    rate-limit-enabled: ${REDIS_RATE_LIMIT_ENABLED:true}
+    otp-enabled: ${REDIS_OTP_ENABLED:true}
+    cache-enabled: ${REDIS_CACHE_ENABLED:true}
+    leaderboard-enabled: ${REDIS_LEADERBOARD_ENABLED:true}
 
 login:
   max-failed-attempts: ${LOGIN_MAX_FAILED_ATTEMPTS:5}

@@ -24,6 +24,7 @@ public final class AuthEndpoints {
     public static final String OTP_SEND = "/otp/send";
     public static final String OTP_VERIFY = "/otp/verify";
     public static final String ME = "/me";
+    public static final String PROVINCES = "/provinces";
     public static final String FORGOT_PASSWORD = "/forgot-password";
     public static final String RESET_PASSWORD = "/reset-password";
     public static final String VERIFY_EMAIL = "/verify-email";

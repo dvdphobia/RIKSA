@@ -23,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -125,6 +126,11 @@ public class AuthController {
     public ResponseEntity<UserProfileResponse> getProfile(@RequestHeader("Authorization") String authHeader) {
         UUID userId = extractUserId(authHeader);
         return ResponseEntity.ok(authService.getProfile(userId));
+    }
+
+    @GetMapping(AuthEndpoints.PROVINCES)
+    public ResponseEntity<List<ProvinceResponse>> getProvinces() {
+        return ResponseEntity.ok(authService.getProvinces());
     }
 
     @PutMapping(AuthEndpoints.ME)

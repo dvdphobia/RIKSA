@@ -106,4 +106,18 @@ The remaining 20% is the hot-path write pipeline — the actual logic that grant
 
 ---
 
+## Redis Infrastructure — Implemented (Aug 22, 2026)
+
+- Redis 8.2 is part of Docker Compose and Spring Boot uses Lettuce through `spring-boot-starter-data-redis`.
+- Auth endpoint rate limits use atomic Redis Lua counters with TTLs and fail closed with HTTP 503 when Redis is unavailable.
+- OTP codes are HMAC-SHA256 hashed, stored with TTLs, verified atomically, and single-use. PostgreSQL lookup remains temporarily as a migration fallback for old OTPs.
+- Telegram auth challenges use Redis TTL storage for new flows with a PostgreSQL fallback for challenges created before deployment.
+- JWT user security state and short-lived gamification responses use Redis-backed Spring Cache with PostgreSQL fallback on cache errors.
+- Current country/province leaderboards use Redis sorted sets with `totalXp + currentStreak * 5`; PostgreSQL snapshots remain the historical/fallback source.
+- XP, streak, and profile events update Redis leaderboard projections after transaction commit.
+- Leaderboard refresh, streak reset, and token cleanup jobs use Redis-backed ShedLock coordination.
+- Redis integration tests use Testcontainers and automatically skip when Docker is unavailable.
+
+---
+
 *Start a new session by sharing this file with the AI agent.*

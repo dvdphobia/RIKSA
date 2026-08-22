@@ -1,6 +1,7 @@
 package com.riksa.auth.service;
 
 import com.riksa.auth.dto.*;
+import com.riksa.auth.event.UserProfileUpdatedEvent;
 import com.riksa.auth.avatar.AvatarCatalog;
 import com.riksa.auth.entity.Role;
 import com.riksa.auth.entity.User;
@@ -15,6 +16,7 @@ import com.riksa.auth.token.RefreshToken;
 import com.riksa.auth.token.RefreshTokenRepository;
 import com.riksa.gamification.entity.UserGamification;
 import com.riksa.gamification.repository.UserGamificationRepository;
+import com.riksa.common.event.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -42,6 +45,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final OtpService otpService;
+    private final EventPublisher eventPublisher;
 
     @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
@@ -157,6 +161,17 @@ public class AuthService {
         return mapToProfile(user);
     }
 
+    @Transactional(readOnly = true)
+    public List<ProvinceResponse> getProvinces() {
+        return provinceRepository.findAllByOrderByNameLatinAsc().stream()
+                .map(province -> new ProvinceResponse(
+                        province.getId(),
+                        province.getNameKhmer(),
+                        province.getNameLatin()
+                ))
+                .toList();
+    }
+
     @Transactional
     public UserProfileResponse updateProfile(
             UUID userId,
@@ -178,10 +193,13 @@ public class AuthService {
         if (gender != null) user.setGender(gender);
         if (avatarUrl != null) user.setAvatarUrl(avatarUrl);
         if (provinceId != null) {
-            provinceRepository.findById(provinceId).ifPresent(user::setProvince);
+            user.setProvince(provinceRepository.findById(provinceId)
+                    .orElseThrow(() -> new IllegalArgumentException("Province not found")));
         }
 
-        return mapToProfile(userRepository.save(user));
+        User saved = userRepository.save(user);
+        eventPublisher.publish(new UserProfileUpdatedEvent(this, userId));
+        return mapToProfile(saved);
     }
 
     @Transactional
@@ -358,6 +376,7 @@ public class AuthService {
                 user.getPhoneVerified(),
                 user.getRole().name(),
                 user.getCountryId(),
+                user.getProvince() == null ? null : user.getProvince().getId(),
                 user.getCreatedAt()
         );
     }

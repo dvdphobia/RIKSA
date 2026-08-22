@@ -1,6 +1,10 @@
 package com.riksa.auth.otp;
 
 import com.riksa.auth.telegram.TelegramService;
+import com.riksa.auth.security.RedisRateLimiter;
+import com.riksa.auth.security.RateLimitDecision;
+import com.riksa.common.config.RiksaRedisProperties;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -9,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
+import java.time.Duration;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,8 +27,19 @@ class OtpServiceTest {
 
     @Mock private OtpCodeRepository otpCodeRepository;
     @Mock private TelegramService telegramService;
+    @Mock private RedisOtpStore redisOtpStore;
+    @Mock private OtpHasher otpHasher;
+    @Mock private RedisRateLimiter rateLimiter;
+    @Mock private RiksaRedisProperties redisProperties;
 
     @InjectMocks private OtpService otpService;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(redisProperties.isOtpEnabled()).thenReturn(false);
+        lenient().when(rateLimiter.acquire(anyString(), anyString(), anyLong(), any()))
+                .thenReturn(new RateLimitDecision(true, 3, 2, 60));
+    }
 
     @Test
     void generateOtp_createsAndSendsCode() {
@@ -37,6 +53,35 @@ class OtpServiceTest {
         assertThat(code).hasSize(6);
         assertThat(code).matches("\\d{6}");
         verify(telegramService).sendOtp("123456789", code);
+    }
+
+    @Test
+    void generateOtp_whenRedisEnabled_storesOnlyHashedCodeInRedis() {
+        ReflectionTestUtils.setField(otpService, "expirationMinutes", 5);
+        ReflectionTestUtils.setField(otpService, "codeLength", 6);
+        when(redisProperties.isOtpEnabled()).thenReturn(true);
+        when(otpHasher.hash(eq("123456789"), anyString())).thenReturn("hashed-code");
+
+        String code = otpService.generateOtp("123456789");
+
+        assertThat(code).matches("\\d{6}");
+        verify(redisOtpStore).save("123456789", OtpChannel.TELEGRAM,
+                "hashed-code", Duration.ofMinutes(5));
+        verify(telegramService).sendOtp("123456789", code);
+        verify(otpCodeRepository, never()).save(any());
+    }
+
+    @Test
+    void verifyOtp_whenRedisEnabled_doesNotReadLegacyDatabase() {
+        ReflectionTestUtils.setField(otpService, "maxAttempts", 3);
+        when(redisProperties.isOtpEnabled()).thenReturn(true);
+        when(otpHasher.hash("123456789", "123456")).thenReturn("hashed-code");
+        when(redisOtpStore.verify("123456789", OtpChannel.TELEGRAM, "hashed-code", 3))
+                .thenReturn(OtpVerificationResult.VERIFIED);
+
+        assertThat(otpService.verifyOtp("123456789", "123456")).isTrue();
+
+        verifyNoInteractions(otpCodeRepository);
     }
 
     @Test
