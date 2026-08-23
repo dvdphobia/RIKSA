@@ -5,7 +5,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:riksa_db}
     username: ${DB_USER:riksa_user}
-    password: ${DB_PASSWORD:}
+    password: ${DB_PASSWORD:riksaUniquenessTeam}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -27,7 +27,7 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       username: ${REDIS_USERNAME:}
-      password: ${REDIS_PASSWORD:}
+      password: ${REDIS_PASSWORD:riksaRedis123}
       database: ${REDIS_DATABASE:0}
       connect-timeout: ${REDIS_CONNECT_TIMEOUT:2s}
       timeout: ${REDIS_TIMEOUT:2s}

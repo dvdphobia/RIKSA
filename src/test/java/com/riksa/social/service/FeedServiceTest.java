@@ -36,6 +36,7 @@ class FeedServiceTest {
                 org.mockito.ArgumentMatchers.eq(categoryId),
                 org.mockito.ArgumentMatchers.eq(authorId),
                 org.mockito.ArgumentMatchers.eq(cursor),
+                org.mockito.ArgumentMatchers.eq(com.riksa.social.enums.ContentStatus.VISIBLE),
                 org.mockito.ArgumentMatchers.any(Pageable.class)))
                 .thenReturn(List.of(first, second, extra));
 
@@ -50,6 +51,7 @@ class FeedServiceTest {
                 org.mockito.ArgumentMatchers.eq(categoryId),
                 org.mockito.ArgumentMatchers.eq(authorId),
                 org.mockito.ArgumentMatchers.eq(cursor),
+                org.mockito.ArgumentMatchers.eq(com.riksa.social.enums.ContentStatus.VISIBLE),
                 pageable.capture());
         assertThat(pageable.getValue().getPageSize()).isEqualTo(3);
     }

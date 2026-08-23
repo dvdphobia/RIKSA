@@ -33,12 +33,12 @@ public class RedisCacheConfig {
             String cacheName,
             Duration ttl
     ) {
-        var serializer = GenericJacksonJsonRedisSerializer.builder().build();
         String prefix = properties.getPrefix() + ":cache:v1:" + cacheName + ":";
         return RedisCacheConfiguration.defaultCacheConfig()
                 .disableCachingNullValues()
                 .entryTtl(ttl)
                 .computePrefixWith(ignored -> prefix)
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(serializer));
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
+                        org.springframework.data.redis.serializer.RedisSerializer.json()));
     }
 }

@@ -1,6 +1,7 @@
 package com.riksa.social.service;
 
 import com.riksa.social.entity.Post;
+import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -17,8 +18,8 @@ public class FeedService {
 
     public FeedResult getFeed(UUID categoryId, UUID authorId, UUID cursor, int limit) {
         List<Post> rows = cursor == null
-                ? postRepository.findFeedFirstPage(categoryId, authorId, PageRequest.of(0, limit + 1))
-                : postRepository.findFeedAfterCursor(categoryId, authorId, cursor, PageRequest.of(0, limit + 1));
+                ? postRepository.findFeedFirstPage(categoryId, authorId, ContentStatus.VISIBLE, PageRequest.of(0, limit + 1))
+                : postRepository.findFeedAfterCursor(categoryId, authorId, cursor, ContentStatus.VISIBLE, PageRequest.of(0, limit + 1));
 
         boolean hasNextPage = rows.size() > limit;
         List<Post> posts = hasNextPage ? rows.subList(0, limit) : rows;

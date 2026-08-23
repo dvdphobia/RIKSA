@@ -15,18 +15,19 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     @Query("""
         SELECT p FROM Post p
-        WHERE p.status = com.riksa.social.enums.ContentStatus.VISIBLE
+        WHERE p.status = :status
           AND p.categoryId = COALESCE(:categoryId, p.categoryId)
           AND p.authorId = COALESCE(:authorId, p.authorId)
         ORDER BY p.createdAt DESC, p.id DESC
     """)
     List<Post> findFeedFirstPage(@Param("categoryId") UUID categoryId,
                                  @Param("authorId") UUID authorId,
+                                 @Param("status") ContentStatus status,
                                  Pageable pageable);
 
     @Query("""
         SELECT p FROM Post p
-        WHERE p.status = com.riksa.social.enums.ContentStatus.VISIBLE
+        WHERE p.status = :status
           AND p.categoryId = COALESCE(:categoryId, p.categoryId)
           AND p.authorId = COALESCE(:authorId, p.authorId)
           AND (p.createdAt < (SELECT p2.createdAt FROM Post p2 WHERE p2.id = :cursor)
@@ -37,6 +38,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     List<Post> findFeedAfterCursor(@Param("categoryId") UUID categoryId,
                                    @Param("authorId") UUID authorId,
                                    @Param("cursor") UUID cursor,
+                                   @Param("status") ContentStatus status,
                                    Pageable pageable);
 
     Page<Post> findByStatus(ContentStatus status, Pageable pageable);
