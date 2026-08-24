@@ -1,6 +1,6 @@
 # Riksa Auth, Profile, and Identity Data API
 
-> Audited against the working tree on **August 16, 2026**. This document is the
+> Audited against the working tree on **August 24, 2026**. This document is the
 > frontend source of truth for the current implementation. It intentionally
 > distinguishes working behavior from planned behavior.
 
@@ -40,7 +40,7 @@ paths relative to the API origin.
 | Email verification | Blocked end to end | A token is stored, but no email provider delivers it |
 | Telegram signup/login/linking | Development-ready | Use the bot deep-link challenge flow in `FLUTTER_TELEGRAM_AUTH.md`; never ask Flutter for a chat ID |
 | Provincial leaderboard | Backend data exists only when a user has a province | Do not make it a required auth/onboarding step yet |
-| Public showcase profile | Not implemented | There is only a self-profile endpoint; no `GET /users/{id}` composite profile |
+| Public showcase profile | Development-ready | Call `GET /api/v1/profiles/{userId}` without a token |
 
 The recommended development flow today is:
 
@@ -49,8 +49,8 @@ The recommended development flow today is:
 3. Immediately call `GET /api/v1/auth/me` and use that response as the
    canonical signed-in user.
 4. Allow editing `displayName`, `bio`, `gender`, and a preset `avatarUrl`.
-5. Hide or locally mock province selection, email verification, password
-   recovery, and public showcase fields until the backend gaps are fixed.
+5. Hide or locally mock province selection, email verification, and password
+   recovery until those gaps are fixed.
 
 ## Authentication model
 
@@ -93,6 +93,7 @@ token.
 | `POST` | `/verify-email` | Public | Public |
 | `GET` | `/me` | Bearer access token | The whole `/auth/**` tree is permitted by Spring Security, but this controller manually parses a required Bearer token |
 | `PUT` | `/me` | Bearer access token | Same caveat as `GET /me` |
+| `GET` | `/api/v1/profiles/{userId}` | Public | Public; returns intentionally non-sensitive profile fields |
 
 All `/api/v1/auth/**` requests currently share one in-memory, per-IP rate
 limit: **5 requests per 60 seconds** by default. A `429` can therefore be
@@ -152,6 +153,42 @@ The current response does **not** include:
 - `telegramId`;
 - access or refresh tokens;
 - XP, streak, achievements, tier, or leaderboard rank.
+
+### `PublicProfileResponse`
+
+Returned by anonymous `GET /api/v1/profiles/{userId}`:
+
+```json
+{
+  "userId": "a1b2c3d4-e5f6-4890-abcd-ef1234567890",
+  "username": "sophea",
+  "displayName": "Sok Sophea",
+  "avatarUrl": "/avatars/avatar-17.png",
+  "bio": "Learning STEM and technology.",
+  "role": "USER",
+  "countryId": "KH",
+  "province": {
+    "id": "b1b2c3d4-e5f6-4890-abcd-ef1234567890",
+    "nameKhmer": "ភ្នំពេញ",
+    "nameLatin": "Phnom Penh"
+  },
+  "joinedAt": "2026-08-16T20:30:00+07:00",
+  "gamification": {
+    "userId": "a1b2c3d4-e5f6-4890-abcd-ef1234567890",
+    "totalXp": 5550,
+    "currentStreak": 13,
+    "highestStreak": 21,
+    "currentTier": "LEGEND",
+    "currentTierIcon": "/icons/legend.png",
+    "nextTier": null,
+    "xpToNext": 0
+  }
+}
+```
+
+`avatarUrl`, `bio`, and `province` may be `null`. The response deliberately
+omits email, phone, gender, verification flags, and account security state.
+Unknown users return `404`; malformed UUIDs return `400`.
 
 ### `MessageResponse`
 
@@ -578,7 +615,7 @@ This is the canonical identity/profile table.
 | `username` | varchar(50), unique | No | Login and public handle |
 | `display_name` | varchar(100) | No | Profile, social author, live leaderboard |
 | `avatar_url` | text | Yes | Profile, social author, live leaderboard |
-| `bio` | varchar(160) | Yes | Self profile; no public profile API yet |
+| `bio` | varchar(160) | Yes | Self and public profile |
 | `gender` | varchar(20) | Yes | Self profile |
 | `role` | `Role` enum | No | `USER`, `MODERATOR`, or `ADMIN` |
 | `phone_number` | varchar(20), unique | Yes | Self profile; not used by current OTP implementation |
@@ -714,13 +751,9 @@ For the signed-in user's own profile, compose:
 | User posts | GraphQL `feed(authorId: <self-user-id>)` |
 | XP history | `GET /api/v1/gamification/xp` |
 
-Province name, followers/following, banner image, public lessons list, public XP
-history, and a public achievement showcase are not available in a complete
-profile contract.
-
-For another user's showcase page, the backend needs a new public composite API;
-do not call self-only endpoints with a leaderboard user's ID because they do not
-accept one.
+Another user's identity, province, join date, XP, streak, and tier are available
+from `GET /api/v1/profiles/{userId}`. Followers/following, banner image, public
+lessons, public XP history, and a public achievement showcase are not included.
 
 ## Frontend session contract
 
@@ -838,9 +871,6 @@ does not return them.
    `BIGINT` while snapshot score is still `INTEGER`/Java `int`.
 6. Define whether suspended users should remain visible; both leaderboard paths
    currently include them.
-7. Add a public profile/showcase endpoint that returns intentionally public
-   identity plus gamification summary. Never reuse the self profile response,
-   which contains email and phone number.
 
 ### P1 — data quality and contract cleanup
 

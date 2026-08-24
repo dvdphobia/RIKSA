@@ -160,7 +160,7 @@ PUT  /api/v1/auth/me                 — Update profile  [AUTH]
 POST /api/v1/auth/forgot-password    — Forgot password  [PUBLIC]
 POST /api/v1/auth/reset-password     — Reset password  [PUBLIC]
 POST /api/v1/auth/verify-email       — Verify email  [PUBLIC]
-GET  /api/v1/users/{id}              — Public user profile + rank  [PUBLIC]
+GET  /api/v1/profiles/{userId}       — Public user profile + gamification  [PUBLIC]
 ```
 
 ### 5.3 Learning Endpoints (Student Only)
