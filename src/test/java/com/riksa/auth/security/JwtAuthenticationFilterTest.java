@@ -96,7 +96,7 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void invalidToken_doesNotAuthenticate() throws Exception {
+    void invalidToken_returnsUnauthorizedWithoutCallingController() throws Exception {
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
         when(jwtService.isTokenValid(token)).thenReturn(false);
 
@@ -104,7 +104,8 @@ class JwtAuthenticationFilterTest {
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
         verify(response).setHeader(eq("WWW-Authenticate"), anyString());
-        verify(filterChain).doFilter(request, response);
+        verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        verifyNoInteractions(filterChain);
         verifyNoInteractions(userSecurityStateService);
     }
 
