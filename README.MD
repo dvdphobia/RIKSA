@@ -48,3 +48,5 @@ Users and Audit logs are hidden from the sidebar for `MODERATOR` accounts (enfor
 - Auth: JWT bearer with automatic single-flight refresh on `401` (`src/lib/api.ts`).
 - Pagination: Refine's 1-based pages are mapped to Spring's 0-based `page` param in `src/providers/data-provider.ts`; reports use cursor pagination via an infinite query.
 - Lesson answer keys are never returned by the API — the edit form keeps existing exercises unless "Replace exercises" is used.
+- Lesson bodies are written in a visual editor (Tiptap) and stored as markdown, because the mobile app renders them with `flutter_markdown_plus`. `src/components/editor/markdown.ts` owns the HTML↔markdown round trip and mirrors the app's section parsing: **every `## ` heading starts a new lesson screen** (`_markdownSections` in `lesson_experience_screen.dart`), which is why the toolbar calls H2 "New section". Existing markdown is left untouched byte-for-byte until an author actually edits the body.
+- The editor is lazy-loaded (`React.lazy`) so ProseMirror stays out of the main bundle.

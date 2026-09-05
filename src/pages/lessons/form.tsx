@@ -17,9 +17,18 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { Textarea } from "../../components/ui/textarea";
+import { Skeleton } from "../../components/ui/skeleton";
 import { Alert, AlertDescription } from "../../components/ui/alert";
 import { ChevronLeft, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
+
+// The rich text editor pulls in ProseMirror and the markdown converters; keep
+// them out of the main bundle so only the lesson form pays for them.
+const LessonBodyEditor = lazy(() =>
+  import("../../components/editor/lesson-body-editor").then((m) => ({
+    default: m.LessonBodyEditor,
+  })),
+);
 
 const DIFFICULTIES: DifficultyLevel[] = ["EASY", "MEDIUM", "HARD", "DIFFICULT"];
 
@@ -155,7 +164,11 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
             </div>
             <div className="space-y-2">
               <Label>Base XP</Label>
-              <Input type="number" min={0} {...register("baseXp")} />
+              <Input
+                type="number"
+                min={0}
+                {...register("baseXp", { valueAsNumber: true })}
+              />
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
@@ -181,12 +194,30 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
           </div>
           <div className="space-y-2">
             <Label>Reflection prompt</Label>
-            <Input {...register("reflectionPrompt")} />
+            <Textarea
+              rows={2}
+              placeholder="A question the learner answers at the end, e.g. “What surprised you?”"
+              {...register("reflectionPrompt")}
+            />
           </div>
-          <div className="space-y-2">
-            <Label>Description (markdown)</Label>
-            <Textarea rows={8} {...register("description")} />
+        </div>
+
+        <div className="space-y-4 rounded-md border bg-card p-6">
+          <div>
+            <h2 className="text-lg font-medium">Lesson content</h2>
+            <p className="text-sm text-muted-foreground">
+              Write it like a document — the toolbar handles the formatting.
+              Each “New section” starts a new screen for the learner.
+            </p>
           </div>
+          <Suspense fallback={<Skeleton className="h-[420px] w-full" />}>
+            <LessonBodyEditor
+              value={watch("description") ?? ""}
+              onChange={(markdown) =>
+                setValue("description", markdown, { shouldDirty: true })
+              }
+            />
+          </Suspense>
         </div>
 
         <div className="space-y-4 rounded-md border bg-card p-6">
@@ -208,9 +239,10 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
             <>
               <Alert>
                 <AlertDescription>
-                  Answer keys are never returned by the API. The current{" "}
-                  {existingExercises.length} exercise(s) below are kept as-is
-                  unless you click "Replace exercises".
+                  These {existingExercises.length} exercise(s) stay exactly as
+                  they are when you save. Answer keys can't be shown again for
+                  security, so changing any exercise means rewriting all of them
+                  — click <strong>Replace exercises</strong> to do that.
                 </AlertDescription>
               </Alert>
               <div className="space-y-2">
@@ -299,7 +331,9 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
                       type="number"
                       min={1}
                       placeholder="Points"
-                      {...register(`exercises.${index}.points`)}
+                      {...register(`exercises.${index}.points`, {
+                        valueAsNumber: true,
+                      })}
                     />
                   </div>
                 </div>
