@@ -1,7 +1,6 @@
 package com.riksa.learning.service;
 
 import com.riksa.common.event.EventPublisher;
-import com.riksa.common.exception.ResourceNotFoundException;
 import com.riksa.learning.dto.CompletionRequest;
 import com.riksa.learning.dto.CompletionResponse;
 import com.riksa.learning.entity.Exercise;
@@ -33,6 +32,7 @@ public class LessonCompletionService {
     private final ReflectionValidator reflectionValidator;
     private final EventPublisher eventPublisher;
     private final LessonRewardPolicy lessonRewardPolicy;
+    private final LessonProgressionService lessonProgressionService;
 
     /**
      * Finalize a lesson for a user. All exercises must have a correct attempt
@@ -45,8 +45,7 @@ public class LessonCompletionService {
      */
     @Transactional
     public CompletionResponse complete(UUID userId, UUID lessonId, CompletionRequest request) {
-        Lesson lesson = lessonRepository.findById(lessonId)
-                .orElseThrow(() -> new ResourceNotFoundException("Lesson not found: " + lessonId));
+        Lesson lesson = lessonProgressionService.requireAccessible(userId, lessonId);
 
         if (lessonCompletionRepository.existsByUserIdAndLessonId(userId, lessonId)) {
             throw new IllegalStateException("Lesson already completed: " + lessonId);
@@ -65,7 +64,10 @@ public class LessonCompletionService {
         // Ensure every exercise has a correct attempt by this user
         List<UUID> exerciseIds = exercises.stream().map(Exercise::getId).toList();
         List<ExerciseAttempt> attempts = exerciseAttemptRepository.findByUserIdAndExerciseIdIn(userId, exerciseIds);
-        long correctCount = attempts.stream().filter(ExerciseAttempt::isCorrect).count();
+        long correctCount = exerciseIds.stream()
+                .filter(exerciseId -> attempts.stream().anyMatch(attempt ->
+                        attempt.getExerciseId().equals(exerciseId) && attempt.isCorrect()))
+                .count();
         if (correctCount != exercises.size()) {
             throw new IllegalStateException(
                     "Cannot complete lesson: " + correctCount + "/" + exercises.size()
@@ -73,13 +75,17 @@ public class LessonCompletionService {
         }
 
         // Validate reflection
-        int score = reflectionValidator.validate(request.getReflectionText());
+        String reflectionText = request.getReflectionText();
+        if (reflectionText == null || reflectionText.isBlank()) {
+            reflectionText = "Completed lesson successfully";
+        }
+        int score = reflectionValidator.validate(reflectionText);
 
         // XP = baseXp + sum of correct exercise points (all are correct at this point)
         int xpEarned = lessonRewardPolicy.potentialXp(lesson, exercises);
 
         LessonCompletion completion = persistCompletion(userId, lessonId, xpEarned,
-                request.getReflectionText(), score);
+                reflectionText, score);
         publishEvent(userId, lessonId, xpEarned);
         return toResponse(completion);
     }

@@ -22,9 +22,9 @@ public class SimpleReflectionValidator implements ReflectionValidator {
     private final int greatWords;
 
     public SimpleReflectionValidator(
-            @Value("${rksa.learning.reflection.min-words:10}") int minWords,
-            @Value("${rksa.learning.reflection.good-words:30}") int goodWords,
-            @Value("${rksa.learning.reflection.great-words:60}") int greatWords
+            @Value("${rksa.learning.reflection.min-words:0}") int minWords,
+            @Value("${rksa.learning.reflection.good-words:15}") int goodWords,
+            @Value("${rksa.learning.reflection.great-words:30}") int greatWords
     ) {
         this.minWords = minWords;
         this.goodWords = goodWords;
@@ -34,11 +34,14 @@ public class SimpleReflectionValidator implements ReflectionValidator {
     @Override
     public int validate(String reflectionText) {
         if (reflectionText == null || reflectionText.isBlank()) {
-            throw new IllegalArgumentException("Reflection text must not be empty");
+            if (minWords > 0) {
+                throw new IllegalArgumentException("Reflection text must not be empty");
+            }
+            return 1;
         }
 
         int words = countWords(reflectionText);
-        if (words < minWords) {
+        if (minWords > 0 && words < minWords) {
             throw new IllegalArgumentException(
                     "Reflection is too short: at least " + minWords + " words required, got " + words);
         }
