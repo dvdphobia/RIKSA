@@ -51,12 +51,18 @@ public class LessonCompletionService {
             throw new IllegalStateException("Lesson already completed: " + lessonId);
         }
 
+        // Validate reflection
+        String reflectionText = request.getReflectionText();
+        if (reflectionText == null || reflectionText.isBlank()) {
+            reflectionText = "Completed lesson successfully";
+        }
+        int score = reflectionValidator.validate(reflectionText);
+
         List<Exercise> exercises = exerciseRepository.findByLessonId(lessonId);
         if (exercises.isEmpty()) {
             // A lesson with no exercises is trivially "all correct"
             int xp = lessonRewardPolicy.potentialXp(lesson, exercises);
-            int score = reflectionValidator.validate(request.getReflectionText());
-            LessonCompletion completion = persistCompletion(userId, lessonId, xp, request.getReflectionText(), score);
+            LessonCompletion completion = persistCompletion(userId, lessonId, xp, reflectionText, score);
             publishEvent(userId, lessonId, xp);
             return toResponse(completion);
         }
@@ -73,13 +79,6 @@ public class LessonCompletionService {
                     "Cannot complete lesson: " + correctCount + "/" + exercises.size()
                             + " exercises have correct attempts");
         }
-
-        // Validate reflection
-        String reflectionText = request.getReflectionText();
-        if (reflectionText == null || reflectionText.isBlank()) {
-            reflectionText = "Completed lesson successfully";
-        }
-        int score = reflectionValidator.validate(reflectionText);
 
         // XP = baseXp + sum of correct exercise points (all are correct at this point)
         int xpEarned = lessonRewardPolicy.potentialXp(lesson, exercises);
