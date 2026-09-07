@@ -80,10 +80,12 @@ input CreatePostInput {
   categoryId: UUID!
 }
 
+# null leaves a field unchanged; an empty mediaUrl clears the image.
 input UpdatePostInput {
-  id:      UUID!
-  title:   String
-  content: String
+  id:       UUID!
+  title:    String
+  content:  String
+  mediaUrl: String
 }
 
 # At least one of content / mediaUrl must be supplied.

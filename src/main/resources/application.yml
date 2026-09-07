@@ -53,6 +53,17 @@ spring:
 server:
   port: ${PORT:8080}
 
+media:
+  # Where uploaded post images are written. Local disk keeps the feature free of
+  # any third-party account; swap MediaStorageService for object storage before
+  # running on hosting with an ephemeral filesystem.
+  storage-dir: ${MEDIA_STORAGE_DIR:./uploads/media}
+  # Keep at or below spring.servlet.multipart.max-file-size.
+  max-bytes: ${MEDIA_MAX_BYTES:2097152}
+  # Blank derives the link from the incoming request, which is what an emulator
+  # or a phone on the LAN needs. Set it when the API sits behind a proxy or CDN.
+  public-base-url: ${MEDIA_PUBLIC_BASE_URL:}
+
 jwt:
   secret: ${JWT_SECRET:CHANGE-ME-IN-PRODUCTION-MUST-BE-256-BITS-OR-LONGER}
   access-expiration: ${JWT_ACCESS_EXPIRATION:900000}

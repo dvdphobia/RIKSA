@@ -1,5 +1,6 @@
 package com.riksa.auth.security;
 
+import com.riksa.common.constants.MediaEndpoints;
 import com.riksa.common.constants.ProfileEndpoints;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,6 +49,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
                         .requestMatchers("/avatars/**").permitAll()
+                        // Post images are embedded in posts any reader can see.
+                        // Uploading still requires a signed-in user.
+                        .requestMatchers(HttpMethod.GET, MediaEndpoints.BASE + "/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex

@@ -1,4 +1,4 @@
-package com.riksa.social.service;
+package com.riksa.blog.service;
 
 import org.junit.jupiter.api.Test;
 

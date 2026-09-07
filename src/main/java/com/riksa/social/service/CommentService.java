@@ -17,15 +17,10 @@ public class CommentService {
 
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
-    private final ContentFilterService contentFilterService;
     private final MediaUrlValidator mediaUrlValidator;
 
     /**
      * A comment may be text, an image, or both — but not neither.
-     *
-     * <p>The STEM filter only runs when text is present: an image-only comment
-     * has nothing to keyword-match against. Such comments still have to live
-     * under a post whose title and body already passed the filter.
      */
     @Transactional
     public Comment createComment(UUID authorId, UUID postId, String content, String mediaUrl, UUID parentId) {
@@ -33,10 +28,6 @@ public class CommentService {
         String normalizedContent = blankToNull(content);
 
         requirePresent(normalizedContent, normalizedMediaUrl);
-
-        if (normalizedContent != null) {
-            contentFilterService.validate(normalizedContent);
-        }
 
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
@@ -74,9 +65,6 @@ public class CommentService {
         String nextContent = comment.getContent();
         if (content != null) {
             nextContent = blankToNull(content);
-            if (nextContent != null) {
-                contentFilterService.validate(nextContent);
-            }
         }
 
         String nextMediaUrl = comment.getMediaUrl();

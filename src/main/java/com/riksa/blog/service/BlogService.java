@@ -19,10 +19,14 @@ public class BlogService {
 
     private final BlogPostRepository blogPostRepository;
     private final BadWordFilter badWordFilter;
+    private final ContentFilterService contentFilterService;
 
     @Transactional
     public BlogPost createPost(UUID authorId, String title, String content, String coverUrl, UUID categoryId) {
         badWordFilter.validate(title + " " + content);
+        // Blog posts are the curated ask-a-question surface, so they must be
+        // on-topic. The community feed deliberately has no such restriction.
+        contentFilterService.validate(title + " " + content);
 
         BlogPost post = new BlogPost();
         post.setAuthorId(authorId);

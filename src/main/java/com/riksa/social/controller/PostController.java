@@ -48,7 +48,8 @@ public class PostController {
     @MutationMapping(SocialEndpoints.MUTATION_UPDATE_POST)
     public PostResponse updatePost(@Argument UpdatePostInput input) {
         UUID userId = getCurrentUserId();
-        Post post = postService.updatePost(userId, input.id(), input.title(), input.content());
+        Post post = postService.updatePost(
+                userId, input.id(), input.title(), input.content(), input.mediaUrl());
         return resolver.resolvePost(post, userId);
     }
 

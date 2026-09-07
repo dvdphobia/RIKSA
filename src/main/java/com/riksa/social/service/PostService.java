@@ -18,7 +18,7 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final UserCategoryMembershipRepository membershipRepository;
-    private final ContentFilterService contentFilterService;
+    private final MediaUrlValidator mediaUrlValidator;
     private final EventPublisher eventPublisher;
 
     @Transactional
@@ -28,15 +28,12 @@ public class PostService {
             throw new IllegalStateException("You must join this category before posting");
         }
 
-        // STEM content check
-        contentFilterService.validate(title + " " + content);
-
         Post post = new Post();
         post.setAuthorId(authorId);
         post.setCategoryId(categoryId);
         post.setTitle(title);
         post.setContent(content);
-        post.setMediaUrl(mediaUrl);
+        post.setMediaUrl(mediaUrlValidator.normalize(mediaUrl));
 
         Post saved = postRepository.save(post);
 
@@ -45,8 +42,14 @@ public class PostService {
         return saved;
     }
 
+    /**
+     * Rewrites a post the author owns.
+     *
+     * <p>{@code mediaUrl} follows the same rule as {@code UpdateCommentInput}:
+     * null leaves the existing image alone, and a blank string removes it.
+     */
     @Transactional
-    public Post updatePost(UUID authorId, UUID postId, String title, String content) {
+    public Post updatePost(UUID authorId, UUID postId, String title, String content, String mediaUrl) {
         Post post = getPost(postId);
 
         if (!post.getAuthorId().equals(authorId)) {
@@ -54,10 +57,8 @@ public class PostService {
         }
 
         if (title != null) post.setTitle(title);
-        if (content != null) {
-            contentFilterService.validate(content);
-            post.setContent(content);
-        }
+        if (content != null) post.setContent(content);
+        if (mediaUrl != null) post.setMediaUrl(mediaUrlValidator.normalize(mediaUrl));
 
         return postRepository.save(post);
     }

@@ -17,6 +17,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -24,7 +25,7 @@ class PostServiceTest {
 
     @Mock private PostRepository postRepository;
     @Mock private UserCategoryMembershipRepository membershipRepository;
-    @Mock private ContentFilterService contentFilterService;
+    @Mock private MediaUrlValidator mediaUrlValidator;
     @Mock private EventPublisher eventPublisher;
 
     @InjectMocks private PostService postService;
@@ -48,7 +49,6 @@ class PostServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.getAuthorId()).isEqualTo(authorId);
         assertThat(result.getCategoryId()).isEqualTo(categoryId);
-        verify(contentFilterService).validate("Physics Question Help with physics homework");
         verify(eventPublisher).publish(any(PostCreatedEvent.class));
     }
 
@@ -68,19 +68,95 @@ class PostServiceTest {
     }
 
     @Test
-    void createPost_nonStemContent_throwsException() {
+    void createPost_arbitraryContent_isAllowed() {
         UUID authorId = UUID.randomUUID();
         UUID categoryId = UUID.randomUUID();
 
         when(membershipRepository.existsByUserIdAndCategoryId(authorId, categoryId))
                 .thenReturn(true);
-        doThrow(new IllegalArgumentException("Content must be related to STEM, Tech, or History"))
-                .when(contentFilterService).validate(anyString());
+        when(postRepository.save(any(Post.class))).thenAnswer(inv -> {
+            Post p = inv.getArgument(0);
+            p.setId(UUID.randomUUID());
+            return p;
+        });
 
-        assertThatThrownBy(() -> postService.createPost(authorId, "Hello", "world", null, categoryId))
+        // The community feed carries no topic restriction: only the blog does.
+        Post result = postService.createPost(authorId, "Hello", "world", null, categoryId);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getTitle()).isEqualTo("Hello");
+        verify(postRepository).save(any(Post.class));
+    }
+
+    @Test
+    void createPost_storesTheNormalizedMediaUrl() {
+        UUID authorId = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+
+        when(membershipRepository.existsByUserIdAndCategoryId(authorId, categoryId))
+                .thenReturn(true);
+        when(mediaUrlValidator.normalize("  https://cdn.example.com/a.png  "))
+                .thenReturn("https://cdn.example.com/a.png");
+        when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Post result = postService.createPost(authorId, "Geometry", "See the diagram",
+                "  https://cdn.example.com/a.png  ", categoryId);
+
+        // The raw client value must never reach the column unchecked.
+        assertThat(result.getMediaUrl()).isEqualTo("https://cdn.example.com/a.png");
+    }
+
+    @Test
+    void createPost_rejectsAnUnusableMediaUrl() {
+        UUID authorId = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+
+        when(membershipRepository.existsByUserIdAndCategoryId(authorId, categoryId))
+                .thenReturn(true);
+        doThrow(new IllegalArgumentException("Media URL must use http or https"))
+                .when(mediaUrlValidator).normalize(anyString());
+
+        assertThatThrownBy(() -> postService.createPost(authorId, "T", "C",
+                "javascript:alert(1)", categoryId))
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(postRepository, never()).save(any());
+    }
+
+    @Test
+    void updatePost_nullMediaLeavesTheImageAlone() {
+        UUID authorId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setAuthorId(authorId);
+        post.setMediaUrl("https://cdn.example.com/keep.png");
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Post result = postService.updatePost(authorId, postId, "New title", null, null);
+
+        assertThat(result.getMediaUrl()).isEqualTo("https://cdn.example.com/keep.png");
+        verify(mediaUrlValidator, never()).normalize(any());
+    }
+
+    @Test
+    void updatePost_blankMediaClearsTheImage() {
+        UUID authorId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setAuthorId(authorId);
+        post.setMediaUrl("https://cdn.example.com/old.png");
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(mediaUrlValidator.normalize("")).thenReturn(null);
+        when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Post result = postService.updatePost(authorId, postId, null, null, "");
+
+        assertThat(result.getMediaUrl()).isNull();
     }
 
     @Test
@@ -96,7 +172,7 @@ class PostServiceTest {
         when(postRepository.findById(postId)).thenReturn(Optional.of(post));
         when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Post result = postService.updatePost(authorId, postId, "New Title", "New physics content");
+        Post result = postService.updatePost(authorId, postId, "New Title", "New physics content", null);
 
         assertThat(result.getTitle()).isEqualTo("New Title");
         assertThat(result.getContent()).isEqualTo("New physics content");
@@ -113,7 +189,7 @@ class PostServiceTest {
 
         when(postRepository.findById(postId)).thenReturn(Optional.of(post));
 
-        assertThatThrownBy(() -> postService.updatePost(authorId, postId, "New", "content"))
+        assertThatThrownBy(() -> postService.updatePost(authorId, postId, "New", "content", null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("You can only edit your own posts");
     }
@@ -123,7 +199,7 @@ class PostServiceTest {
         UUID postId = UUID.randomUUID();
         when(postRepository.findById(postId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> postService.updatePost(UUID.randomUUID(), postId, "New", "content"))
+        assertThatThrownBy(() -> postService.updatePost(UUID.randomUUID(), postId, "New", "content", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Post not found");
     }

@@ -29,6 +29,7 @@ class BlogServiceTest {
 
     @Mock private BlogPostRepository blogPostRepository;
     @Mock private BadWordFilter badWordFilter;
+    @Mock private ContentFilterService contentFilterService;
 
     @InjectMocks private BlogService blogService;
 
@@ -51,6 +52,20 @@ class BlogServiceTest {
         assertThat(result.getStatus()).isEqualTo(BlogStatus.PENDING);
         assertThat(result.getCategoryId()).isEqualTo(categoryId);
         verify(badWordFilter).validate("Physics in Daily Life Learning about physics is fun");
+        verify(contentFilterService).validate("Physics in Daily Life Learning about physics is fun");
+    }
+
+    @Test
+    void createPost_offTopicContent_throwsException() {
+        doThrow(new IllegalArgumentException("Content must be related to STEM, Tech, or History"))
+                .when(contentFilterService).validate(anyString());
+
+        assertThatThrownBy(() -> blogService.createPost(UUID.randomUUID(), "Hello",
+                "world", null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Content must be related to STEM, Tech, or History");
+
+        verify(blogPostRepository, never()).save(any());
     }
 
     @Test

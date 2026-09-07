@@ -23,7 +23,6 @@ class CommentServiceTest {
 
     @Mock private CommentRepository commentRepository;
     @Mock private PostRepository postRepository;
-    @Mock private ContentFilterService contentFilterService;
     @Mock private MediaUrlValidator mediaUrlValidator;
 
     @InjectMocks private CommentService commentService;
@@ -77,18 +76,6 @@ class CommentServiceTest {
         assertThatThrownBy(() -> commentService.createComment(UUID.randomUUID(), postId, "physics content", null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Post not found");
-    }
-
-    @Test
-    void createComment_nonStemContent_throwsException() {
-        doThrow(new IllegalArgumentException("Content must be related to STEM, Tech, or History"))
-                .when(contentFilterService).validate(anyString());
-
-        assertThatThrownBy(() -> commentService.createComment(UUID.randomUUID(), UUID.randomUUID(),
-                "Hello world", null, null))
-                .isInstanceOf(IllegalArgumentException.class);
-
-        verify(commentRepository, never()).save(any());
     }
 
     @Test
@@ -233,7 +220,6 @@ class CommentServiceTest {
 
         assertThat(result.getContent()).isNull();
         assertThat(result.getMediaUrl()).isEqualTo(url);
-        verify(contentFilterService, never()).validate(any());
     }
 
     @Test
@@ -251,7 +237,6 @@ class CommentServiceTest {
         Comment result = commentService.createComment(UUID.randomUUID(), postId, "   ", url, null);
 
         assertThat(result.getContent()).isNull();
-        verify(contentFilterService, never()).validate(any());
     }
 
     @Test
