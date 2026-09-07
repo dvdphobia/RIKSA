@@ -17,7 +17,7 @@ RUN addgroup --system app && adduser --system --ingroup app app
 
 COPY --from=build /app/target/*.jar app.jar
 
-RUN chown app:app app.jar
+RUN mkdir -p /app/uploads/media && chown -R app:app /app
 
 USER app
 

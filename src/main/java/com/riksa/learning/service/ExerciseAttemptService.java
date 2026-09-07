@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -19,6 +20,7 @@ public class ExerciseAttemptService {
 
     private final ExerciseRepository exerciseRepository;
     private final ExerciseAttemptRepository exerciseAttemptRepository;
+    private final LessonProgressionService lessonProgressionService;
 
     /**
      * Submit an answer for a single exercise. The attempt is recorded (upserted)
@@ -41,29 +43,51 @@ public class ExerciseAttemptService {
             throw new ResourceNotFoundException("Exercise " + exerciseId + " does not belong to lesson " + lessonId);
         }
 
-        String answerKey = exercise.getAnswerKey();
         String submitted = request.getAnswer();
-        boolean correct = answerKey != null
-                && submitted != null
-                && normalize(answerKey).equals(normalize(submitted));
+        boolean correct = isCorrect(exercise, submitted);
 
-        // Upsert: keep only the latest attempt per (user, exercise)
-        ExerciseAttempt attempt = exerciseAttemptRepository
-                .findByUserIdAndExerciseId(userId, exerciseId)
-                .orElseGet(ExerciseAttempt::new);
-
-        if (attempt.getId() == null) {
-            attempt.setUserId(userId);
-            attempt.setExerciseId(exerciseId);
-        }
+        // Append-only history: once correct, an exercise remains passed.
+        ExerciseAttempt attempt = new ExerciseAttempt();
+        attempt.setUserId(userId);
+        attempt.setExerciseId(exerciseId);
+        attempt.setSubmittedAnswer(submitted);
+        attempt.setAttemptNumber(Math.toIntExact(
+                exerciseAttemptRepository.countByUserIdAndExerciseId(userId, exerciseId) + 1));
         attempt.setCorrect(correct);
         attempt.setAttemptedAt(java.time.OffsetDateTime.now());
         exerciseAttemptRepository.save(attempt);
 
-        String message = correct
-                ? "Correct! +" + exercise.getPoints() + " XP"
-                : "Incorrect. The correct answer did not match your submission.";
-        return new AnswerResult(exerciseId, correct, exercise.getPoints(), message);
+        String message = correct ? "Correct!" : "Not quite. Try again.";
+        return new AnswerResult(exerciseId, correct, exercise.getPoints(), message,
+                correct ? null : exercise.getHint(), exercise.getExplanation(), attempt.getAttemptNumber());
+    }
+
+    private boolean isCorrect(Exercise exercise, String submitted) {
+        if (submitted == null || exercise.getAnswerKey() == null) {
+            return false;
+        }
+        String normalizedSubmitted = normalize(submitted);
+        String normalizedKey = normalize(exercise.getAnswerKey());
+
+        if (normalizedKey.equals(normalizedSubmitted)) {
+            return true;
+        }
+
+        List<String> options = exercise.getOptions();
+        if (options != null && !options.isEmpty()) {
+            try {
+                int index = Integer.parseInt(submitted.trim());
+                if (index >= 0 && index < options.size()) {
+                    String selectedOption = options.get(index);
+                    if (normalize(selectedOption).equals(normalizedKey)) {
+                        return true;
+                    }
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        return false;
     }
 
     private String normalize(String s) {
