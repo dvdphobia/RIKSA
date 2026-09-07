@@ -34,10 +34,11 @@ class LessonCompletionServiceTest {
     @Mock LessonCompletionRepository completionRepository;
     @Mock ReflectionValidator reflectionValidator;
     @Mock EventPublisher eventPublisher;
+    private final LessonRewardPolicy lessonRewardPolicy = new LessonRewardPolicy();
 
     private LessonCompletionService service() {
         return new LessonCompletionService(lessonRepository, exerciseRepository, attemptRepository,
-                completionRepository, reflectionValidator, eventPublisher);
+                completionRepository, reflectionValidator, eventPublisher, lessonRewardPolicy);
     }
 
     @Test

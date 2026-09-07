@@ -32,6 +32,7 @@ public class LessonCompletionService {
     private final LessonCompletionRepository lessonCompletionRepository;
     private final ReflectionValidator reflectionValidator;
     private final EventPublisher eventPublisher;
+    private final LessonRewardPolicy lessonRewardPolicy;
 
     /**
      * Finalize a lesson for a user. All exercises must have a correct attempt
@@ -54,7 +55,7 @@ public class LessonCompletionService {
         List<Exercise> exercises = exerciseRepository.findByLessonId(lessonId);
         if (exercises.isEmpty()) {
             // A lesson with no exercises is trivially "all correct"
-            int xp = lesson.getBaseXp();
+            int xp = lessonRewardPolicy.potentialXp(lesson, exercises);
             int score = reflectionValidator.validate(request.getReflectionText());
             LessonCompletion completion = persistCompletion(userId, lessonId, xp, request.getReflectionText(), score);
             publishEvent(userId, lessonId, xp);
@@ -75,8 +76,7 @@ public class LessonCompletionService {
         int score = reflectionValidator.validate(request.getReflectionText());
 
         // XP = baseXp + sum of correct exercise points (all are correct at this point)
-        int exerciseXp = exercises.stream().mapToInt(Exercise::getPoints).sum();
-        int xpEarned = lesson.getBaseXp() + exerciseXp;
+        int xpEarned = lessonRewardPolicy.potentialXp(lesson, exercises);
 
         LessonCompletion completion = persistCompletion(userId, lessonId, xpEarned,
                 request.getReflectionText(), score);

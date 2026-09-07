@@ -9,9 +9,12 @@ import com.riksa.learning.dto.CompletionResponse;
 import com.riksa.learning.dto.ExerciseAttemptRequest;
 import com.riksa.learning.dto.LessonDetailResponse;
 import com.riksa.learning.dto.LessonListResponse;
+import com.riksa.learning.dto.LessonProgressResponse;
+import com.riksa.learning.dto.RoadmapResponse;
 import com.riksa.learning.service.ExerciseAttemptService;
 import com.riksa.learning.service.LessonCompletionService;
 import com.riksa.learning.service.LessonService;
+import com.riksa.learning.service.RoadmapService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,6 +38,7 @@ public class LessonController {
     private final LessonService lessonService;
     private final ExerciseAttemptService exerciseAttemptService;
     private final LessonCompletionService lessonCompletionService;
+    private final RoadmapService roadmapService;
     private final JwtService jwtService;
 
     @GetMapping(LearningEndpoints.ROOT)
@@ -52,8 +56,40 @@ public class LessonController {
     public ResponseEntity<LessonDetailResponse> getLesson(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable UUID id) {
-        extractUserId(authHeader); // validate token
-        return ResponseEntity.ok(lessonService.getLesson(id));
+        UUID userId = extractUserId(authHeader);
+        return ResponseEntity.ok(lessonService.getLesson(userId, id));
+    }
+
+    @GetMapping(LearningEndpoints.ROADMAP)
+    public ResponseEntity<RoadmapResponse> getRoadmap(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam UUID categoryId) {
+        UUID userId = extractUserId(authHeader);
+        return ResponseEntity.ok(roadmapService.getRoadmap(userId, categoryId));
+    }
+
+    @PostMapping(LearningEndpoints.START)
+    public ResponseEntity<LessonProgressResponse> startLesson(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable UUID id) {
+        UUID userId = extractUserId(authHeader);
+        return ResponseEntity.ok(roadmapService.startLesson(userId, id));
+    }
+
+    @PostMapping(LearningEndpoints.SKIP_ROADMAP_UNIT)
+    public ResponseEntity<Void> skipRoadmapUnit(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable UUID unitId) {
+        roadmapService.skipUnit(extractUserId(authHeader), unitId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(LearningEndpoints.RESUME_ROADMAP_UNIT)
+    public ResponseEntity<Void> resumeRoadmapUnit(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable UUID unitId) {
+        roadmapService.resumeUnit(extractUserId(authHeader), unitId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping(LearningEndpoints.EXERCISE_ATTEMPT)

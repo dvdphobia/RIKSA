@@ -20,8 +20,13 @@ public class Comment {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    /** Nullable: a comment may be image-only. See media_url. */
+    @Column(columnDefinition = "TEXT")
     private String content;
+
+    /** Client-supplied image URL, mirroring {@code Post.mediaUrl}. */
+    @Column(name = "media_url", columnDefinition = "TEXT")
+    private String mediaUrl;
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)

@@ -8,6 +8,7 @@ import com.riksa.learning.dto.LessonListResponse;
 import com.riksa.learning.entity.Exercise;
 import com.riksa.learning.entity.Lesson;
 import com.riksa.learning.repository.ExerciseRepository;
+import com.riksa.learning.repository.ExerciseAttemptRepository;
 import com.riksa.learning.repository.LessonCompletionRepository;
 import com.riksa.learning.repository.LessonRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class LessonService {
     private final LessonRepository lessonRepository;
     private final ExerciseRepository exerciseRepository;
     private final LessonCompletionRepository lessonCompletionRepository;
+    private final ExerciseAttemptRepository exerciseAttemptRepository;
 
     /**
      * List lessons with optional filtering by category and difficulty.
@@ -76,12 +78,20 @@ public class LessonService {
      * Get a single lesson with its exercises.
      */
     @Transactional(readOnly = true)
-    public LessonDetailResponse getLesson(UUID lessonId) {
+    public LessonDetailResponse getLesson(UUID userId, UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lesson not found: " + lessonId));
 
         List<Exercise> exercises = exerciseRepository.findByLessonId(lessonId);
-        return toDetailResponse(lesson, exercises);
+        Set<UUID> completedExerciseIds = exercises.isEmpty()
+                ? Set.of()
+                : exerciseAttemptRepository
+                    .findByUserIdAndExerciseIdIn(userId, exercises.stream().map(Exercise::getId).toList())
+                    .stream()
+                    .filter(attempt -> attempt.isCorrect())
+                    .map(attempt -> attempt.getExerciseId())
+                    .collect(Collectors.toSet());
+        return toDetailResponse(lesson, exercises, completedExerciseIds);
     }
 
     private LessonListResponse toListResponse(Lesson lesson, int exerciseCount, boolean completed) {
@@ -99,7 +109,10 @@ public class LessonService {
         return r;
     }
 
-    private LessonDetailResponse toDetailResponse(Lesson lesson, List<Exercise> exercises) {
+    private LessonDetailResponse toDetailResponse(
+            Lesson lesson,
+            List<Exercise> exercises,
+            Set<UUID> completedExerciseIds) {
         LessonDetailResponse r = new LessonDetailResponse();
         r.setId(lesson.getId());
         r.setTitle(lesson.getTitle());
@@ -111,16 +124,19 @@ public class LessonService {
         r.setReflectionPrompt(lesson.getReflectionPrompt());
         r.setCreatedAt(lesson.getCreatedAt());
         r.setUpdatedAt(lesson.getUpdatedAt());
-        r.setExercises(exercises.stream().map(this::toExerciseResponse).toList());
+        r.setExercises(exercises.stream()
+                .map(exercise -> toExerciseResponse(exercise, completedExerciseIds.contains(exercise.getId())))
+                .toList());
         return r;
     }
 
-    private ExerciseResponse toExerciseResponse(Exercise e) {
+    private ExerciseResponse toExerciseResponse(Exercise e, boolean completed) {
         ExerciseResponse r = new ExerciseResponse();
         r.setId(e.getId());
         r.setQuestion(e.getQuestion());
         r.setDifficulty(e.getDifficulty());
         r.setPoints(e.getPoints());
+        r.setCompleted(completed);
         return r;
     }
 }

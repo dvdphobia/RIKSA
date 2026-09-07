@@ -52,6 +52,7 @@ public class SocialMapper {
         return new CommentResponse(
                 comment.getId(),
                 comment.getContent(),
+                comment.getMediaUrl(),
                 author,
                 comment.getPostId(),
                 comment.getParentId(),

@@ -15,4 +15,5 @@ public class ExerciseResponse {
     private String question;
     private DifficultyLevel difficulty;
     private int points;
+    private boolean completed;
 }

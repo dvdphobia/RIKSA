@@ -80,7 +80,8 @@ class GamificationServiceTest {
         when(userGamificationRepository.findByUserId(userId)).thenReturn(Optional.of(ug));
         when(rankTierRepository.findFirstByMinXpLessThanEqualOrderByMinXpDesc(500))
                 .thenReturn(Optional.of(bronze));
-        when(rankTierRepository.findAll()).thenReturn(List.of(bronze, silver));
+        when(rankTierRepository.findFirstByMinXpGreaterThanOrderByMinXpAsc(500))
+                .thenReturn(Optional.of(silver));
 
         GamificationProfileResponse response = gamificationService.getProfile(userId);
 
@@ -89,6 +90,9 @@ class GamificationServiceTest {
         assertThat(response.getCurrentTier()).isEqualTo("BRONZE");
         assertThat(response.getNextTier()).isEqualTo("SILVER");
         assertThat(response.getXpToNext()).isEqualTo(500);
+        // Clients measure progress through the band, so both floors are published.
+        assertThat(response.getCurrentTierMinXp()).isEqualTo(0);
+        assertThat(response.getNextTierMinXp()).isEqualTo(1000);
     }
 
     @Test
@@ -115,12 +119,16 @@ class GamificationServiceTest {
         when(userGamificationRepository.findByUserId(userId)).thenReturn(Optional.of(ug));
         when(rankTierRepository.findFirstByMinXpLessThanEqualOrderByMinXpDesc(10000))
                 .thenReturn(Optional.of(diamond));
-        when(rankTierRepository.findAll()).thenReturn(List.of(diamond));
+        when(rankTierRepository.findFirstByMinXpGreaterThanOrderByMinXpAsc(10000))
+                .thenReturn(Optional.empty());
 
         GamificationProfileResponse response = gamificationService.getProfile(userId);
 
         assertThat(response.getNextTier()).isNull();
         assertThat(response.getXpToNext()).isEqualTo(0);
+        assertThat(response.getCurrentTierMinXp()).isEqualTo(5000);
+        // No next tier: the ceiling is published as zero so clients can detect it.
+        assertThat(response.getNextTierMinXp()).isEqualTo(0);
     }
 
     @Test

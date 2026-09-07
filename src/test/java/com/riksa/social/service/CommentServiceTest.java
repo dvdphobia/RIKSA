@@ -24,6 +24,7 @@ class CommentServiceTest {
     @Mock private CommentRepository commentRepository;
     @Mock private PostRepository postRepository;
     @Mock private ContentFilterService contentFilterService;
+    @Mock private MediaUrlValidator mediaUrlValidator;
 
     @InjectMocks private CommentService commentService;
 
@@ -43,7 +44,7 @@ class CommentServiceTest {
         when(postRepository.findById(postId)).thenReturn(Optional.of(post));
         when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Comment result = commentService.createComment(authorId, postId, "Great physics explanation", null);
+        Comment result = commentService.createComment(authorId, postId, "Great physics explanation", null, null);
 
         assertThat(result).isNotNull();
         assertThat(result.getAuthorId()).isEqualTo(authorId);
@@ -61,7 +62,7 @@ class CommentServiceTest {
 
         when(postRepository.findById(postId)).thenReturn(Optional.of(post));
 
-        assertThatThrownBy(() -> commentService.createComment(authorId, postId, "physics content", null))
+        assertThatThrownBy(() -> commentService.createComment(authorId, postId, "physics content", null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Post not found");
 
@@ -73,7 +74,7 @@ class CommentServiceTest {
         UUID postId = UUID.randomUUID();
         when(postRepository.findById(postId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> commentService.createComment(UUID.randomUUID(), postId, "physics content", null))
+        assertThatThrownBy(() -> commentService.createComment(UUID.randomUUID(), postId, "physics content", null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Post not found");
     }
@@ -84,7 +85,7 @@ class CommentServiceTest {
                 .when(contentFilterService).validate(anyString());
 
         assertThatThrownBy(() -> commentService.createComment(UUID.randomUUID(), UUID.randomUUID(),
-                "Hello world", null))
+                "Hello world", null, null))
                 .isInstanceOf(IllegalArgumentException.class);
 
         verify(commentRepository, never()).save(any());
@@ -102,7 +103,7 @@ class CommentServiceTest {
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
         when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Comment result = commentService.updateComment(authorId, commentId, "Updated physics content");
+        Comment result = commentService.updateComment(authorId, commentId, "Updated physics content", null);
 
         assertThat(result.getContent()).isEqualTo("Updated physics content");
     }
@@ -118,7 +119,7 @@ class CommentServiceTest {
 
         when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
 
-        assertThatThrownBy(() -> commentService.updateComment(authorId, commentId, "new content"))
+        assertThatThrownBy(() -> commentService.updateComment(authorId, commentId, "new content", null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("You can only edit your own comments");
     }
@@ -192,5 +193,168 @@ class CommentServiceTest {
         assertThatThrownBy(() -> commentService.getComment(commentId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Comment not found");
+    }
+
+    // ── Image comments ───────────────────────────────────
+
+    @Test
+    void createComment_withTextAndImage_savesBoth() {
+        UUID authorId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        String url = "https://cdn.example.com/diagram.png";
+
+        when(mediaUrlValidator.normalize(url)).thenReturn(url);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Comment result = commentService.createComment(authorId, postId, "physics diagram", url, null);
+
+        assertThat(result.getContent()).isEqualTo("physics diagram");
+        assertThat(result.getMediaUrl()).isEqualTo(url);
+    }
+
+    @Test
+    void createComment_imageOnly_skipsStemFilter() {
+        UUID authorId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        String url = "https://cdn.example.com/photo.jpg";
+
+        when(mediaUrlValidator.normalize(url)).thenReturn(url);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Comment result = commentService.createComment(authorId, postId, null, url, null);
+
+        assertThat(result.getContent()).isNull();
+        assertThat(result.getMediaUrl()).isEqualTo(url);
+        verify(contentFilterService, never()).validate(any());
+    }
+
+    @Test
+    void createComment_blankContentIsTreatedAsAbsent() {
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        String url = "https://cdn.example.com/photo.jpg";
+
+        when(mediaUrlValidator.normalize(url)).thenReturn(url);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Comment result = commentService.createComment(UUID.randomUUID(), postId, "   ", url, null);
+
+        assertThat(result.getContent()).isNull();
+        verify(contentFilterService, never()).validate(any());
+    }
+
+    @Test
+    void createComment_neitherTextNorImage_throwsException() {
+        assertThatThrownBy(() -> commentService.createComment(UUID.randomUUID(), UUID.randomUUID(), "  ", null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("A comment must have text or an image");
+
+        verify(commentRepository, never()).save(any());
+        verifyNoInteractions(postRepository);
+    }
+
+    @Test
+    void createComment_invalidMediaUrl_throwsBeforeTouchingPost() {
+        when(mediaUrlValidator.normalize("javascript:alert(1)"))
+                .thenThrow(new IllegalArgumentException("Media URL must use http or https"));
+
+        assertThatThrownBy(() -> commentService.createComment(UUID.randomUUID(), UUID.randomUUID(),
+                "physics", "javascript:alert(1)", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("http or https");
+
+        verify(commentRepository, never()).save(any());
+        verifyNoInteractions(postRepository);
+    }
+
+    @Test
+    void updateComment_nullMediaUrl_leavesExistingImageUntouched() {
+        UUID authorId = UUID.randomUUID();
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setAuthorId(authorId);
+        comment.setContent("old physics");
+        comment.setMediaUrl("https://cdn.example.com/keep.png");
+
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Comment result = commentService.updateComment(authorId, commentId, "new physics", null);
+
+        assertThat(result.getContent()).isEqualTo("new physics");
+        assertThat(result.getMediaUrl()).isEqualTo("https://cdn.example.com/keep.png");
+        verifyNoInteractions(mediaUrlValidator);
+    }
+
+    @Test
+    void updateComment_blankMediaUrl_clearsImage() {
+        UUID authorId = UUID.randomUUID();
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setAuthorId(authorId);
+        comment.setContent("physics text");
+        comment.setMediaUrl("https://cdn.example.com/old.png");
+
+        when(mediaUrlValidator.normalize("")).thenReturn(null);
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Comment result = commentService.updateComment(authorId, commentId, null, "");
+
+        assertThat(result.getMediaUrl()).isNull();
+        assertThat(result.getContent()).isEqualTo("physics text");
+    }
+
+    @Test
+    void updateComment_clearingLastRemainingField_throwsException() {
+        UUID authorId = UUID.randomUUID();
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setAuthorId(authorId);
+        comment.setContent(null);
+        comment.setMediaUrl("https://cdn.example.com/only.png");
+
+        when(mediaUrlValidator.normalize("")).thenReturn(null);
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+
+        assertThatThrownBy(() -> commentService.updateComment(authorId, commentId, null, ""))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("A comment must have text or an image");
+
+        verify(commentRepository, never()).save(any());
+    }
+
+    @Test
+    void updateComment_replacingTextWithImage_isAllowed() {
+        UUID authorId = UUID.randomUUID();
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setAuthorId(authorId);
+        comment.setContent("old physics");
+        String url = "https://cdn.example.com/new.png";
+
+        when(mediaUrlValidator.normalize(url)).thenReturn(url);
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Comment result = commentService.updateComment(authorId, commentId, "", url);
+
+        assertThat(result.getContent()).isNull();
+        assertThat(result.getMediaUrl()).isEqualTo(url);
     }
 }

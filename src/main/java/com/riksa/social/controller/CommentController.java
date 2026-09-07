@@ -41,6 +41,7 @@ public class CommentController {
                 userId,
                 input.postId(),
                 input.content(),
+                input.mediaUrl(),
                 input.parentId()
         );
         return resolver.resolveComment(comment, userId);
@@ -49,7 +50,7 @@ public class CommentController {
     @MutationMapping(SocialEndpoints.MUTATION_UPDATE_COMMENT)
     public CommentResponse updateComment(@Argument UpdateCommentInput input) {
         UUID userId = getCurrentUserId();
-        var comment = commentService.updateComment(userId, input.id(), input.content());
+        var comment = commentService.updateComment(userId, input.id(), input.content(), input.mediaUrl());
         return resolver.resolveComment(comment, userId);
     }
 

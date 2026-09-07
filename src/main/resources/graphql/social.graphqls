@@ -41,7 +41,8 @@ type Post {
 
 type Comment {
   id:         UUID!
-  content:    String!
+  content:    String
+  mediaUrl:   String
   author:     User!
   postId:     UUID!
   parentId:   UUID
@@ -85,15 +86,19 @@ input UpdatePostInput {
   content: String
 }
 
+# At least one of content / mediaUrl must be supplied.
 input CreateCommentInput {
   postId:   UUID!
-  content:  String!
+  content:  String
+  mediaUrl: String
   parentId: UUID
 }
 
+# null leaves a field unchanged; an empty string clears it.
 input UpdateCommentInput {
-  id:      UUID!
-  content: String!
+  id:       UUID!
+  content:  String
+  mediaUrl: String
 }
 
 input ReactInput {

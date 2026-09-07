@@ -18,15 +18,7 @@ INSERT INTO "categories" (id, name, slug, description, icon_url) VALUES
     ('c0000000-0000-0000-0000-000000000007', 'Biology', 'biology', 'Cell biology, human genetics, physiology, botany, and ecology.', 'https://images.unsplash.com/photo-1530026405186-ed1f139313f8?w=150'),
     ('c0000000-0000-0000-0000-000000000008', 'History & Heritage', 'history-heritage', 'Angkorian civilization, Southeast Asian history, and cultural heritage.', 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=150'),
     ('c0000000-0000-0000-0000-000000000009', 'General Discussion', 'general-discussion', 'Community study tips, daily motivations, student life, and career guidance.', 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=150')
-ON CONFLICT (slug) DO UPDATE
-SET name = EXCLUDED.name,
-    description = EXCLUDED.description,
-    icon_url = EXCLUDED.icon_url,
-    updated_at = now();
-
--- Update existing Health and Travel categories if present
-UPDATE "categories" SET description = 'Health science, wellness, nutrition, and student mental health.', icon_url = 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=150' WHERE slug = 'health';
-UPDATE "categories" SET description = 'Study abroad, field trips, Cambodian cultural tourism, and discoveries.', icon_url = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=150' WHERE slug = 'travel';
+ON CONFLICT DO NOTHING;
 
 
 -- ── 2. DEMO USERS ───────────────────────────────────────────────────────────
@@ -45,32 +37,7 @@ INSERT INTO "users" (id, username, display_name, email, password, role, avatar_u
     ('a0000000-0000-0000-0000-000000000010', 'rathana.pursat', 'Rathana Mao (Pursat)', 'rathana@riksa.local', '$2b$12$A4TmBWy.wKWzGtxgV/r.L.QxnNS6FdF1c3YQmjdL0C7Y0WW0ur9JK', 'USER', '/avatars/avatar-10.png', 'History enthusiast & cultural heritage explorer 🏛️', 'MALE', '+85512000010', true, true, 'KH', '00000000-0000-0000-0000-000000000019'),
     ('a0000000-0000-0000-0000-000000000012', 'teacher.sophea', 'Teacher Sophea (Math Expert)', 'sophea@riksa.local', '$2b$12$A4TmBWy.wKWzGtxgV/r.L.QxnNS6FdF1c3YQmjdL0C7Y0WW0ur9JK', 'MODERATOR', '/avatars/avatar-15.png', 'High school math educator & BakII exam tutor 📐', 'FEMALE', '+85512000012', true, true, 'KH', '00000000-0000-0000-0000-000000000015'),
     ('a0000000-0000-0000-0000-000000000013', 'admin.riksa', 'Riksa Platform Admin', 'admin.riksa@riksa.local', '$2b$12$A4TmBWy.wKWzGtxgV/r.L.QxnNS6FdF1c3YQmjdL0C7Y0WW0ur9JK', 'ADMIN', '/avatars/avatar-30.png', 'System administrator for Riksa Education Platform 🛡️', 'OTHER', '+85512000013', true, true, 'KH', '00000000-0000-0000-0000-000000000015')
-ON CONFLICT (id) DO UPDATE
-SET username = EXCLUDED.username,
-    display_name = EXCLUDED.display_name,
-    password = EXCLUDED.password,
-    role = EXCLUDED.role,
-    avatar_url = EXCLUDED.avatar_url,
-    bio = EXCLUDED.bio,
-    gender = EXCLUDED.gender,
-    phone_number = EXCLUDED.phone_number,
-    phone_verified = true,
-    email_verified = true,
-    country_id = 'KH',
-    province_id = EXCLUDED.province_id,
-    updated_at = now();
-
--- Ensure all existing users have valid demo password, valid province and avatar
-UPDATE "users"
-SET password = '$2b$12$A4TmBWy.wKWzGtxgV/r.L.QxnNS6FdF1c3YQmjdL0C7Y0WW0ur9JK',
-    avatar_url = CASE
-        WHEN avatar_url NOT LIKE '/avatars/%' THEN '/avatars/avatar-1.png'
-        ELSE avatar_url
-    END,
-    province_id = COALESCE(province_id, '00000000-0000-0000-0000-000000000015'),
-    email_verified = true,
-    phone_verified = true
-WHERE password IS NULL OR password = '' OR avatar_url NOT LIKE '/avatars/%';
+ON CONFLICT DO NOTHING;
 
 
 -- ── 3. USER GAMIFICATION (STREAK, XP, TIERS) ────────────────────────────────
@@ -88,12 +55,7 @@ INSERT INTO "user_gamification" (user_id, total_xp, current_streak, highest_stre
     ('a0000000-0000-0000-0000-000000000008',  650,  5,  7, now() - interval '20 hours', 1),
     ('a0000000-0000-0000-0000-000000000009',  340,  4,  5, now() - interval '22 hours', 1),
     ('a0000000-0000-0000-0000-000000000010',  160,  3,  3, now() - interval '23 hours', 1)
-ON CONFLICT (user_id) DO UPDATE
-SET total_xp = EXCLUDED.total_xp,
-    current_streak = EXCLUDED.current_streak,
-    highest_streak = EXCLUDED.highest_streak,
-    last_completed_at = EXCLUDED.last_completed_at,
-    updated_at = now();
+ON CONFLICT (user_id) DO NOTHING;
 
 
 -- ── 4. CATEGORY MEMBERSHIPS ─────────────────────────────────────────────────
@@ -154,14 +116,7 @@ INSERT INTO "posts" (id, author_id, category_id, title, content, media_url, reac
      'Weekly Study Challenge: 14 Days Streak Goal! 🔥 Are you in?',
      'Consistency beats talent when talent doesn''t work consistently! Join my 14-day study streak challenge on Riksa. Drop your current streak in the comments and let''s motivate each other! 💪',
      'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600', 92, 22, 15, 'VISIBLE', now() - interval '3 days', now() - interval '3 days')
-ON CONFLICT (id) DO UPDATE
-SET title = EXCLUDED.title,
-    content = EXCLUDED.content,
-    media_url = EXCLUDED.media_url,
-    reaction_count = EXCLUDED.reaction_count,
-    comment_count = EXCLUDED.comment_count,
-    share_count = EXCLUDED.share_count,
-    updated_at = now();
+ON CONFLICT (id) DO NOTHING;
 
 
 -- ── 6. POST COMMENTS & REPLIES ──────────────────────────────────────────────
@@ -185,9 +140,7 @@ INSERT INTO "comments" (id, post_id, author_id, parent_id, content, status, crea
      'Current streak: 42 days! Aiming for 60 days Milestone! 🔥', 'VISIBLE', now() - interval '2 days', now() - interval '2 days'),
     ('e0000000-0000-0000-0000-000000000007', 'f0000000-0000-0000-0000-000000000007', 'a0000000-0000-0000-0000-000000000011', NULL,
      'Count me in! Day 14 today and pushing strong! 💪', 'VISIBLE', now() - interval '1 day', now() - interval '1 day')
-ON CONFLICT (id) DO UPDATE
-SET content = EXCLUDED.content,
-    updated_at = now();
+ON CONFLICT (id) DO NOTHING;
 
 
 -- ── 7. POST & COMMENT REACTIONS ─────────────────────────────────────────────
@@ -242,15 +195,7 @@ INSERT INTO "blog_posts" (id, title, about, content, cover_url, banner_url, auth
      'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=600',
      'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=1200',
      'a0000000-0000-0000-0000-000000000007', 'c0000000-0000-0000-0000-000000000005', 'APPROVED', 1150, 93, false, now() - interval '1 day', now() - interval '1 day')
-ON CONFLICT (id) DO UPDATE
-SET title = EXCLUDED.title,
-    about = EXCLUDED.about,
-    content = EXCLUDED.content,
-    cover_url = EXCLUDED.cover_url,
-    banner_url = EXCLUDED.banner_url,
-    view_count = EXCLUDED.view_count,
-    like_count = EXCLUDED.like_count,
-    updated_at = now();
+ON CONFLICT (id) DO NOTHING;
 
 -- Blog likes for demo user and others
 INSERT INTO "blog_likes" (blog_post_id, user_id, liked_at) VALUES
@@ -260,92 +205,232 @@ INSERT INTO "blog_likes" (blog_post_id, user_id, liked_at) VALUES
 ON CONFLICT (blog_post_id, user_id) DO NOTHING;
 
 
--- ── 9. LESSONS & EXERCISES ──────────────────────────────────────────────────
+-- ── 9. LESSONS ─────────────────────────────────────────────────────────────
 INSERT INTO "lessons" (id, title, description, difficulty, base_xp, category_id, reflection_prompt, created_at, updated_at) VALUES
-    ('1e550000-0000-0000-0000-000000000001', 'Derivatives & Tangent Line Equations (ដេរីវេ)',
-     'Learn the fundamental derivative rules, power rule, product rule, and how to find the equation of a tangent line.',
-     'EASY', 20, 'c0000000-0000-0000-0000-000000000001',
-     'How does the derivative geometrically describe instantaneous rate of change in real life?',
-     now() - interval '10 days', now() - interval '10 days'),
+    -- 1. Math - Derivatives
+    ('1e550000-0000-0000-0000-000000000001',
+     'ដេរីវេ និងសមីការបន្ទាត់ប៉ះ (Derivatives & Tangent Lines)',
+     E'# មូលដ្ឋានគ្រឹះនៃដេរីវេ និងសមីការបន្ទាត់ប៉ះ (Derivatives & Tangent Lines)\n\n**ដេរីវេ (Derivative)** គឺជាឧបករណ៍គណិតវិទ្យាដ៏សំខាន់សម្រាប់វាស់វែង **អត្រាបម្រែបម្រួលភ្លាមៗ (Instantaneous Rate of Change)** នៃអនុគមន៍មួយធៀបនឹងអថេររបស់វា។\n\n---\n\n### ១. និយមន័យដេរីវេ\nសម្រាប់អនុគមន៍ $y = f(x)$ ដេរីវេត្រង់ចំណុច $x = x_0$ កំណត់ដោយ៖\n$$f''(x_0) = \\lim_{\\Delta x \\to 0} \\frac{f(x_0 + \\Delta x) - f(x_0)}{\\Delta x}$$\n\n---\n\n### ២. រូបមន្តគ្រឹះសំខាន់ៗ\n- **ដេរីវេនៃស្វ័យគុណ:** $(x^n)'' = n \\cdot x^{n-1}$\n- **ដេរីវេនៃផលបូក:** $(u + v)'' = u'' + v''$\n- **ដេរីវេនៃផលគុណ:** $(u \\cdot v)'' = u''v + uv''$\n- **ដេរីវេនៃផលចែក:** $\\left(\\frac{u}{v}\\right)'' = \\frac{u''v - uv''}{v^2}$\n- **ដេរីវេនៃចំនួនថេរ:** $(c)'' = 0$\n\n---\n\n### ៣. សមីការបន្ទាត់ប៉ះនឹងក្រាប (Tangent Line Equation)\nសមីការបន្ទាត់ប៉ះនឹងក្រាបតាងអនុគមន៍ $y = f(x)$ ត្រង់ចំណុច $M(x_0, y_0)$ គឺ៖\n$$y - y_0 = f''(x_0)(x - x_0)$$\nដែល $f''(x_0)$ ជា **មេគុណប្រាប់ទិស (Slope)** នៃបន្ទាត់ប៉ះ។',
+     'EASY', 25, 'c0000000-0000-0000-0000-000000000001',
+     'តើដេរីវេជួយយើងក្នុងការវិភាគអត្រាបម្រែបម្រួលនៃសេដ្ឋកិច្ច និងចលនារូបវិទ្យាយ៉ាងដូចម្តេច?',
+     now() - interval '10 days', now()),
 
-    ('1e550000-0000-0000-0000-000000000002', 'Definite Integrals & Area Under Curves (អាំងតេក្រាល)',
-     'Calculate definite integrals using the Fundamental Theorem of Calculus and compute bounded areas between functions.',
-     'MEDIUM', 30, 'c0000000-0000-0000-0000-000000000001',
-     'Explain the relationship between differentiation and integration as inverse mathematical operations.',
-     now() - interval '9 days', now() - interval '9 days'),
+    -- 2. Math - Integrals
+    ('1e550000-0000-0000-0000-000000000002',
+     'អាំងតេក្រាលកំណត់ និងការគណនាផ្ទៃក្រឡា (Definite Integrals & Area Calculation)',
+     E'# អាំងតេក្រាលកំណត់ និងការគណនាផ្ទៃក្រឡា (Definite Integrals & Area)\n\n**អាំងតេក្រាល (Integral)** គឺជាប្រតិបត្តិការច្រាសនៃដេរីវេ ដែលប្រើប្រាស់សម្រាប់គណនាផលបូកបន្តបន្ទាប់ ផ្ទៃក្រឡា និងមាឌនៃរូបធរណីមាត្រស្មុគស្មាញ។\n\n---\n\n### ១. ទ្រឹស្តីបទគ្រឹះនៃការគណនាអាំងតេក្រាល (Newton-Leibniz)\nបើ $F(x)$ ជាព្រីមីទីវនៃ $f(x)$ នោះអាំងតេក្រាលកំណត់ពី $a$ ទៅ $b$ គឺ៖\n$$\\int_{a}^{b} f(x)\\,dx = [F(x)]_{a}^{b} = F(b) - F(a)$$\n\n---\n\n### ២. រូបមន្តព្រីមីទីវគ្រឹះ\n- $\\int x^n\\,dx = \\frac{x^{n+1}}{n+1} + C \\quad (n \\neq -1)$\n- $\\int \\frac{1}{x}\\,dx = \\ln|x| + C$\n- $\\int e^x\\,dx = e^x + C$\n- $\\int \\cos(x)\\,dx = \\sin(x) + C$\n- $\\int \\sin(x)\\,dx = -\\cos(x) + C$\n\n---\n\n### ៣. ការគណនាផ្ទៃក្រឡារវាងខ្សែកោង\nផ្ទៃក្រឡា $S$ នៃដែនកំណត់ដោយក្រាប $y = f(x)$, អ័ក្សអាប់ស៊ីស $(Ox)$, និងបន្ទាត់ឈរ $x = a$, $x = b$ កំណត់ដោយ៖\n$$S = \\int_{a}^{b} |f(x)|\\,dx$$',
+     'MEDIUM', 35, 'c0000000-0000-0000-0000-000000000001',
+     'ហេតុអ្វីបានជាអាំងតេក្រាលជាឧបករណ៍គណនាផ្ទៃក្រឡា និងមាឌដ៏មានឥទ្ធិពលបំផុត?',
+     now() - interval '9 days', now()),
 
-    ('1e550000-0000-0000-0000-000000000003', 'Introduction to Dart & Flutter Widget Trees',
-     'Understand StatelessWidget, StatefulWidget, build contexts, and composing modern responsive layouts.',
+    -- 3. STEM / Computer Science - Programming Fundamentals
+    ('1e550000-0000-0000-0000-000000000003',
+     'មូលដ្ឋានគ្រឹះសរសេរកូដ និងក្បួនដោះស្រាយ (Programming Fundamentals & Algorithms)',
+     E'# មូលដ្ឋានគ្រឹះសរសេរកូដ និងក្បួនដោះស្រាយ (Programming & Algorithms)\n\nការសរសេរកូដគឺជាការណែនាំកុំព្យូទ័រឱ្យអនុវត្តការងារជាក់លាក់ណាមួយតាមរយៈភាសាសរសេរកម្មវិធី។\n\n---\n\n### ១. គោលគំនិតគ្រឹះក្នុងការសរសេរកូដ\n- **អថេរ (Variables) & ប្រភេទតម្លៃ (Data Types):** `int`, `double`, `String`, `bool` សម្រាប់រក្សាទុកព័ត៌មាន។\n- **លក្ខខណ្ឌ (Conditionals):** `if / else` សម្រាប់ធ្វើការសម្រេចចិត្តក្នុងកម្មវិធី។\n- **រង្វិលជុំ (Loops):** `for`, `while` សម្រាប់អនុវត្តសកម្មភាពដដែលៗដោយស្វ័យប្រវត្តិ។\n- **អនុគមន៍ (Functions):** ប្លុកកូដដែលមានឈ្មោះច្បាស់លាស់ អាចហៅមកប្រើឡើងវិញបានច្រើនដង។\n\n---\n\n### ២. ក្បួនដោះស្រាយ (Algorithms)\nក្បួនដោះស្រាយគឺជា **លំដាប់លំដោយនៃជំហានច្បាស់លាស់** ក្នុងការដោះស្រាយបញ្ហាណាមួយ។\nឧទាហរណ៍៖ ក្បួនតម្រៀបទិន្នន័យ (Sorting Algorithm) ឬក្បួនស្វែងរក (Search Algorithm)។',
      'EASY', 25, 'c0000000-0000-0000-0000-000000000002',
-     'Why is the concept of declarative UI different from traditional imperative UI programming?',
-     now() - interval '8 days', now() - interval '8 days'),
+     'ហេតុអ្វីបានជាការគិតបែបក្បួនដោះស្រាយ (Computational Thinking) មានប្រយោជន៍សម្រាប់ការដោះស្រាយបញ្ហាគ្រប់មុខវិជ្ជា?',
+     now() - interval '8 days', now()),
 
-    ('1e550000-0000-0000-0000-000000000004', 'State Management & Async Data Streams in Flutter',
-     'Manage global app state, handle async networking with Riverpod, and stream real-time updates.',
-     'HARD', 40, 'c0000000-0000-0000-0000-000000000002',
-     'What are the key trade-offs between local widget state and application-level global state?',
-     now() - interval '7 days', now() - interval '7 days'),
+    -- 4. STEM / Computer Science - Computer Architecture & Networks
+    ('1e550000-0000-0000-0000-000000000004',
+     'ស្ថាបត្យកម្មកុំព្យូទ័រ និងបណ្តាញអ៊ីនធឺណិត (Computer Architecture & Internet Networks)',
+     E'# ស្ថាបត្យកម្មប្រព័ន្ធកុំព្យូទ័រ និងបណ្តាញ (Computer Architecture & Networks)\n\nការយល់ដឹងពីផ្នែករឹង (Hardware) និងប្រព័ន្ធបណ្តាញ (Networking) គឺជាគ្រឹះស្នូលនៃវិស័យ STEM និងបច្ចេកវិទ្យាព័ត៌មានវិទ្យា។\n\n---\n\n### ១. ផ្នែករឹងសំខាន់ៗនៃកុំព្យូទ័រ (Computer Hardware)\n- **CPU (Central Processing Unit):** ខួរក្បាលគណនា និងប្រតិបត្តិកូដកម្មវិធី។\n- **RAM (Random Access Memory):** អង្គចងចាំបណ្តោះអាសន្នល្បឿនលឿនសម្រាប់កម្មវិធីដែលកំពុងដំណើរការ។\n- **Storage (SSD / HDD):** អង្គចងចាំអចិន្ត្រៃយ៍សម្រាប់រក្សាទុកទិន្នន័យ និងប្រព័ន្ធប្រតិបត្តិការ (OS)។\n\n---\n\n### ២. របៀបដែលអ៊ីនធឺណិតដំណើរការ (How the Internet Works)\n- **IP Address:** អាសយដ្ឋានឌីជីថលសម្គាល់ឧបករណ៍នីមួយៗនៅលើបណ្តាញ (ឧ. `192.168.1.1` ឬ IPv6)។\n- **DNS (Domain Name System):** សៀវភៅទូរស័ព្ទនៃអ៊ីនធឺណិត ដែលបំប្លែងឈ្មោះគេហទំព័រ (ឧ. `riksa.edu.kh`) ទៅជា IP Address។\n- **HTTP / HTTPS:** ពិធីការទំនាក់ទំនងទិន្នន័យរវាង Browser និង Web Server ប្រកបដោយសុវត្ថិភាព។',
+     'MEDIUM', 35, 'c0000000-0000-0000-0000-000000000002',
+     'តើទិន្នន័យធ្វើដំណើរឆ្លងកាត់ពិភពលោកតាមរយៈប្រព័ន្ធបណ្តាញអ៊ីនធឺណិតយ៉ាងដូចម្តេច?',
+     now() - interval '7 days', now()),
 
-    ('1e550000-0000-0000-0000-000000000005', 'Newtonian Mechanics & Force Equilibrium (ច្បាប់ញូតុន)',
-     'Analyze free-body diagrams, static equilibrium, and dynamic force equations for multi-body systems.',
-     'EASY', 20, 'c0000000-0000-0000-0000-000000000004',
-     'How does friction alter the net acceleration of an object on an inclined plane?',
-     now() - interval '6 days', now() - interval '6 days'),
+    -- 5. Physics - Newton's Laws
+    ('1e550000-0000-0000-0000-000000000005',
+     'ច្បាប់ចលនាញូតុន និងកម្លាំង (Newton''s Laws of Motion & Forces)',
+     E'# ច្បាប់ចលនាញូតុនទាំង ៣ (Newton''s Laws of Motion)\n\nច្បាប់ចលនារបស់លោក **អ៊ីសាក់ ញូតុន (Isaac Newton)** គឺជាគ្រឹះដ៏សំខាន់នៃរូបវិទ្យាមេកានិចបុរាណ ដែលពន្យល់ពីទំនាក់ទំនងរវាងកម្លាំង និងចលនារបស់អង្គធាតុ។\n\n---\n\n### ១. ច្បាប់ទី១ ញូតុន (ច្បាប់និចលភាព - Law of Inertia)\nអង្គធាតុមួយរក្សាភាពនៅស្ងៀម ឬចលនាត្រង់ស្មើជានិច្ច លុះត្រាតែមានកម្លាំងក្រៅគ្មានតុល្យភាពមកមានអំពើលើវា៖\n$$\\sum \\vec{F} = \\vec{0} \\implies \\vec{v} = \\text{const}$$\n\n---\n\n### ២. ច្បាប់ទី២ ញូតុន (ច្បាប់មូលដ្ឋានឌីណាមិច)\nសំទុះរបស់អង្គធាតុមួយសមាមាត្រត្រង់ទៅនឹងផលបូកកម្លាំងដែលមានអំពើលើវា និងសមាមាត្រច្រាសទៅនឹងម៉ាសរបស់វា៖\n$$\\sum \\vec{F} = m \\cdot \\vec{a}$$\n- $F$ ៖ កម្លាំង (គិតជា ញូតុន - N)\n- $m$ ៖ ម៉ាសអង្គធាតុ (គិតជា គីឡូក្រាម - kg)\n- $a$ ៖ សំទុះ (គិតជា $\\text{m/s}^2$)\n\n---\n\n### ៣. ច្បាប់ទី៣ ញូតុន (ច្បាប់សកម្មភាព និងប្រតិកម្ម)\nគ្រប់កម្លាំងសកម្មភាពតែងតែមានកម្លាំងប្រតិកម្មស្មើទំហំ និងមានទិសដៅផ្ទុយគ្នាជានិច្ច៖\n$$\\vec{F}_{\\text{action}} = -\\vec{F}_{\\text{reaction}}$$',
+     'EASY', 25, 'c0000000-0000-0000-0000-000000000004',
+     'ចូរលើកឧទាហរណ៍ជាក់ស្តែងមួយក្នុងជីវភាពប្រចាំថ្ងៃដែលបង្ហាញពីច្បាប់ទី ៣ របស់ញូតុន (Action-Reaction)។',
+     now() - interval '6 days', now()),
 
-    ('1e550000-0000-0000-0000-000000000006', 'Khmer Classical Poetry & Rhyme Meter (ក្បួនចួនកំណាព្យ)',
-     'Explore the structural rhyme rules and metric meters of Pathyak 7, Brahmagit, and Kakagate poetry.',
+    -- 6. Khmer Literature
+    ('1e550000-0000-0000-0000-000000000006',
+     'ក្បួនចួន និងរចនាសម្ព័ន្ធកំណាព្យខ្មែរ (Khmer Classical Poetry & Rhyme Meter)',
+     E'# ក្បួនចួន និងរចនាសម្ព័ន្ធកំណាព្យខ្មែរ (Khmer Classical Poetry)\n\nកំណាព្យខ្មែរជាសម្បត្តិវប្បធម៌ដ៏វិចិត្រ ដែលមានក្បួនខ្នាត ចំនួនព្យាង្គ និងក្បួនចួនយ៉ាងម៉ត់ចត់។\n\n---\n\n### ១. បទពាក្យ ៧ (Pathyak 7)\n- ក្នុងមួយល្បះមាន ៤ ឃ្លា ហើយក្នុងមួយឃ្លាមាន ៧ ព្យាង្គ។\n- **ក្បួនចួន:**\n  - ព្យាង្គទី៧ នៃឃ្លាទី១ ចួននឹង ព្យាង្គទី៤ នៃឃ្លាទី២\n  - ព្យាង្គទី៧ នៃឃ្លាទី២ ចួននឹង ព្យាង្គទី៧ នៃឃ្លាទី៣ និងព្យាង្គទី៤ នៃឃ្លាទី៤\n  - ព្យាង្គទី៧ នៃឃ្លាទី៤ ជាពាក្យចង្អុលជើងមេឃ សម្រាប់ចួនឆ្លងល្បះ។\n\n---\n\n### ២. បទកាកគតិ និងបទព្រហ្មគីតិ\n- **បទកាកគតិ:** ក្នុងមួយល្បះមាន ៧ ឃ្លា មួយឃ្លាមាន ៤ ព្យាង្គ សរុប ២៨ ព្យាង្គ។\n- **បទព្រហ្មគីតិ:** ឃ្លាទី១ និងទី៣ មាន ៥ ព្យាង្គ, ឃ្លាទី២ និងទី៤ មាន ៦ ព្យាង្គ។',
      'EASY', 20, 'c0000000-0000-0000-0000-000000000003',
-     'How does internal rhyme rhythm enhance the emotional resonance of Khmer classical poems?',
-     now() - interval '5 days', now() - interval '5 days'),
+     'តើក្បួនចួនក្នុងកំណាព្យជួយបង្កើនសោភ័ណភាព និងសម្រស់អក្សរសាស្ត្រខ្មែរយ៉ាងដូចម្តេច?',
+     now() - interval '5 days', now()),
 
-    ('1e550000-0000-0000-0000-000000000007', 'English Conditional Sentences (Types 0, 1, 2, 3 & Mixed)',
-     'Master all conditional forms for expressing facts, possibilities, hypothetical situations, and past regrets.',
+    -- 7. English Learning
+    ('1e550000-0000-0000-0000-000000000007',
+     'ប្រយោគលក្ខខណ្ឌភាសាអង់គ្លេស (English Conditional Sentences: Types 0, 1, 2, 3)',
+     E'# ប្រយោគលក្ខខណ្ឌក្នុងភាសាអង់គ្លេស (English Conditional Sentences)\n\nប្រយោគលក្ខខណ្ឌ (Conditionals) ត្រូវបានប្រើដើម្បីបង្ហាញពីសកម្មភាពមួយដែលអាស្រ័យលើលក្ខខណ្ឌមួយផ្សេងទៀត។\n\n---\n\n### ១. Zero Conditional (ការពិតទូទៅ ឬច្បាប់វិទ្យាសាស្ត្រ)\n- **ទម្រង់:** `If + Present Simple, ... Present Simple`\n- **ឧទាហរណ៍:** *If you heat ice, it melts.*\n\n---\n\n### ២. First Conditional (លទ្ធភាពពិតប្រាកដនៅពេលអនាគត)\n- **ទម្រង់:** `If + Present Simple, ... will + V_inf`\n- **ឧទាហរណ៍:** *If it rains tomorrow, we will stay at home.*\n\n---\n\n### ៣. Second Conditional (ស្ថានភាពសន្មត ឬមិនពិតនៅពេលបច្ចុប្បន្ន)\n- **ទម្រង់:** `If + Past Simple, ... would + V_inf`\n- **ឧទាហរណ៍:** *If I had more time, I would learn flutter.*\n\n---\n\n### ៤. Third Conditional (ការសោកស្តាយចំពោះរឿងអតីតកាលដែលកន្លងផុត)\n- **ទម្រង់:** `If + Past Perfect, ... would have + V_3 (Past Participle)`\n- **ឧទាហរណ៍:** *If they had studied harder, they would have passed the exam.*',
      'EASY', 20, 'c0000000-0000-0000-0000-000000000005',
-     'When would you choose a Mixed Conditional over a standard Third Conditional?',
-     now() - interval '4 days', now() - interval '4 days'),
+     'តើនៅពេលណាដែលយើងគួរប្រើប្រាស់ Second Conditional ធៀបនឹង Third Conditional?',
+     now() - interval '4 days', now()),
 
-    ('1e550000-0000-0000-0000-000000000008', 'Chemical Equilibrium & Le Chatelier''s Principle',
-     'Predict shifts in reversible chemical reactions when temperature, pressure, or concentration changes occur.',
+    -- 8. Chemistry - Periodic Table & Bonding
+    ('1e550000-0000-0000-0000-000000000008',
+     'តារាងខួបនៃធាតុគីមី និងសម្ព័ន្ធគីមី (Periodic Table & Chemical Bonding)',
+     E'# តារាងខួបនៃធាតុគីមី និងសម្ព័ន្ធគីមី (Periodic Table & Chemical Bonding)\n\nការស្វែងយល់អំពីរចនាសម្ព័ន្ធអាតូម និងតារាងខួបជួយឱ្យយើងយល់ដឹងពីលក្ខណៈគីមី និងរបៀបដែលធាតុផ្សេងៗចងសម្ព័ន្ធគ្នាបង្កើតជាម៉ូលេគុលថ្មីៗ។\n\n---\n\n### ១. រចនាសម្ព័ន្ធតារាងខួប\n- **ខួប (Periods):** ជួរដេកទាំង ៧ ដែលបង្ហាញពីចំនួនស្រទាប់អេឡិចត្រុង (Electron shells)។\n- **ក្រុម (Groups):** ជួរឈរទាំង ១៨ ដែលធាតុក្នុងក្រុមតែមួយមានចំនួនអេឡិចត្រុងស្រទាប់ក្រៅបង្អស់ (Valence electrons) ស្មើគ្នា និងមានលក្ខណៈគីមីស្រដៀងគ្នា។\n\n---\n\n### ២. ប្រភេទសម្ព័ន្ធគីមីសំខាន់ៗ\n1. **សម្ព័ន្ធកូវ៉ាឡង់ (Covalent Bond):** កើតឡើងរវាងអលោហៈ និងអលោហៈ តាមរយៈការ **ចែករំលែកអេឡិចត្រុងរួមគ្នា** (ឧ. $\\text{H}_2\\text{O}, \\text{CO}_2, \\text{CH}_4$)។\n2. **សម្ព័ន្ធអ៊ីយ៉ុង (Ionic Bond):** កើតឡើងរវាងលោហៈ និងអលោហៈ តាមរយៈការ **បោះបង់ និងទទួលអេឡិចត្រុង** បង្កើតបានជាកាចុង (+) និងអានីយ៉ុង (-) ទាក់ទាញគ្នាដោយកម្លាំងអេឡិចត្រូស្តាទិច (ឧ. $\\text{NaCl}, \\text{MgO}$)។\n3. **សម្ព័ន្ធអ៊ីដ្រូសែន (Hydrogen Bond):** កម្លាំងទាក់ទាញខ្សោយរវាងម៉ូលេគុលប៉ូលែរ។',
+     'EASY', 25, 'c0000000-0000-0000-0000-000000000006',
+     'តើកម្លាំងទាក់ទាញរវាងអាតូមជួយបង្កើតសារធាតុចម្រុះក្នុងពិភពលោកយើងយ៉ាងដូចម្តេច?',
+     now() - interval '3 days', now()),
+
+    -- 9. Physics - Electricity & Circuits
+    ('1e550000-0000-0000-0000-000000000011',
+     'អគ្គិសនី ច្បាប់អូម និងសៀគ្វីអគ្គិសនី (Electricity, Ohm''s Law & Circuits)',
+     E'# មូលដ្ឋានគ្រឹះអគ្គិសនី ច្បាប់អូម និងសៀគ្វី (Electricity & Ohm''s Law)\n\nអគ្គិសនីគឺជាទម្រង់ថាមពលដ៏សំខាន់ក្នុងជីវភាពរស់នៅ និងបច្ចេកវិទ្យាទំនើប។\n\n---\n\n### ១. បរិមាណអគ្គិសនីគ្រឹះ\n- **អាំងតង់ស៊ីតេចរន្ត ($I$):** បរិមាណបន្ទុកអគ្គិសនីឆ្លងកាត់មុខកាត់ខ្សែចម្លងក្នុងមួយឯកតាពេល (គិតជា អំពែរ - A)។\n- **តង់ស្យុង ឬផលសងប៉ូតង់ស្យែល ($U$ ឬ $V$):** កម្លាំងរុញច្រានបន្ទុកអគ្គិសនី (គិតជា វ៉ុល - V)។\n- **រេស៊ីស្តង់ ($R$):** កម្រិតរារាំងចរន្តអគ្គិសនីនៃសារធាតុចម្លង (គិតជា អូម - $\\Omega$)។\n\n---\n\n### ២. ច្បាប់អូម (Ohm''s Law)\nអាំងតង់ស៊ីតេចរន្តឆ្លងកាត់រេស៊ីស្ត័រមួយសមាមាត្រត្រង់ទៅនឹងតង់ស្យុង និងសមាមាត្រច្រាសនឹងរេស៊ីស្តង់៖\n$$U = I \\cdot R \\quad \\iff \\quad I = \\frac{U}{R}$$\n\n---\n\n### ៣. អានុភាព និងថាមពលអគ្គិសនី\n- **អានុភាពអគ្គិសនី ($P$):** $P = U \\cdot I = R \\cdot I^2$ (គិតជា វ៉ាត់ - W)\n- **ថាមពលអគ្គិសនី ($E$):** $E = P \\cdot t$ (គិតជា ហ្ស៊ូល - J ឬ គីឡូវ៉ាត់ម៉ោង - kWh)',
+     'MEDIUM', 30, 'c0000000-0000-0000-0000-000000000004',
+     'តើការយល់ដឹងពីសៀគ្វីខ្នែង និងស៊េរីមានសារៈសំខាន់យ៉ាងណាក្នុងការតបណ្តាញអគ្គិសនីតាមផ្ទះប្រកបដោយសុវត្ថិភាព?',
+     now() - interval '2 days', now()),
+
+    -- 10. Chemistry - Equilibrium & Kinetics
+    ('1e550000-0000-0000-0000-000000000012',
+     'សមតុល្យគីមី និងល្បឿនប្រតិកម្ម (Chemical Equilibrium & Reaction Kinetics)',
+     E'# សមតុល្យគីមី និងល្បឿនប្រតិកម្ម (Chemical Equilibrium & Kinetics)\n\nក្នុងប្រតិកម្មគីមីត្រឡប់បាន សមតុល្យកើតឡើងនៅពេលដែលល្បឿនប្រតិកម្មទៅមុខស្មើនឹងល្បឿនប្រតិកម្មត្រឡប់មកវិញ។\n\n---\n\n### ១. សមតុល្យឌីណាមិច (Dynamic Equilibrium)\nសម្រាប់ប្រតិកម្មទូទៅ៖\n$$aA + bB \\rightleftharpoons cC + dD$$\nថេរលំនឹងគីមី $K_c$ កំណត់ដោយ៖\n$$K_c = \\frac{[C]^c [D]^d}{[A]^a [B]^b}$$\n\n---\n\n### ២. គោលការណ៍ឡឺសាតឺលីយេ (Le Chatelier''s Principle)\nនៅពេលប្រព័ន្ធមួយក្នុងលំនឹងរងឥទ្ធិពលពីកត្តាខាងក្រៅ (កំហាប់ សីតុណ្ហភាព សម្ពាធ) ប្រព័ន្ធនឹងរំកិលលំនឹងក្នុងទិសដៅមួយដើម្បី **កាត់បន្ថយឥទ្ធិពលនោះវិញ**៖\n- **ការបន្ថែមសារធាតុប្រតិករ:** លំនឹងរំកិលទៅខាងស្តាំ (បង្កើតអង្គធាតុកកើតបន្ថែម)។\n- **ការបង្កើនសម្ពាធ:** លំនឹងរំកិលទៅទិសខាងណាដែលមានចំនួនម៉ូលឧស្ម័នតិចជាង។\n- **ការបង្កើនសីតុណ្ហភាព:** ជំរុញប្រតិកម្មស្រូបកម្តៅ (Endothermic)។',
      'HARD', 40, 'c0000000-0000-0000-0000-000000000006',
-     'How does Le Chatelier''s principle apply to the industrial synthesis of ammonia via the Haber process?',
-     now() - interval '3 days', now() - interval '3 days')
-ON CONFLICT (id) DO UPDATE
-SET title = EXCLUDED.title,
-    description = EXCLUDED.description,
-    difficulty = EXCLUDED.difficulty,
-    base_xp = EXCLUDED.base_xp,
-    category_id = EXCLUDED.category_id,
-    reflection_prompt = EXCLUDED.reflection_prompt,
-    updated_at = now();
+     'តើគោលការណ៍សមតុល្យគីមីត្រូវបានអនុវត្តយ៉ាងដូចម្តេចក្នុងការផលិតជីគីមី និងឧស្សាហកម្មជាក់ស្តែង?',
+     now() - interval '2 days', now()),
+
+    -- 11. Biology - Cell Biology
+    ('1e550000-0000-0000-0000-000000000013',
+     'កោសិកា និងរចនាសម្ព័ន្ធជីវសាស្រ្ត (Cell Biology & Cell Structure)',
+     E'# កោសិកា និងរចនាសម្ព័ន្ធជីវសាស្រ្ត (Cell Biology & Organelles)\n\n**កោសិកា (Cell)** គឺជាឯកតាគ្រឹះនៃទម្រង់ និងមុខងារនៃភាវៈរស់ទាំងអស់នៅលើផែនដី។\n\n---\n\n### ១. សមាសភាគសំខាន់ៗនៃកោសិកា\n- **ភ្នាសកោសិកា (Cell Membrane):** គ្រប់គ្រងការចេញចូលនៃសារធាតុចិញ្ចឹម និងកាកសំណល់។\n- **ស៊ីតូប្លាស (Cytoplasm):** វត្ថុរាវក្នុងកោសិកាដែលជាកន្លែងប្រតិកម្មជីវគីមីប្រព្រឹត្តទៅ។\n- **ណ្វៃយ៉ូ (Nucleus):** មជ្ឈមណ្ឌលបញ្ជាដែលមានផ្ទុកក្រូម៉ូសូម និង DNA តំណពូជ។\n- **មីតូកុងឌ្រី (Mitochondria):** រោងចក្រផលិតថាមពល (ATP) សម្រាប់កោសិកាតាមរយៈការដកដង្ហើមកោសិកា។\n- **រីបូសូម (Ribosomes):** រោងចក្រសំយោគប្រូតេអ៊ីន។\n\n---\n\n### ២. ភាពខុសគ្នារវាងកោសិការុក្ខជាតិ និងសត្វ\n| លក្ខណៈ | កោសិការុក្ខជាតិ | កោសិកាសត្វ |\n| :--- | :--- | :--- |\n| **ជញ្ជាំងកោសិកា (Cell Wall)** | មាន (រឹងមាំ) | គ្មាន |\n| **ក្លរ៉ូប្លាស (Chloroplast)** | មាន (ធ្វើរស្មីសំយោគ) | គ្មាន |\n| **វ៉ាគុយអូល (Vacuole)** | ធំតែមួយនៅកណ្តាល | តូចៗជាច្រើន |',
+     'EASY', 25, 'c0000000-0000-0000-0000-000000000007',
+     'តើកោសិកាដើរតួនាទីយ៉ាងសំខាន់ដូចម្តេចក្នុងការទ្រទ្រង់ដំណើរការជីវិតរបស់ភាវៈរស់?',
+     now() - interval '1 days', now()),
+
+    -- 12. Biology - Genetics & DNA
+    ('1e550000-0000-0000-0000-000000000014',
+     'ពន្ធុវិទ្យា និងក្រមពន្ធុ DNA (Genetics & DNA Structure)',
+     E'# ពន្ធុវិទ្យា និងក្រមពន្ធុ DNA (Genetics & DNA Replication)\n\nពន្ធុវិទ្យាគឺជាការសិក្សាអំពីការចម្លងលក្ខណៈ និងបំរែបំរួលតំណពូជពីជំនាន់មួយទៅជំនាន់មួយទៀត។\n\n---\n\n### ១. រចនាសម្ព័ន្ធម៉ូលេគុល DNA\nDNA (Deoxyribonucleic Acid) មានរាងជាជណ្តើរ xo ពីរជាន់ (Double Helix) ដែលបង្កឡើងពី **នុយក្លេអូទីត (Nucleotides)**៖\n- **ស្ករដេអុកស៊ីរីបូស + ក្រុមផូស្វាត**\n- **បាសអាសូតចំនួន ៤ ប្រភេទ៖**\n  - $A$ (Adenine) ភ្ជាប់ជាមួយ $T$ (Thymine) ដោយសម្ព័ន្ធអ៊ីដ្រូសែន ២\n  - $G$ (Guanine) ភ្ជាប់ជាមួយ $C$ (Cytosine) ដោយសម្ព័ន្ធអ៊ីដ្រូសែន ៣\n\n---\n\n### ២. ច្បាប់តំណពូជរបស់លោក ម៉ង់ដែល (Mendel''s Laws)\n- **ច្បាប់ឯកសណ្ឋាននៃកូនកាត់ជំនាន់ទី១ ($F_1$):** អាឡែលលេច (Dominant) លុបលើអាឡែលអន់ (Recessive)។\n- **ច្បាប់បំណែងចែកអាឡែល:** ក្នុងដំណើរការកកើតហ្គាម៉ែត អាឡែលនីមួយៗបំបែកចេញពីគ្នា។',
+     'MEDIUM', 30, 'c0000000-0000-0000-0000-000000000007',
+     'ហេតុអ្វីបានជាការយល់ដឹងអំពីរចនាសម្ព័ន្ធ DNA មានសារៈសំខាន់សម្រាប់ការស្រាវជ្រាវវេជ្ជសាស្ត្រ និងកសិកម្ម?',
+     now() - interval '1 days', now())
+ON CONFLICT (id) DO NOTHING;
+
 
 
 -- ── 10. EXERCISES ───────────────────────────────────────────────────────────
 INSERT INTO "exercises" (id, lesson_id, question, answer_key, difficulty, points, created_at, updated_at) VALUES
+    -- Exercises for Lesson 1 (Math - Derivatives)
     ('ee000000-0000-0000-0000-000000000001', '1e550000-0000-0000-0000-000000000001',
-     'What is the derivative of f(x) = 3x^4 - 5x^2 + 7?', '12x^3 - 10x', 'EASY', 5, now() - interval '10 days', now() - interval '10 days'),
+     'គណនាដេរីវេនៃអនុគមន៍ f(x) = 3x^4 - 5x^2 + 7',
+     '12x^3 - 10x', 'EASY', 5, now(), now()),
     ('ee000000-0000-0000-0000-000000000002', '1e550000-0000-0000-0000-000000000001',
-     'Find the slope of the tangent line to y = x^2 at the point x = 3.', '6', 'EASY', 5, now() - interval '10 days', now() - interval '10 days'),
+     'រកមេគុណប្រាប់ទិសនៃបន្ទាត់ប៉ះនឹងក្រាប y = x^2 ត្រង់ចំណុច x = 3',
+     '6', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000021', '1e550000-0000-0000-0000-000000000001',
+     'តើដេរីវេនៃចំនួនថេរ c (Constant) ស្មើនឹងប៉ុន្មាន?',
+     '0', 'EASY', 5, now(), now()),
 
+    -- Exercises for Lesson 2 (Math - Integrals)
     ('ee000000-0000-0000-0000-000000000003', '1e550000-0000-0000-0000-000000000002',
-     'Calculate the definite integral of 2x dx from x = 0 to x = 4.', '16', 'MEDIUM', 10, now() - interval '9 days', now() - interval '9 days'),
+     'គណនាអាំងតេក្រាលកំណត់ ∫ ពី 0 ទៅ 4 នៃ 2x dx',
+     '16', 'MEDIUM', 8, now(), now()),
     ('ee000000-0000-0000-0000-000000000004', '1e550000-0000-0000-0000-000000000002',
-     'What is the integral of e^(2x) dx from 0 to 1? (Exact value: (e^2 - 1)/2)', '(e^2-1)/2', 'MEDIUM', 10, now() - interval '9 days', now() - interval '9 days'),
+     'គណនាអាំងតេក្រាលកំណត់ ∫ ពី 0 ទៅ 2 នៃ 3x^2 dx',
+     '8', 'MEDIUM', 8, now(), now()),
+    ('ee000000-0000-0000-0000-000000000022', '1e550000-0000-0000-0000-000000000002',
+     'តើព្រីមីទីវនៃអនុគមន៍ f(x) = cos(x) គឺជាអ្វី?',
+     'sin(x) + C', 'EASY', 5, now(), now()),
 
+    -- Exercises for Lesson 3 (STEM - Programming)
     ('ee000000-0000-0000-0000-000000000005', '1e550000-0000-0000-0000-000000000003',
-     'Which Flutter widget is immutable and rebuilds when its parent configures new properties?', 'StatelessWidget', 'EASY', 5, now() - interval '8 days', now() - interval '8 days'),
+     'នៅក្នុងការសរសេរកូដ តើរចនាសម្ព័ន្ធណាដែលប្រើដើម្បីអនុវត្តកូដដដែលៗរហូតដល់លក្ខខណ្ឌឈប់?',
+     'Loops (រង្វិលជុំ ដូចជា for ឬ while)', 'EASY', 5, now(), now()),
     ('ee000000-0000-0000-0000-000000000006', '1e550000-0000-0000-0000-000000000003',
-     'What method in State<T> is triggered when you need the UI to repaint after a value change?', 'setState', 'EASY', 5, now() - interval '8 days', now() - interval '8 days'),
+     'តើអ្វីជាសំណុំនៃជំហានច្បាស់លាស់សម្រាប់ដោះស្រាយបញ្ហា ឬដំណើរការកិច្ចការមួយក្នុងកុំព្យូទ័រ?',
+     'Algorithm (ក្បួនដោះស្រាយ)', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000023', '1e550000-0000-0000-0000-000000000003',
+     'តើប្រភេទតម្លៃ (Data Type) ណាដែលប្រើសម្រាប់រក្សាទុកតម្លៃពិត ឬមិនពិត (True / False)?',
+     'Boolean (bool)', 'EASY', 5, now(), now()),
 
+    -- Exercises for Lesson 4 (STEM - Systems & Networks)
+    ('ee000000-0000-0000-0000-000000000024', '1e550000-0000-0000-0000-000000000004',
+     'តើផ្នែករឹងកុំព្យូទ័រណាដែលត្រូវបានគេប្រៀបធៀបទៅនឹងខួរក្បាលរបស់កុំព្យូទ័រក្នុងការគណនា?',
+     'CPU (Central Processing Unit)', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000025', '1e550000-0000-0000-0000-000000000004',
+     'តើប្រព័ន្ធដែលបំប្លែងឈ្មោះគេហទំព័រ (Domain Name) ទៅជាលេខ IP Address ហៅថាអ្វី?',
+     'DNS (Domain Name System)', 'MEDIUM', 8, now(), now()),
+    ('ee000000-0000-0000-0000-000000000026', '1e550000-0000-0000-0000-000000000004',
+     'តើអង្គចងចាំប្រភេទណាដែលបាត់បង់ទិន្នន័យនៅពេលបិទភ្លើង ឬបិទកុំព្យូទ័រ?',
+     'RAM (Random Access Memory)', 'EASY', 5, now(), now()),
+
+    -- Exercises for Lesson 5 (Physics - Newton's Laws)
+    ('ee000000-0000-0000-0000-000000000027', '1e550000-0000-0000-0000-000000000005',
+     'សរសេរបង្ហាញពីរូបមន្តច្បាប់ទី២ របស់ញូតុនដែលទាក់ទងរវាងកម្លាំង (F), ម៉ាស (m) និងសំទុះ (a)',
+     'F = m * a', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000028', '1e550000-0000-0000-0000-000000000005',
+     'បើកម្លាំង 20N មានអំពើលើវត្ថុដែលមានម៉ាស 4kg តើសំទុះរបស់វត្ថុនោះស្មើនឹងប៉ុន្មាន m/s^2?',
+     '5 m/s^2', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000029', '1e550000-0000-0000-0000-000000000005',
+     'តើច្បាប់ទី១ របស់ញូតុនមានឈ្មោះហៅក្រៅថាជាច្បាប់អ្វី?',
+     'ច្បាប់និចលភាព (Law of Inertia)', 'EASY', 5, now(), now()),
+
+    -- Exercises for Lesson 6 (Khmer Literature)
+    ('ee000000-0000-0000-0000-000000000030', '1e550000-0000-0000-0000-000000000006',
+     'នៅក្នុងបទពាក្យ៧ តើព្យាង្គទី៧ នៃឃ្លាទី១ ត្រូវចួននឹងព្យាង្គទីប៉ុន្មាននៃឃ្លាទី២?',
+     'ព្យាង្គទី៤', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000031', '1e550000-0000-0000-0000-000000000006',
+     'តើក្នុងមួយល្បះនៃបទកាកគតិ មានចំនួនសរុបប៉ុន្មានព្យាង្គ?',
+     '២៨ ព្យាង្គ (៧ ឃ្លា ក្នុងមួយឃ្លាមាន ៤ ព្យាង្គ)', 'EASY', 5, now(), now()),
+
+    -- Exercises for Lesson 7 (English)
     ('ee000000-0000-0000-0000-000000000007', '1e550000-0000-0000-0000-000000000007',
-     'Complete the Second Conditional: "If I _____ (have) more time, I would learn Flutter."', 'had', 'EASY', 5, now() - interval '4 days', now() - interval '4 days'),
+     'បំពេញចន្លោះ Second Conditional: "If I _____ (have) more time, I would learn Flutter."',
+     'had', 'EASY', 5, now(), now()),
     ('ee000000-0000-0000-0000-000000000008', '1e550000-0000-0000-0000-000000000007',
-     'Complete the Third Conditional: "If they had studied harder, they _____ (pass) the exam."', 'would have passed', 'EASY', 5, now() - interval '4 days', now() - interval '4 days')
-ON CONFLICT (id) DO UPDATE
-SET question = EXCLUDED.question,
-    answer_key = EXCLUDED.answer_key,
-    difficulty = EXCLUDED.difficulty,
-    points = EXCLUDED.points,
-    updated_at = now();
+     'បំពេញចន្លោះ Third Conditional: "If they had studied harder, they _____ (pass) the exam."',
+     'would have passed', 'EASY', 5, now(), now()),
+
+    -- Exercises for Lesson 8 (Chemistry - Periodic Table & Bonding)
+    ('ee000000-0000-0000-0000-000000000032', '1e550000-0000-0000-0000-000000000008',
+     'តើសម្ព័ន្ធប្រភេទណាដែលកើតឡើងពីការចែករំលែកអេឡិចត្រុងរួមគ្នារវាងអាតូមពីរ?',
+     'សម្ព័ន្ធកូវ៉ាឡង់ (Covalent Bond)', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000033', '1e550000-0000-0000-0000-000000000008',
+     'តើធាតុដែលមានលេខអាតូម Z=1 ក្នុងតារាងខួបជាធាតុអ្វី?',
+     'អ៊ីដ្រូសែន (Hydrogen - H)', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000034', '1e550000-0000-0000-0000-000000000008',
+     'តើ NaCl (អំបិលសម្ល) កើតឡើងពីសម្ព័ន្ធគីមីប្រភេទណា?',
+     'សម្ព័ន្ធអ៊ីយ៉ុង (Ionic Bond)', 'EASY', 5, now(), now()),
+
+    -- Exercises for Lesson 9 (Physics - Electricity)
+    ('ee000000-0000-0000-0000-000000000035', '1e550000-0000-0000-0000-000000000011',
+     'សរសេររូបមន្តច្បាប់អូម (Ohm''s Law) ដែលបង្ហាញពីទំនាក់ទំនងរវាងតង់ស្យុង (U), ចរន្ត (I) និងរេស៊ីស្តង់ (R)',
+     'U = I * R', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000036', '1e550000-0000-0000-0000-000000000011',
+     'បើតង់ស្យុង U = 12V និងរេស៊ីស្តង់ R = 4 Ohm តើអាំងតង់ស៊ីតេចរន្ត I ស្មើនឹងប៉ុន្មាន Ampere?',
+     '3 A', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000037', '1e550000-0000-0000-0000-000000000011',
+     'តើឯកតាអន្តរជាតិនៃអានុភាពអគ្គិសនី (Electrical Power) គឺជាអ្វី?',
+     'វ៉ាត់ (Watt - W)', 'EASY', 5, now(), now()),
+
+    -- Exercises for Lesson 10 (Chemistry - Equilibrium & Kinetics)
+    ('ee000000-0000-0000-0000-000000000038', '1e550000-0000-0000-0000-000000000012',
+     'តើការបន្ថែមសារធាតុកាតាលីករ (Catalyst) ជួយអ្វីខ្លះដល់ប្រតិកម្មគីមី?',
+     'បង្កើនល្បឿនប្រតិកម្មដោយបន្ថយថាមពលសកម្មកម្ម (Activation Energy)', 'MEDIUM', 8, now(), now()),
+    ('ee000000-0000-0000-0000-000000000039', '1e550000-0000-0000-0000-000000000012',
+     'យោងតាមគោលការណ៍ឡឺសាតឺលីយេ បើបង្កើនកំហាប់អង្គធាតុកកើត តើសមតុល្យនឹងរំកិលទៅទិសណា?',
+     'រំកិលទៅទិសខាងឆ្វេង (បង្កើតអង្គធាតុប្រតិករ)', 'HARD', 10, now(), now()),
+
+    -- Exercises for Lesson 11 (Biology - Cell Biology)
+    ('ee000000-0000-0000-0000-000000000040', '1e550000-0000-0000-0000-000000000013',
+     'តើអង្គធាតុណាខ្លះជាមជ្ឈមណ្ឌលផលិតថាមពល (Powerhouse) របស់កោសិកា?',
+     'មីតូកុងឌ្រី (Mitochondria)', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000041', '1e550000-0000-0000-0000-000000000013',
+     'ចូរប្រាប់លក្ខណៈពិសេសមួយដែលកោសិការុក្ខជាតិមាន ប៉ុន្តែកោសិកាសត្វគ្មាន',
+     'ជញ្ជាំងកោសិកា (Cell Wall) និង ក្លរ៉ូប្លាស (Chloroplast)', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000042', '1e550000-0000-0000-0000-000000000013',
+     'តើ organelles ណាដែលមាននាទីស្តុកទុកព័ត៌មានពន្ធុវិទ្យា (DNA)?',
+     'ណ្វៃយ៉ូ (Nucleus)', 'EASY', 5, now(), now()),
+
+    -- Exercises for Lesson 12 (Biology - Genetics & DNA)
+    ('ee000000-0000-0000-0000-000000000043', '1e550000-0000-0000-0000-000000000014',
+     'នៅក្នុងម៉ូលេគុល DNA តើបាសអាសូត A (Adenine) តែងតែភ្ជាប់ជាមួយបាសអាសូតមួយណា?',
+     'បាស T (Thymine)', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000044', '1e550000-0000-0000-0000-000000000014',
+     'តើអ្នកវិទ្យាសាស្ត្រណាដែលត្រូវបានចាត់ទុកថាជាបិតានៃពន្ធុវិទ្យាទំនើប?',
+     'Gregor Mendel (ហ្គ្រេហ្គ័រ ម៉ង់ដែល)', 'EASY', 5, now(), now()),
+    ('ee000000-0000-0000-0000-000000000045', '1e550000-0000-0000-0000-000000000014',
+     'តើម៉ូលេគុល DNA មានរចនាសម្ព័ន្ធទម្រង់ជារូបរាងអ្វី?',
+     'រាងជណ្តើរ xo ពីរជាន់ (Double Helix)', 'EASY', 5, now(), now())
+ON CONFLICT (id) DO NOTHING;
 
 
 -- ── 11. LESSON COMPLETIONS (DEMO USER) ──────────────────────────────────────
@@ -363,35 +448,40 @@ ON CONFLICT (user_id, lesson_id) DO NOTHING;
 -- ── 12. XP TRANSACTIONS LEDGER (FOR DEMO USER) ──────────────────────────────
 INSERT INTO "xp_transactions" (id, user_id, amount, source_type, source_id, running_balance, created_at) VALUES
     ('da000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000011', 100, 'WELCOME_BONUS', NULL, 100, now() - interval '14 days'),
-    ('da000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000011',  50, 'ACHIEVEMENT_REWARD', 'bebf28a0-2f40-4657-bef8-148e3a659ceb', 150, now() - interval '13 days'),
+    ('da000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000011',  50, 'ACHIEVEMENT_REWARD', (SELECT id FROM "achievements" WHERE name = 'First Lesson'), 150, now() - interval '13 days'),
     ('da000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000011',  30, 'LESSON_COMPLETION', '1e550000-0000-0000-0000-000000000001', 180, now() - interval '7 days'),
-    ('da000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000011',  50, 'MAINTAIN_STREAK', '83fd22e0-1061-4218-afbc-54df35612995', 230, now() - interval '7 days'),
+    ('da000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000011',  50, 'MAINTAIN_STREAK', (SELECT id FROM "achievements" WHERE name = 'Week Warrior'), 230, now() - interval '7 days'),
     ('da000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000011',  50, 'LESSON_COMPLETION', '1e550000-0000-0000-0000-000000000002', 280, now() - interval '5 days'),
-    ('da000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000011', 150, 'REACH_RANK', '3c7e64af-5831-4408-9b97-c97a6320b2c4', 430, now() - interval '4 days'),
+    ('da000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000011', 150, 'REACH_RANK', (SELECT id FROM "achievements" WHERE name = 'Gold Tier'), 430, now() - interval '4 days'),
     ('da000000-0000-0000-0000-000000000007', 'a0000000-0000-0000-0000-000000000011',  35, 'LESSON_COMPLETION', '1e550000-0000-0000-0000-000000000003', 465, now() - interval '3 days'),
-    ('da000000-0000-0000-0000-000000000008', 'a0000000-0000-0000-0000-000000000011', 400, 'REACH_RANK', 'c6c641aa-1dc1-4c5d-8f01-bb48b55d6eb2', 865, now() - interval '2 days'),
-    ('da000000-0000-0000-0000-000000000009', 'a0000000-0000-0000-0000-000000000011', 100, 'MAINTAIN_STREAK', 'e12f3b19-abcb-40c9-9037-793159533207', 965, now() - interval '1 day'),
+    ('da000000-0000-0000-0000-000000000008', 'a0000000-0000-0000-0000-000000000011', 400, 'REACH_RANK', (SELECT id FROM "achievements" WHERE name = 'Platinum Tier'), 865, now() - interval '2 days'),
+    ('da000000-0000-0000-0000-000000000009', 'a0000000-0000-0000-0000-000000000011', 100, 'MAINTAIN_STREAK', (SELECT id FROM "achievements" WHERE name = 'Fortnight Fighter'), 965, now() - interval '1 day'),
     ('da000000-0000-0000-0000-000000000010', 'a0000000-0000-0000-0000-000000000011', 555, 'DAILY_PRACTICE_STREAK', NULL, 1520, now() - interval '30 minutes')
 ON CONFLICT (id) DO NOTHING;
 
 
 -- ── 13. USER ACHIEVEMENTS ───────────────────────────────────────────────────
-INSERT INTO "user_achievements" (user_id, achievement_id, unlocked_at) VALUES
+WITH earned_achievements (user_id, achievement_name, unlocked_at) AS (VALUES
     -- Demo User achievements
-    ('a0000000-0000-0000-0000-000000000011', 'bebf28a0-2f40-4657-bef8-148e3a659ceb', now() - interval '13 days'), -- First Lesson
-    ('a0000000-0000-0000-0000-000000000011', 'fb16b4fc-64cd-44d7-8fb6-8de5ef7ec91d', now() - interval '11 days'), -- First Steps (3-day streak)
-    ('a0000000-0000-0000-0000-000000000011', '83fd22e0-1061-4218-afbc-54df35612995', now() - interval '7 days'),  -- Week Warrior (7-day streak)
-    ('a0000000-0000-0000-0000-000000000011', '2154c7ca-c3b7-4d26-b841-8e9020c2b4e2', now() - interval '6 days'),  -- Silver Tier
-    ('a0000000-0000-0000-0000-000000000011', '3c7e64af-5831-4408-9b97-c97a6320b2c4', now() - interval '4 days'),  -- Gold Tier
-    ('a0000000-0000-0000-0000-000000000011', 'c6c641aa-1dc1-4c5d-8f01-bb48b55d6eb2', now() - interval '2 days'),  -- Platinum Tier
-    ('a0000000-0000-0000-0000-000000000011', 'e12f3b19-abcb-40c9-9037-793159533207', now() - interval '1 day'),   -- Fortnight Fighter (14-day streak)
-    ('a0000000-0000-0000-0000-000000000011', 'd77bc77e-7fa2-4c90-ae03-614047ff408d', now() - interval '1 day'),   -- XP Hunter (1000 XP)
+    ('a0000000-0000-0000-0000-000000000011', 'First Lesson', now() - interval '13 days'),
+    ('a0000000-0000-0000-0000-000000000011', 'First Steps', now() - interval '11 days'),
+    ('a0000000-0000-0000-0000-000000000011', 'Week Warrior', now() - interval '7 days'),
+    ('a0000000-0000-0000-0000-000000000011', 'Silver Tier', now() - interval '6 days'),
+    ('a0000000-0000-0000-0000-000000000011', 'Gold Tier', now() - interval '4 days'),
+    ('a0000000-0000-0000-0000-000000000011', 'Platinum Tier', now() - interval '2 days'),
+    ('a0000000-0000-0000-0000-000000000011', 'Fortnight Fighter', now() - interval '1 day'),
+    ('a0000000-0000-0000-0000-000000000011', 'XP Hunter', now() - interval '1 day'),
 
     -- Top User Sokha achievements
-    ('a0000000-0000-0000-0000-000000000001', 'bebf28a0-2f40-4657-bef8-148e3a659ceb', now() - interval '40 days'),
-    ('a0000000-0000-0000-0000-000000000001', '29e24858-c8cc-4517-9b95-c1fbb34850aa', now() - interval '12 days'), -- Monthly Master
-    ('a0000000-0000-0000-0000-000000000001', '70ed5869-0560-43fa-a9b5-961bad74e6c4', now() - interval '5 days'),  -- XP Master (5000 XP)
-    ('a0000000-0000-0000-0000-000000000001', 'd234cc10-3976-427d-a2bf-3d216538d87c', now() - interval '2 days')   -- Legend Tier
+    ('a0000000-0000-0000-0000-000000000001', 'First Lesson', now() - interval '40 days'),
+    ('a0000000-0000-0000-0000-000000000001', 'Monthly Master', now() - interval '12 days'),
+    ('a0000000-0000-0000-0000-000000000001', 'XP Master', now() - interval '5 days'),
+    ('a0000000-0000-0000-0000-000000000001', 'Legend Tier', now() - interval '2 days')
+)
+INSERT INTO "user_achievements" (user_id, achievement_id, unlocked_at)
+SELECT earned.user_id::uuid, achievement.id, earned.unlocked_at
+FROM earned_achievements earned
+JOIN "achievements" achievement ON achievement.name = earned.achievement_name
 ON CONFLICT (user_id, achievement_id) DO NOTHING;
 
 
@@ -407,8 +497,6 @@ ON CONFLICT (id) DO NOTHING;
 
 -- ── 15. LEADERBOARD SNAPSHOTS (POSTGRESQL SOURCE) ───────────────────────────
 -- Populate country and province snapshots for CURRENT_DATE
-DELETE FROM "leaderboard_snapshots" WHERE snapshot_date = CURRENT_DATE;
-
 -- Insert COUNTRY scope snapshot
 INSERT INTO "leaderboard_snapshots" (id, user_id, scope, scope_id, rank, score, ranking_tier, snapshot_date, created_at)
 SELECT
@@ -428,7 +516,8 @@ JOIN LATERAL (
     WHERE min_xp <= ug.total_xp
     ORDER BY min_xp DESC
     LIMIT 1
-) rt ON TRUE;
+) rt ON TRUE
+ON CONFLICT (user_id, scope, scope_id, snapshot_date) DO NOTHING;
 
 -- Insert PROVINCE scope snapshot
 INSERT INTO "leaderboard_snapshots" (id, user_id, scope, scope_id, rank, score, ranking_tier, snapshot_date, created_at)
@@ -451,4 +540,5 @@ JOIN LATERAL (
     ORDER BY min_xp DESC
     LIMIT 1
 ) rt ON TRUE
-WHERE u.province_id IS NOT NULL;
+WHERE u.province_id IS NOT NULL
+ON CONFLICT (user_id, scope, scope_id, snapshot_date) DO NOTHING;

@@ -6,6 +6,7 @@ import java.util.UUID;
 public record CommentModerationResponse(
         UUID id,
         String content,
+        String mediaUrl,
         UUID postId,
         UUID authorId,
         String status,

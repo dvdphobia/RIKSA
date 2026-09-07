@@ -18,10 +18,25 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final ContentFilterService contentFilterService;
+    private final MediaUrlValidator mediaUrlValidator;
 
+    /**
+     * A comment may be text, an image, or both — but not neither.
+     *
+     * <p>The STEM filter only runs when text is present: an image-only comment
+     * has nothing to keyword-match against. Such comments still have to live
+     * under a post whose title and body already passed the filter.
+     */
     @Transactional
-    public Comment createComment(UUID authorId, UUID postId, String content, UUID parentId) {
-        contentFilterService.validate(content);
+    public Comment createComment(UUID authorId, UUID postId, String content, String mediaUrl, UUID parentId) {
+        String normalizedMediaUrl = mediaUrlValidator.normalize(mediaUrl);
+        String normalizedContent = blankToNull(content);
+
+        requirePresent(normalizedContent, normalizedMediaUrl);
+
+        if (normalizedContent != null) {
+            contentFilterService.validate(normalizedContent);
+        }
 
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
@@ -32,7 +47,8 @@ public class CommentService {
         Comment comment = new Comment();
         comment.setAuthorId(authorId);
         comment.setPostId(postId);
-        comment.setContent(content);
+        comment.setContent(normalizedContent);
+        comment.setMediaUrl(normalizedMediaUrl);
         comment.setParentId(parentId);
 
         Comment saved = commentRepository.save(comment);
@@ -43,16 +59,35 @@ public class CommentService {
         return saved;
     }
 
+    /**
+     * {@code null} leaves a field unchanged; a blank string clears it. The
+     * resulting comment must still have text or an image.
+     */
     @Transactional
-    public Comment updateComment(UUID authorId, UUID commentId, String content) {
+    public Comment updateComment(UUID authorId, UUID commentId, String content, String mediaUrl) {
         Comment comment = getComment(commentId);
 
         if (!comment.getAuthorId().equals(authorId)) {
             throw new IllegalStateException("You can only edit your own comments");
         }
 
-        contentFilterService.validate(content);
-        comment.setContent(content);
+        String nextContent = comment.getContent();
+        if (content != null) {
+            nextContent = blankToNull(content);
+            if (nextContent != null) {
+                contentFilterService.validate(nextContent);
+            }
+        }
+
+        String nextMediaUrl = comment.getMediaUrl();
+        if (mediaUrl != null) {
+            nextMediaUrl = mediaUrlValidator.normalize(mediaUrl);
+        }
+
+        requirePresent(nextContent, nextMediaUrl);
+
+        comment.setContent(nextContent);
+        comment.setMediaUrl(nextMediaUrl);
         return commentRepository.save(comment);
     }
 
@@ -75,5 +110,18 @@ public class CommentService {
     public Comment getComment(UUID commentId) {
         return commentRepository.findById(commentId)
                 .orElseThrow(() -> new IllegalArgumentException("Comment not found: " + commentId));
+    }
+
+    private void requirePresent(String content, String mediaUrl) {
+        if (content == null && mediaUrl == null) {
+            throw new IllegalArgumentException("A comment must have text or an image");
+        }
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

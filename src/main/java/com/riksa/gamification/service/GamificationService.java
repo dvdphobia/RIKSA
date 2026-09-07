@@ -112,11 +112,8 @@ public class GamificationService {
                 .findFirstByMinXpLessThanEqualOrderByMinXpDesc(user.getTotalXp())
                 .orElse(null);
 
-        List<RankTier> allTiers = rankTierRepository.findAll();
-
-        RankTier nextTier = allTiers.stream()
-                .filter(t -> t.getMinXp() > user.getTotalXp())
-                .findFirst()
+        RankTier nextTier = rankTierRepository
+                .findFirstByMinXpGreaterThanOrderByMinXpAsc(user.getTotalXp())
                 .orElse(null);
 
         GamificationProfileResponse response = new GamificationProfileResponse();
@@ -126,7 +123,9 @@ public class GamificationService {
         response.setHighestStreak(user.getHighestStreak());
         response.setCurrentTier(currentTier != null ? currentTier.getTierName().name() : null);
         response.setCurrentTierIcon(currentTier != null ? currentTier.getIconUrl() : null);
+        response.setCurrentTierMinXp(currentTier != null ? currentTier.getMinXp() : 0);
         response.setNextTier(nextTier != null ? nextTier.getTierName().name() : null);
+        response.setNextTierMinXp(nextTier != null ? nextTier.getMinXp() : 0);
         response.setXpToNext(nextTier != null ? nextTier.getMinXp() - user.getTotalXp() : 0);
 
         return response;

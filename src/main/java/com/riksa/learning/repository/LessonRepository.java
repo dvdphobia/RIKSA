@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.UUID;
+import java.util.List;
 
 @Repository
 public interface LessonRepository extends JpaRepository<Lesson, UUID> {
@@ -60,4 +61,13 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
             UUID categoryId, DifficultyLevel difficulty, Pageable pageable);
 
     long countByCategoryId(UUID categoryId);
+
+    @Query("""
+        SELECT l FROM Lesson l
+        JOIN FETCH l.roadmapUnit ru
+        JOIN FETCH ru.category
+        WHERE ru.id IN :roadmapUnitIds
+        ORDER BY ru.position ASC, l.position ASC
+    """)
+    List<Lesson> findRoadmapLessons(@Param("roadmapUnitIds") List<UUID> roadmapUnitIds);
 }

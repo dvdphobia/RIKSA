@@ -14,4 +14,10 @@ public interface RankTierRepository extends JpaRepository<RankTier, java.util.UU
      * Returns the tier with the largest minXp that is <= the given XP total.
      */
     Optional<RankTier> findFirstByMinXpLessThanEqualOrderByMinXpDesc(long minXp);
+
+    /**
+     * Find the next tier above the given XP total: the smallest minXp still out of reach.
+     * Ordering is explicit because {@code findAll()} makes no guarantee about row order.
+     */
+    Optional<RankTier> findFirstByMinXpGreaterThanOrderByMinXpAsc(long minXp);
 }

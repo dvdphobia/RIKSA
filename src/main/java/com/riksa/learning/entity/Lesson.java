@@ -41,6 +41,16 @@ public class Lesson {
     @JoinColumn(name = "category_id")
     private Category category;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "roadmap_unit_id")
+    private RoadmapUnit roadmapUnit;
+
+    @Column(name = "position")
+    private Integer position;
+
+    @Column(name = "estimated_minutes", nullable = false)
+    private int estimatedMinutes = 8;
+
     @Column(name = "reflection_prompt", columnDefinition = "TEXT")
     private String reflectionPrompt;
 

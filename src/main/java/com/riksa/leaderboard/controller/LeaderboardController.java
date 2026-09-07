@@ -1,5 +1,7 @@
 package com.riksa.leaderboard.controller;
 
+import com.riksa.auth.entity.User;
+import com.riksa.auth.repository.UserRepository;
 import com.riksa.common.constants.LeaderboardEndpoints;
 import com.riksa.common.enums.ScopeType;
 import com.riksa.leaderboard.dto.LeaderboardMapper;
@@ -16,8 +18,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(LeaderboardEndpoints.BASE)
@@ -25,6 +30,7 @@ import java.util.UUID;
 public class LeaderboardController {
 
     private final LeaderboardQueryService leaderboardQueryService;
+    private final UserRepository userRepository;
 
     @GetMapping(LeaderboardEndpoints.ROOT)
     public ResponseEntity<List<LeaderboardRowResponse>> getLeaderboard(
@@ -33,12 +39,23 @@ public class LeaderboardController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
         LocalDate queryDate = date != null ? date : LocalDate.now();
-        var result = leaderboardQueryService.getLeaderboard(scope, scopeId, queryDate);
+        List<LeaderboardSnapshot> snapshots =
+                leaderboardQueryService.getLeaderboard(scope, scopeId, queryDate);
 
-        return ResponseEntity.ok(result.stream()
-                .map(LeaderboardMapper::toRow)
+        // Batch-load user profiles once so rows carry displayName/avatarUrl.
+        Map<UUID, User> usersById = userRepository.findAllById(
+                        snapshots.stream()
+                                .map(LeaderboardSnapshot::getUserId)
+                                .toList())
+                .stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+
+        return ResponseEntity.ok(snapshots.stream()
+                .map(snapshot -> LeaderboardMapper.toRow(
+                        snapshot, usersById.get(snapshot.getUserId())))
                 .toList());
     }
+
     @GetMapping(LeaderboardEndpoints.ME)
     public ResponseEntity<MyRankResponse> getMyRank(
             @RequestParam(required = false) String scopeId) {

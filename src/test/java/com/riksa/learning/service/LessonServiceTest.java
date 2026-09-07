@@ -30,6 +30,7 @@ class LessonServiceTest {
     @Mock LessonRepository lessonRepository;
     @Mock ExerciseRepository exerciseRepository;
     @Mock LessonCompletionRepository completionRepository;
+    @Mock com.riksa.learning.repository.ExerciseAttemptRepository attemptRepository;
 
     @Test
     void listLessonsPopulatesExerciseCountAndCompletionInBatches() {
@@ -45,7 +46,7 @@ class LessonServiceTest {
         when(completionRepository.findByUserIdAndLessonIdIn(userId, List.of(lessonId)))
                 .thenReturn(List.of(completion));
 
-        var result = new LessonService(lessonRepository, exerciseRepository, completionRepository)
+        var result = new LessonService(lessonRepository, exerciseRepository, completionRepository, attemptRepository)
                 .listLessons(userId, null, DifficultyLevel.EASY, 0, 20);
 
         assertThat(result.getContent().getFirst().getExerciseCount()).isEqualTo(3);
@@ -60,11 +61,12 @@ class LessonServiceTest {
         Exercise exercise = new Exercise(); exercise.setId(UUID.randomUUID()); exercise.setQuestion("Q");
         when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(lesson));
         when(exerciseRepository.findByLessonId(lessonId)).thenReturn(List.of(exercise));
-        LessonService service = new LessonService(lessonRepository, exerciseRepository, completionRepository);
-        assertThat(service.getLesson(lessonId).getExercises()).hasSize(1);
+        when(attemptRepository.findByUserIdAndExerciseIdIn(any(), anyList())).thenReturn(List.of());
+        LessonService service = new LessonService(lessonRepository, exerciseRepository, completionRepository, attemptRepository);
+        assertThat(service.getLesson(UUID.randomUUID(), lessonId).getExercises()).hasSize(1);
 
         UUID missing = UUID.randomUUID();
         when(lessonRepository.findById(missing)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.getLesson(missing)).isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> service.getLesson(UUID.randomUUID(), missing)).isInstanceOf(ResourceNotFoundException.class);
     }
 }

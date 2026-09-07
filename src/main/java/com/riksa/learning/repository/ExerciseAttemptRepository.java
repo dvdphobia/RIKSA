@@ -20,6 +20,17 @@ public interface ExerciseAttemptRepository extends JpaRepository<ExerciseAttempt
     long countByUserIdAndCorrectTrue(UUID userId);
 
     @Query("""
+        SELECT e.lesson.id AS lessonId, COUNT(ea) AS correctCount
+        FROM ExerciseAttempt ea
+        JOIN Exercise e ON ea.exerciseId = e.id
+        WHERE ea.userId = :userId AND ea.correct = true AND e.lesson.id IN :lessonIds
+        GROUP BY e.lesson.id
+    """)
+    List<LessonCorrectCount> countCorrectByUserIdAndLessonIds(
+            @Param("userId") UUID userId,
+            @Param("lessonIds") List<UUID> lessonIds);
+
+    @Query("""
         SELECT ea.exerciseId AS exerciseId,
                COUNT(ea) AS attempts,
                SUM(CASE WHEN ea.correct = true THEN 1 ELSE 0 END) AS correctCount
@@ -32,6 +43,11 @@ public interface ExerciseAttemptRepository extends JpaRepository<ExerciseAttempt
     interface ExerciseAttemptStats {
         UUID getExerciseId();
         long getAttempts();
+        long getCorrectCount();
+    }
+
+    interface LessonCorrectCount {
+        UUID getLessonId();
         long getCorrectCount();
     }
 }

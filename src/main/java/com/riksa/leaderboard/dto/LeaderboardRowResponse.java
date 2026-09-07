@@ -4,13 +4,16 @@ import com.riksa.common.enums.ScopeType;
 import com.riksa.common.enums.TierType;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 public record LeaderboardRowResponse (
     int rank,
-    java.util.UUID userId,
+    UUID userId,
     int score,
     ScopeType scope,
     String scopeId,
     TierType rankingTier,
-    LocalDate snapshoDate
+    LocalDate snapshotDate,
+    String displayName,
+    String avatarUrl
 ){}

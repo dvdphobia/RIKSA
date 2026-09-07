@@ -141,7 +141,7 @@ public class SocialModerationService {
 
     private CommentModerationResponse toCommentResponse(Comment comment) {
         return new CommentModerationResponse(
-                comment.getId(), comment.getContent(), comment.getPostId(), comment.getAuthorId(),
+                comment.getId(), comment.getContent(), comment.getMediaUrl(), comment.getPostId(), comment.getAuthorId(),
                 comment.getStatus().name(), comment.getHiddenReason(), comment.getHiddenBy(),
                 comment.getHiddenAt(), comment.getCreatedAt());
     }
