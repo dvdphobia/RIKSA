@@ -1,5 +1,6 @@
 export type Role = "USER" | "MODERATOR" | "ADMIN";
 export type DifficultyLevel = "EASY" | "MEDIUM" | "HARD" | "DIFFICULT";
+export type ExerciseType = "TEXT" | "MULTIPLE_CHOICE" | "TRUE_FALSE";
 export type ContentStatus = "VISIBLE" | "HIDDEN";
 export type BlogStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type ReportStatus = "OPEN" | "RESOLVED" | "DISMISSED";
@@ -60,8 +61,13 @@ export interface AdminUser {
 export interface Exercise {
   id: string;
   question: string;
+  answerKey: string;
   difficulty: DifficultyLevel;
   points: number;
+  type: ExerciseType;
+  options: string[];
+  hint: string | null;
+  explanation: string | null;
 }
 
 export interface Lesson {
@@ -70,6 +76,7 @@ export interface Lesson {
   description: string | null;
   difficulty: DifficultyLevel;
   baseXp: number;
+  position: number;
   categoryId: string | null;
   reflectionPrompt: string | null;
   exercises: Exercise[];

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
 import { apiFetch } from "../../lib/api";
-import type { Category, DifficultyLevel } from "../../lib/types";
+import type { Category, DifficultyLevel, ExerciseType } from "../../lib/types";
 import { StatusBadge } from "../../components/shared";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -37,6 +37,10 @@ interface ExerciseForm {
   answerKey: string;
   difficulty: DifficultyLevel;
   points: number;
+  type: ExerciseType;
+  optionsText: string;
+  hint?: string;
+  explanation?: string;
 }
 
 interface LessonFormValues {
@@ -44,6 +48,7 @@ interface LessonFormValues {
   description?: string;
   difficulty: DifficultyLevel;
   baseXp: number;
+  position: number;
   categoryId?: string;
   reflectionPrompt?: string;
   exercises: ExerciseForm[];
@@ -54,6 +59,8 @@ const emptyExercise = (): ExerciseForm => ({
   answerKey: "",
   difficulty: "EASY",
   points: 5,
+  type: "MULTIPLE_CHOICE",
+  optionsText: "",
 });
 
 export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
@@ -88,6 +95,7 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
       title: "",
       difficulty: "EASY",
       baseXp: 10,
+      position: 1,
       exercises: [emptyExercise()],
     },
   });
@@ -107,6 +115,7 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
       description: values.description || null,
       difficulty: values.difficulty,
       baseXp: Number(values.baseXp) || 0,
+      position: Number(values.position) || 1,
       categoryId: values.categoryId || null,
       reflectionPrompt: values.reflectionPrompt || null,
     };
@@ -116,6 +125,12 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
         answerKey: e.answerKey,
         difficulty: e.difficulty,
         points: Number(e.points) || 5,
+        type: e.type,
+        options: e.type === "TRUE_FALSE"
+          ? ["True", "False"]
+          : e.optionsText.split("\n").map((option) => option.trim()).filter(Boolean),
+        hint: e.hint || null,
+        explanation: e.explanation || null,
       }));
     }
     onFinish(payload as unknown as LessonFormValues);
@@ -141,7 +156,7 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
               <p className="text-sm text-destructive">{errors.title.message}</p>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Difficulty *</Label>
               <Select
@@ -169,6 +184,10 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
                 min={0}
                 {...register("baseXp", { valueAsNumber: true })}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Position *</Label>
+              <Input type="number" min={1} {...register("position", { required: "Position is required" })} />
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
@@ -306,7 +325,24 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
                       {errors.exercises[index]?.answerKey?.message}
                     </p>
                   )}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <Select
+                      value={watch(`exercises.${index}.type`)}
+                      onValueChange={(v) => {
+                        const type = v as ExerciseType;
+                        setValue(`exercises.${index}.type`, type);
+                        if (type === "TRUE_FALSE") {
+                          setValue(`exercises.${index}.optionsText`, "True\nFalse");
+                        }
+                      }}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MULTIPLE_CHOICE">Multiple choice (QCM)</SelectItem>
+                        <SelectItem value="TRUE_FALSE">True / False</SelectItem>
+                        <SelectItem value="TEXT">Short text</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Select
                       value={watch(`exercises.${index}.difficulty`)}
                       onValueChange={(v) =>
@@ -336,6 +372,16 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
                       })}
                     />
                   </div>
+                  {watch(`exercises.${index}.type`) !== "TEXT" && (
+                    <Textarea
+                      rows={3}
+                      placeholder={watch(`exercises.${index}.type`) === "TRUE_FALSE" ? "True\nFalse" : "One option per line"}
+                      disabled={watch(`exercises.${index}.type`) === "TRUE_FALSE"}
+                      {...register(`exercises.${index}.optionsText`)}
+                    />
+                  )}
+                  <Input placeholder="Hint (optional)" {...register(`exercises.${index}.hint`)} />
+                  <Textarea rows={3} placeholder="Explanation shown after submission (optional)" {...register(`exercises.${index}.explanation`)} />
                 </div>
               ))}
               <Button
