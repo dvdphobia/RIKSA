@@ -23,6 +23,7 @@ import java.util.UUID;
  * title: Introduction to Variables
  * difficulty: EASY
  * baseXp: 10
+ * position: 1
  * categoryId: 550e8400-e29b-41d4-a716-446655440000
  * reflectionPrompt: What surprised you?
  * exercises:
@@ -30,6 +31,10 @@ import java.util.UUID;
  *     answerKey: A named storage location
  *     difficulty: EASY
  *     points: 5
+ *     type: MULTIPLE_CHOICE
+ *     options: [A, B, C]
+ *     hint: Think about storage.
+ *     explanation: Variables keep values for later use.
  * ---
  *
  * Lesson body in markdown becomes the description.
@@ -71,6 +76,7 @@ public class LessonMarkdownParser {
         req.setDescription(body.isEmpty() ? null : body);
         req.setDifficulty(parseDifficulty(meta.get("difficulty"), DifficultyLevel.EASY));
         req.setBaseXp(asInt(meta.get("baseXp"), 10));
+        req.setPosition(meta.containsKey("position") ? asInt(meta.get("position"), 1) : null);
         req.setCategoryId(parseCategoryId(meta.get("categoryId")));
         req.setReflectionPrompt(asString(meta.get("reflectionPrompt")));
         req.setExercises(parseExercises(meta.get("exercises")));
@@ -108,6 +114,10 @@ public class LessonMarkdownParser {
             ex.setAnswerKey(requireString(map, "answerKey", i));
             ex.setDifficulty(parseDifficulty(map.get("difficulty"), DifficultyLevel.EASY));
             ex.setPoints(asInt(map.get("points"), 5));
+            ex.setType(parseExerciseType(map.get("type")));
+            ex.setOptions(asStringList(map.get("options")));
+            ex.setHint(asString(map.get("hint")));
+            ex.setExplanation(asString(map.get("explanation")));
             exercises.add(ex);
         }
         return exercises;
@@ -122,6 +132,23 @@ public class LessonMarkdownParser {
             throw new IllegalArgumentException("Invalid difficulty '" + raw + "'. Expected one of: "
                     + Arrays.toString(DifficultyLevel.values()));
         }
+    }
+
+    private com.riksa.learning.entity.ExerciseType parseExerciseType(Object raw) {
+        if (raw == null) return com.riksa.learning.entity.ExerciseType.TEXT;
+        try {
+            return com.riksa.learning.entity.ExerciseType.valueOf(raw.toString().trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid exercise type '" + raw + "'");
+        }
+    }
+
+    private List<String> asStringList(Object raw) {
+        if (raw == null) return List.of();
+        if (!(raw instanceof List<?> values)) {
+            throw new IllegalArgumentException("Exercise options must be a YAML list");
+        }
+        return values.stream().map(this::asString).filter(java.util.Objects::nonNull).toList();
     }
 
     private UUID parseCategoryId(Object raw) {

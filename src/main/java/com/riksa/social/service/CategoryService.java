@@ -48,6 +48,7 @@ public class CategoryService {
     }
 
     public boolean isMember(UUID userId, UUID categoryId) {
+        if (userId == null) return false;
         return membershipRepository.existsByUserIdAndCategoryId(userId, categoryId);
     }
 

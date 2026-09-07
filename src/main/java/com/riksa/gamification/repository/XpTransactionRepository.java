@@ -11,10 +11,14 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface XpTransactionRepository extends JpaRepository<XpTransaction, UUID> {
+
+    Optional<XpTransaction> findByUserIdAndSourceTypeAndSourceId(
+            UUID userId, String sourceType, UUID sourceId);
 
     Page<XpTransaction> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 

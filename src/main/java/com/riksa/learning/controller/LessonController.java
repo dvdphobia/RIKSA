@@ -10,9 +10,11 @@ import com.riksa.learning.dto.ExerciseAttemptRequest;
 import com.riksa.learning.dto.LessonDetailResponse;
 import com.riksa.learning.dto.LessonListResponse;
 import com.riksa.learning.dto.LessonProgressResponse;
+import com.riksa.learning.dto.LessonRoadmapResponse;
 import com.riksa.learning.dto.RoadmapResponse;
 import com.riksa.learning.service.ExerciseAttemptService;
 import com.riksa.learning.service.LessonCompletionService;
+import com.riksa.learning.service.LessonRoadmapService;
 import com.riksa.learning.service.LessonService;
 import com.riksa.learning.service.RoadmapService;
 import jakarta.validation.Valid;
@@ -36,6 +38,7 @@ import java.util.UUID;
 public class LessonController {
 
     private final LessonService lessonService;
+    private final LessonRoadmapService lessonRoadmapService;
     private final ExerciseAttemptService exerciseAttemptService;
     private final LessonCompletionService lessonCompletionService;
     private final RoadmapService roadmapService;
@@ -43,7 +46,7 @@ public class LessonController {
 
     @GetMapping(LearningEndpoints.ROOT)
     public ResponseEntity<Page<LessonListResponse>> listLessons(
-            @RequestHeader("Authorization") String authHeader,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam(required = false) UUID categoryId,
             @RequestParam(required = false) DifficultyLevel difficulty,
             @RequestParam(defaultValue = "0") int page,
@@ -54,7 +57,7 @@ public class LessonController {
 
     @GetMapping(LearningEndpoints.LESSON_BY_ID)
     public ResponseEntity<LessonDetailResponse> getLesson(
-            @RequestHeader("Authorization") String authHeader,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @PathVariable UUID id) {
         UUID userId = extractUserId(authHeader);
         return ResponseEntity.ok(lessonService.getLesson(userId, id));
@@ -62,7 +65,7 @@ public class LessonController {
 
     @GetMapping(LearningEndpoints.ROADMAP)
     public ResponseEntity<RoadmapResponse> getRoadmap(
-            @RequestHeader("Authorization") String authHeader,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam UUID categoryId) {
         UUID userId = extractUserId(authHeader);
         return ResponseEntity.ok(roadmapService.getRoadmap(userId, categoryId));
@@ -113,9 +116,13 @@ public class LessonController {
 
     private UUID extractUserId(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("Missing or invalid Authorization header");
+            return null;
         }
-        String token = authHeader.substring(7);
-        return jwtService.getUserId(token);
+        try {
+            String token = authHeader.substring(7);
+            return jwtService.getUserId(token);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

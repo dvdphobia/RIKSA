@@ -34,11 +34,12 @@ class LessonCompletionServiceTest {
     @Mock LessonCompletionRepository completionRepository;
     @Mock ReflectionValidator reflectionValidator;
     @Mock EventPublisher eventPublisher;
+    @Mock LessonProgressionService progressionService;
     private final LessonRewardPolicy lessonRewardPolicy = new LessonRewardPolicy();
 
     private LessonCompletionService service() {
         return new LessonCompletionService(lessonRepository, exerciseRepository, attemptRepository,
-                completionRepository, reflectionValidator, eventPublisher, lessonRewardPolicy);
+                completionRepository, reflectionValidator, eventPublisher, lessonRewardPolicy, progressionService);
     }
 
     @Test
@@ -48,7 +49,7 @@ class LessonCompletionServiceTest {
         Exercise first = exercise(lesson, 5), second = exercise(lesson, 7);
         ExerciseAttempt a1 = correct(first), a2 = correct(second);
         CompletionRequest request = new CompletionRequest(); request.setReflectionText("valid reflection text");
-        when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(lesson));
+        when(progressionService.requireAccessible(userId, lessonId)).thenReturn(lesson);
         when(exerciseRepository.findByLessonId(lessonId)).thenReturn(List.of(first, second));
         when(attemptRepository.findByUserIdAndExerciseIdIn(eq(userId), anyList())).thenReturn(List.of(a1, a2));
         when(reflectionValidator.validate(request.getReflectionText())).thenReturn(2);
@@ -69,19 +70,32 @@ class LessonCompletionServiceTest {
         UUID userId = UUID.randomUUID(), lessonId = UUID.randomUUID();
         Lesson lesson = new Lesson(); lesson.setId(lessonId);
         CompletionRequest request = new CompletionRequest(); request.setReflectionText("valid reflection text");
-        when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(lesson));
+        when(progressionService.requireAccessible(userId, lessonId)).thenReturn(lesson);
         when(completionRepository.existsByUserIdAndLessonId(userId, lessonId)).thenReturn(true);
         assertThatThrownBy(() -> service().complete(userId, lessonId, request))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("already completed");
 
         reset(completionRepository);
         Exercise exercise = exercise(lesson, 5);
-        when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(lesson));
+        when(progressionService.requireAccessible(userId, lessonId)).thenReturn(lesson);
         when(exerciseRepository.findByLessonId(lessonId)).thenReturn(List.of(exercise));
         when(attemptRepository.findByUserIdAndExerciseIdIn(eq(userId), anyList())).thenReturn(List.of());
         assertThatThrownBy(() -> service().complete(userId, lessonId, request))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("0/1");
         verify(eventPublisher, never()).publish(any());
+    }
+
+    @Test
+    void rejectsCompletionOfLockedLesson() {
+        UUID userId = UUID.randomUUID(), lessonId = UUID.randomUUID();
+        CompletionRequest request = new CompletionRequest();
+        when(progressionService.requireAccessible(userId, lessonId))
+                .thenThrow(new LessonLockedException(lessonId));
+
+        assertThatThrownBy(() -> service().complete(userId, lessonId, request))
+                .isInstanceOf(LessonLockedException.class);
+
+        verifyNoInteractions(exerciseRepository, attemptRepository, completionRepository, eventPublisher);
     }
 
     private Exercise exercise(Lesson lesson, int points) {

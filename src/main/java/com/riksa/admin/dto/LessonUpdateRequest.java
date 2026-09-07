@@ -3,12 +3,12 @@ package com.riksa.admin.dto;
 import com.riksa.common.enums.DifficultyLevel;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotEmpty;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.util.List;
 import java.util.UUID;
+import jakarta.validation.constraints.Size;
 
 /**
  * All fields are optional — null means "don't change".
@@ -23,10 +23,12 @@ public class LessonUpdateRequest {
     private DifficultyLevel difficulty;
     @Min(0)
     private Integer baseXp;
+    @Min(1)
+    private Integer position;
     private UUID categoryId;
     private String reflectionPrompt;
 
     @Valid
-    @NotEmpty
+    @Size(min = 1)
     private List<ExerciseRequest> exercises;
 }

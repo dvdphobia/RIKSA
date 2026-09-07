@@ -9,7 +9,9 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "xp_transactions")
+@Table(name = "xp_transactions", indexes = {
+        @Index(name = "ux_xp_transactions_source", columnList = "user_id, source_type, source_id", unique = true)
+})
 @Getter
 @Setter
 public class XpTransaction {

@@ -3,6 +3,7 @@ package com.riksa.admin.service;
 import com.riksa.admin.dto.*;
 import com.riksa.common.enums.DifficultyLevel;
 import com.riksa.learning.entity.Exercise;
+import com.riksa.learning.entity.ExerciseType;
 import com.riksa.learning.entity.Lesson;
 import com.riksa.learning.repository.ExerciseRepository;
 import com.riksa.learning.repository.LessonRepository;
@@ -76,6 +77,44 @@ class LessonAdminServiceTest {
         assertThat(result.getBaseXp()).isEqualTo(20);
         assertThat(result.getExercises()).hasSize(1);
         verify(exerciseRepository).saveAll(any());
+    }
+
+    @Test
+    void create_multipleChoiceAndTrueFalseExercises_persistsRichExerciseFields() {
+        ExerciseRequest multipleChoice = new ExerciseRequest();
+        multipleChoice.setType(ExerciseType.MULTIPLE_CHOICE);
+        multipleChoice.setQuestion("Which number is even?");
+        multipleChoice.setAnswerKey("2");
+        multipleChoice.setOptions(List.of("1", "2", "3"));
+        multipleChoice.setDifficulty(DifficultyLevel.EASY);
+        multipleChoice.setPoints(5);
+        multipleChoice.setHint("Look for a number divisible by two.");
+        multipleChoice.setExplanation("Two divides evenly by two.");
+
+        ExerciseRequest trueFalse = new ExerciseRequest();
+        trueFalse.setType(ExerciseType.TRUE_FALSE);
+        trueFalse.setQuestion("The sky is blue on a clear day.");
+        trueFalse.setAnswerKey("True");
+        trueFalse.setOptions(List.of("True", "False"));
+        trueFalse.setDifficulty(DifficultyLevel.EASY);
+        trueFalse.setPoints(5);
+
+        LessonCreateRequest req = new LessonCreateRequest();
+        req.setTitle("Rich exercises");
+        req.setDifficulty(DifficultyLevel.EASY);
+        req.setBaseXp(10);
+        req.setExercises(List.of(multipleChoice, trueFalse));
+        when(lessonRepository.save(any(Lesson.class))).thenAnswer(inv -> {
+            Lesson lesson = inv.getArgument(0); lesson.setId(UUID.randomUUID()); return lesson;
+        });
+        when(exerciseRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        LessonResponse result = lessonAdminService.create(req);
+
+        assertThat(result.getExercises()).extracting("type")
+                .containsExactly(ExerciseType.MULTIPLE_CHOICE, ExerciseType.TRUE_FALSE);
+        assertThat(result.getExercises().getFirst().getOptions()).containsExactly("1", "2", "3");
+        assertThat(result.getExercises().getFirst().getHint()).isEqualTo(multipleChoice.getHint());
     }
 
     @Test

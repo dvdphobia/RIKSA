@@ -26,6 +26,9 @@ public class LessonCreateRequest {
     @Min(0)
     private int baseXp = 10;
 
+    @Min(1)
+    private Integer position;
+
     private UUID categoryId;
 
     private String reflectionPrompt;

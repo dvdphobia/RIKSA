@@ -15,6 +15,7 @@ public class LessonResponse {
     private String description;
     private String difficulty;
     private int baseXp;
+    private int position;
     private UUID categoryId;
     private String reflectionPrompt;
     private List<ExerciseResponse> exercises;

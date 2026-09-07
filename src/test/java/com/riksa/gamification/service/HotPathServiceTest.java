@@ -105,6 +105,24 @@ class XpLedgerServiceTest {
         assertThat(tx.getAmount()).isEqualTo(75);
         assertThat(tx.getSourceType()).isEqualTo("DAILY_CHALLENGE");
     }
+
+    @Test
+    void awardXp_duplicateSource_skipsSecondLedgerEntry() {
+        UUID userId = UUID.randomUUID();
+        UUID lessonId = UUID.randomUUID();
+        UserGamification ug = new UserGamification();
+        ug.setUserId(userId);
+        ug.setTotalXp(250);
+        when(userGamificationRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(ug));
+        when(xpTransactionRepository.findByUserIdAndSourceTypeAndSourceId(
+                userId, "LESSON_COMPLETION", lessonId)).thenReturn(Optional.of(new XpTransaction()));
+
+        long result = xpLedgerService.awardXp(userId, 20, "LESSON_COMPLETION", lessonId);
+
+        assertThat(result).isEqualTo(250);
+        verify(xpTransactionRepository, never()).save(any());
+        verify(eventPublisher, never()).publish(any());
+    }
 }
 
 @ExtendWith(MockitoExtension.class)

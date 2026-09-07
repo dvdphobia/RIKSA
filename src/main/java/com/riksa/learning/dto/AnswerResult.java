@@ -14,11 +14,18 @@ public class AnswerResult {
     private boolean correct;
     private int points;
     private String message;
+    private String hint;
+    private String explanation;
+    private int attemptNumber;
 
-    public AnswerResult(UUID exerciseId, boolean correct, int points, String message) {
+    public AnswerResult(UUID exerciseId, boolean correct, int points, String message,
+                        String hint, String explanation, int attemptNumber) {
         this.exerciseId = exerciseId;
         this.correct = correct;
         this.points = points;
         this.message = message;
+        this.hint = hint;
+        this.explanation = explanation;
+        this.attemptNumber = attemptNumber;
     }
 }

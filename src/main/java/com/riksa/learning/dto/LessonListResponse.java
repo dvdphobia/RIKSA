@@ -17,9 +17,11 @@ public class LessonListResponse {
     private String description;
     private DifficultyLevel difficulty;
     private int baseXp;
+    private int position;
     private UUID categoryId;
     private String categoryName;
     private int exerciseCount;
     private boolean completed;
+    private LessonProgressState state;
     private OffsetDateTime createdAt;
 }

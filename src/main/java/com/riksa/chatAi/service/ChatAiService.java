@@ -105,6 +105,8 @@ public class ChatAiService {
         try {
             Map<?, ?> body = RestClient.create(baseUrl).post().uri("/chat/completions")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                    .header("HTTP-Referer", "https://riksa.org")
+                    .header("X-Title", "Riksa AI Tutor")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("model", model, "messages", prompt,
                             "temperature", 0.35, "max_tokens", 900))
@@ -113,7 +115,9 @@ public class ChatAiService {
             if (content == null || content.isBlank()) throw new IllegalStateException("Empty AI response");
             return content.trim();
         } catch (Exception error) {
-            throw new ServiceUnavailableException("AI provider request failed", error);
+            org.slf4j.LoggerFactory.getLogger(ChatAiService.class)
+                    .error("OpenRouter AI request failed (model: {}, baseUrl: {}): {}", model, baseUrl, error.getMessage(), error);
+            throw new ServiceUnavailableException("AI provider request failed: " + error.getMessage(), error);
         }
     }
 

@@ -10,6 +10,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -39,6 +40,28 @@ public class Exercise {
 
     @Column(nullable = false)
     private int points = 5;
+
+    /**
+     * The instructional section within a lesson. Sections are deliberately
+     * represented on exercises for now, so the lesson remains one durable
+     * content unit without introducing a separate section table prematurely.
+     */
+    @Column(name = "section_index", nullable = false)
+    private int sectionIndex = 1;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    private ExerciseType type = ExerciseType.TEXT;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private List<String> options = List.of();
+
+    @Column(columnDefinition = "TEXT")
+    private String hint;
+
+    @Column(columnDefinition = "TEXT")
+    private String explanation;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

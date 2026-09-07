@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "exercise_attempts",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "exercise_id"}))
+        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "exercise_id", "attempt_number"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -28,6 +28,12 @@ public class ExerciseAttempt {
 
     @Column(name = "is_correct", nullable = false)
     private boolean correct;
+
+    @Column(name = "submitted_answer", nullable = false, columnDefinition = "TEXT")
+    private String submittedAnswer;
+
+    @Column(name = "attempt_number", nullable = false)
+    private int attemptNumber;
 
     @Column(name = "attempted_at", updatable = false)
     private OffsetDateTime attemptedAt = OffsetDateTime.now();

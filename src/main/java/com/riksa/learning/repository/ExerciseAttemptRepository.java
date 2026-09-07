@@ -13,9 +13,11 @@ import java.util.UUID;
 @Repository
 public interface ExerciseAttemptRepository extends JpaRepository<ExerciseAttempt, UUID> {
 
-    Optional<ExerciseAttempt> findByUserIdAndExerciseId(UUID userId, UUID exerciseId);
-
     List<ExerciseAttempt> findByUserIdAndExerciseIdIn(UUID userId, List<UUID> exerciseIds);
+
+    boolean existsByUserIdAndExerciseIdAndCorrectTrue(UUID userId, UUID exerciseId);
+
+    long countByUserIdAndExerciseId(UUID userId, UUID exerciseId);
 
     long countByUserIdAndCorrectTrue(UUID userId);
 
@@ -45,7 +47,6 @@ public interface ExerciseAttemptRepository extends JpaRepository<ExerciseAttempt
         long getAttempts();
         long getCorrectCount();
     }
-
     interface LessonCorrectCount {
         UUID getLessonId();
         long getCorrectCount();

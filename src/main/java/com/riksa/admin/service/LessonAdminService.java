@@ -46,6 +46,7 @@ public class LessonAdminService {
         lesson.setDifficulty(req.getDifficulty());
         lesson.setBaseXp(req.getBaseXp());
         lesson.setCategory(category);
+        lesson.setPosition(resolvePosition(category, req.getPosition(), null));
         lesson.setReflectionPrompt(req.getReflectionPrompt());
         lesson = lessonRepository.save(lesson);
 
@@ -64,7 +65,12 @@ public class LessonAdminService {
         if (req.getDescription() != null) lesson.setDescription(req.getDescription());
         if (req.getDifficulty() != null) lesson.setDifficulty(req.getDifficulty());
         if (req.getBaseXp() != null) lesson.setBaseXp(req.getBaseXp());
+        boolean categoryChanged = req.getCategoryId() != null
+                && (lesson.getCategory() == null || !lesson.getCategory().getId().equals(req.getCategoryId()));
         if (req.getCategoryId() != null) lesson.setCategory(resolveCategory(req.getCategoryId()));
+        if (req.getPosition() != null || categoryChanged) {
+            lesson.setPosition(resolvePosition(lesson.getCategory(), req.getPosition(), lesson.getId()));
+        }
         if (req.getReflectionPrompt() != null) lesson.setReflectionPrompt(req.getReflectionPrompt());
 
         // Replace exercises if provided
@@ -193,14 +199,58 @@ public class LessonAdminService {
 
     private List<Exercise> buildExercises(List<ExerciseRequest> requests, Lesson lesson) {
         return requests.stream().map(er -> {
+            validateExercise(er);
             Exercise e = new Exercise();
             e.setLesson(lesson);
             e.setQuestion(er.getQuestion());
             e.setAnswerKey(er.getAnswerKey());
             e.setDifficulty(er.getDifficulty());
             e.setPoints(er.getPoints());
+            e.setSectionIndex(er.getSectionIndex());
+            e.setType(er.getType());
+            e.setOptions(normalizeOptions(er.getOptions()));
+            e.setHint(er.getHint());
+            e.setExplanation(er.getExplanation());
             return e;
         }).toList();
+    }
+
+    private int resolvePosition(Category category, Integer requestedPosition, UUID excludeId) {
+        if (requestedPosition != null) {
+            if (lessonRepository.existsAtPosition(category == null ? null : category.getId(), requestedPosition, excludeId)) {
+                throw new IllegalArgumentException("A lesson already uses position " + requestedPosition
+                        + " in this category");
+            }
+            return requestedPosition;
+        }
+        return category == null
+                ? lessonRepository.findFirstByCategoryIsNullOrderByPositionDesc().map(l -> l.getPosition() + 1).orElse(1)
+                : lessonRepository.findFirstByCategoryIdOrderByPositionDesc(category.getId())
+                        .map(l -> l.getPosition() + 1).orElse(1);
+    }
+
+    private void validateExercise(ExerciseRequest exercise) {
+        List<String> options = normalizeOptions(exercise.getOptions());
+        if (exercise.getType() == com.riksa.learning.entity.ExerciseType.MULTIPLE_CHOICE) {
+            if (options.size() < 2 || !options.contains(exercise.getAnswerKey().trim())) {
+                throw new IllegalArgumentException("MULTIPLE_CHOICE exercises need at least two options including answerKey");
+            }
+        }
+        if (exercise.getType() == com.riksa.learning.entity.ExerciseType.TRUE_FALSE) {
+            if (!isTrueFalse(exercise.getAnswerKey()) || (!options.isEmpty() && !options.equals(List.of("True", "False")))) {
+                throw new IllegalArgumentException("TRUE_FALSE answerKey must be True or False and options must be True/False");
+            }
+        }
+    }
+
+    private boolean isTrueFalse(String value) {
+        return "true".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value);
+    }
+
+    private List<String> normalizeOptions(List<String> options) {
+        if (options == null) return List.of();
+        return options.stream().filter(java.util.Objects::nonNull).map(String::trim)
+                .filter(option -> !option.isEmpty()).toList();
     }
 
     private LessonResponse toResponse(Lesson lesson, List<Exercise> exercises) {
@@ -210,11 +260,12 @@ public class LessonAdminService {
         resp.setDescription(lesson.getDescription());
         resp.setDifficulty(lesson.getDifficulty().name());
         resp.setBaseXp(lesson.getBaseXp());
+        resp.setPosition(lesson.getPosition());
         resp.setCategoryId(lesson.getCategory() != null ? lesson.getCategory().getId() : null);
         resp.setReflectionPrompt(lesson.getReflectionPrompt());
-        resp.setExercises(exercises.stream().map(e ->
-                new ExerciseResponse(e.getId(), e.getQuestion(), e.getDifficulty().name(), e.getPoints())
-        ).toList());
+        resp.setExercises(exercises.stream().map(e -> new ExerciseResponse(e.getId(), e.getQuestion(), e.getAnswerKey(),
+                e.getDifficulty().name(), e.getPoints(), e.getSectionIndex(), e.getType(), e.getOptions(), e.getHint(),
+                e.getExplanation())).toList());
         resp.setCreatedAt(lesson.getCreatedAt());
         resp.setUpdatedAt(lesson.getUpdatedAt());
         return resp;

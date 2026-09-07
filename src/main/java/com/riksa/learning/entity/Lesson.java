@@ -37,6 +37,9 @@ public class Lesson {
     @Column(name = "base_xp", nullable = false)
     private int baseXp = 10;
 
+    @Column(nullable = false)
+    private int position;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
@@ -44,9 +47,6 @@ public class Lesson {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "roadmap_unit_id")
     private RoadmapUnit roadmapUnit;
-
-    @Column(name = "position")
-    private Integer position;
 
     @Column(name = "estimated_minutes", nullable = false)
     private int estimatedMinutes = 8;

@@ -1,11 +1,13 @@
 package com.riksa.learning.service;
 
 import com.riksa.common.enums.DifficultyLevel;
-import com.riksa.common.exception.ResourceNotFoundException;
+import com.riksa.learning.dto.LessonProgressState;
 import com.riksa.learning.entity.Exercise;
+import com.riksa.learning.entity.ExerciseAttempt;
 import com.riksa.learning.entity.Lesson;
 import com.riksa.learning.entity.LessonCompletion;
 import com.riksa.learning.repository.ExerciseRepository;
+import com.riksa.learning.repository.ExerciseAttemptRepository;
 import com.riksa.learning.repository.LessonCompletionRepository;
 import com.riksa.learning.repository.LessonRepository;
 import org.junit.jupiter.api.Test;
@@ -29,14 +31,15 @@ class LessonServiceTest {
 
     @Mock LessonRepository lessonRepository;
     @Mock ExerciseRepository exerciseRepository;
+    @Mock ExerciseAttemptRepository exerciseAttemptRepository;
     @Mock LessonCompletionRepository completionRepository;
-    @Mock com.riksa.learning.repository.ExerciseAttemptRepository attemptRepository;
+    @Mock LessonProgressionService progressionService;
 
     @Test
     void listLessonsPopulatesExerciseCountAndCompletionInBatches() {
         UUID userId = UUID.randomUUID(), lessonId = UUID.randomUUID();
         Lesson lesson = new Lesson(); lesson.setId(lessonId); lesson.setTitle("Algebra");
-        when(lessonRepository.findByDifficultyOrderByCreatedAtDesc(
+        when(lessonRepository.findByDifficultyOrderByPositionAsc(
                 eq(DifficultyLevel.EASY), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(lesson)));
         ExerciseRepository.LessonExerciseCount count = mock(ExerciseRepository.LessonExerciseCount.class);
@@ -46,7 +49,8 @@ class LessonServiceTest {
         when(completionRepository.findByUserIdAndLessonIdIn(userId, List.of(lessonId)))
                 .thenReturn(List.of(completion));
 
-        var result = new LessonService(lessonRepository, exerciseRepository, completionRepository, attemptRepository)
+        when(progressionService.getState(userId, lesson)).thenReturn(LessonProgressState.COMPLETED);
+        var result = new LessonService(lessonRepository, exerciseRepository, exerciseAttemptRepository, completionRepository, progressionService)
                 .listLessons(userId, null, DifficultyLevel.EASY, 0, 20);
 
         assertThat(result.getContent().getFirst().getExerciseCount()).isEqualTo(3);
@@ -55,18 +59,29 @@ class LessonServiceTest {
     }
 
     @Test
-    void getLessonMapsExercisesAndMissingLessonThrows() {
-        UUID lessonId = UUID.randomUUID();
+    void getLessonMapsExercisesAndRejectsLockedLesson() {
+        UUID userId = UUID.randomUUID(), lessonId = UUID.randomUUID();
         Lesson lesson = new Lesson(); lesson.setId(lessonId); lesson.setTitle("Physics");
-        Exercise exercise = new Exercise(); exercise.setId(UUID.randomUUID()); exercise.setQuestion("Q");
-        when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(lesson));
+        Exercise exercise = new Exercise();
+        exercise.setId(UUID.randomUUID());
+        exercise.setQuestion("Q");
+        exercise.setSectionIndex(2);
+        when(progressionService.requireAccessible(userId, lessonId)).thenReturn(lesson);
+        when(progressionService.getState(userId, lesson)).thenReturn(LessonProgressState.AVAILABLE);
         when(exerciseRepository.findByLessonId(lessonId)).thenReturn(List.of(exercise));
-        when(attemptRepository.findByUserIdAndExerciseIdIn(any(), anyList())).thenReturn(List.of());
-        LessonService service = new LessonService(lessonRepository, exerciseRepository, completionRepository, attemptRepository);
-        assertThat(service.getLesson(UUID.randomUUID(), lessonId).getExercises()).hasSize(1);
+        ExerciseAttempt correctAttempt = new ExerciseAttempt();
+        correctAttempt.setExerciseId(exercise.getId());
+        correctAttempt.setCorrect(true);
+        when(exerciseAttemptRepository.findByUserIdAndExerciseIdIn(eq(userId), anyList()))
+                .thenReturn(List.of(correctAttempt));
+        LessonService service = new LessonService(lessonRepository, exerciseRepository, exerciseAttemptRepository, completionRepository, progressionService);
+        var response = service.getLesson(userId, lessonId).getExercises();
+        assertThat(response).hasSize(1);
+        assertThat(response.getFirst().getSectionIndex()).isEqualTo(2);
+        assertThat(response.getFirst().isCompleted()).isTrue();
 
         UUID missing = UUID.randomUUID();
-        when(lessonRepository.findById(missing)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.getLesson(UUID.randomUUID(), missing)).isInstanceOf(ResourceNotFoundException.class);
+        when(progressionService.requireAccessible(userId, missing)).thenThrow(new LessonLockedException(missing));
+        assertThatThrownBy(() -> service.getLesson(userId, missing)).isInstanceOf(LessonLockedException.class);
     }
 }

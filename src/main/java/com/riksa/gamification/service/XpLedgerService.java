@@ -50,6 +50,16 @@ public class XpLedgerService {
                         "UserGamification row not found for user " + userId + ". "
                         + "Ensure the row is created when the user registers."));
 
+        // A completion event can be retried after an infrastructure failure.
+        // Source-backed rewards must be idempotent; source-less rewards retain
+        // their existing behavior because they do not identify a single action.
+        if (sourceId != null && xpTransactionRepository
+                .findByUserIdAndSourceTypeAndSourceId(userId, sourceType, sourceId)
+                .isPresent()) {
+            log.info("Skipping duplicate XP source {}:{} for user {}", sourceType, sourceId, userId);
+            return ug.getTotalXp();
+        }
+
         long newTotal = ug.getTotalXp() + amount;
         ug.setTotalXp(newTotal);
         userGamificationRepository.save(ug);

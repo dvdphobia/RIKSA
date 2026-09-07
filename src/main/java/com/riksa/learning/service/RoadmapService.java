@@ -40,19 +40,20 @@ public class RoadmapService {
         Map<UUID, List<Exercise>> exercisesByLesson = exercises.stream()
                 .collect(Collectors.groupingBy(exercise -> exercise.getLesson().getId()));
 
-        List<LessonCompletion> completions = lessonIds.isEmpty() ? List.of()
+        List<LessonCompletion> completions = (userId == null || lessonIds.isEmpty()) ? List.of()
                 : lessonCompletionRepository.findByUserIdAndLessonIdIn(userId, lessonIds);
         Map<UUID, LessonCompletion> completionByLesson = completions.stream()
                 .collect(Collectors.toMap(LessonCompletion::getLessonId, Function.identity()));
-        Map<UUID, UserLessonProgress> progressByLesson = lessonIds.isEmpty() ? Map.of()
+        Map<UUID, UserLessonProgress> progressByLesson = (userId == null || lessonIds.isEmpty()) ? Map.of()
                 : userLessonProgressRepository.findByUserIdAndLessonIdIn(userId, lessonIds).stream()
                 .collect(Collectors.toMap(UserLessonProgress::getLessonId, Function.identity()));
-        Map<UUID, Long> correctByLesson = lessonIds.isEmpty() ? Map.of()
+        Map<UUID, Long> correctByLesson = (userId == null || lessonIds.isEmpty()) ? Map.of()
                 : exerciseAttemptRepository.countCorrectByUserIdAndLessonIds(userId, lessonIds).stream()
                 .collect(Collectors.toMap(
                         ExerciseAttemptRepository.LessonCorrectCount::getLessonId,
                         ExerciseAttemptRepository.LessonCorrectCount::getCorrectCount));
-        Set<UUID> skippedUnitIds = roadmapUnitSkipRepository
+        Set<UUID> skippedUnitIds = (userId == null || unitIds.isEmpty()) ? Set.of()
+                : roadmapUnitSkipRepository
                 .findByUserIdAndRoadmapUnitIdIn(userId, unitIds).stream()
                 .map(RoadmapUnitSkip::getRoadmapUnitId)
                 .collect(Collectors.toSet());

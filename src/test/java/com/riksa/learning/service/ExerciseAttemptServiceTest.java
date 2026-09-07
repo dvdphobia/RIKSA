@@ -1,6 +1,5 @@
 package com.riksa.learning.service;
 
-import com.riksa.common.exception.ResourceNotFoundException;
 import com.riksa.learning.dto.ExerciseAttemptRequest;
 import com.riksa.learning.entity.Exercise;
 import com.riksa.learning.entity.ExerciseAttempt;
@@ -25,6 +24,7 @@ class ExerciseAttemptServiceTest {
 
     @Mock ExerciseRepository exerciseRepository;
     @Mock ExerciseAttemptRepository attemptRepository;
+    @Mock LessonProgressionService progressionService;
 
     @Test
     void comparesNormalizedAnswerAndCreatesAttempt() {
@@ -34,9 +34,10 @@ class ExerciseAttemptServiceTest {
         exercise.setAnswerKey("Phnom Penh"); exercise.setPoints(7);
         ExerciseAttemptRequest request = new ExerciseAttemptRequest(); request.setAnswer("  phnom penh ");
         when(exerciseRepository.findById(exerciseId)).thenReturn(Optional.of(exercise));
-        when(attemptRepository.findByUserIdAndExerciseId(userId, exerciseId)).thenReturn(Optional.empty());
+        when(progressionService.requireAccessible(userId, lessonId)).thenReturn(lesson);
+        when(attemptRepository.countByUserIdAndExerciseId(userId, exerciseId)).thenReturn(0L);
 
-        var result = new ExerciseAttemptService(exerciseRepository, attemptRepository)
+        var result = new ExerciseAttemptService(exerciseRepository, attemptRepository, progressionService)
                 .submitAttempt(userId, lessonId, exerciseId, request);
 
         assertThat(result.isCorrect()).isTrue();
@@ -54,14 +55,36 @@ class ExerciseAttemptServiceTest {
         when(exerciseRepository.findById(exerciseId)).thenReturn(Optional.of(exercise));
 
         ExerciseAttemptRequest request = new ExerciseAttemptRequest(); request.setAnswer("41");
-        ExerciseAttempt existing = new ExerciseAttempt(); existing.setId(UUID.randomUUID());
-        when(attemptRepository.findByUserIdAndExerciseId(userId, exerciseId)).thenReturn(Optional.of(existing));
-        assertThat(new ExerciseAttemptService(exerciseRepository, attemptRepository)
+        when(progressionService.requireAccessible(userId, lessonId)).thenReturn(lesson);
+        when(attemptRepository.countByUserIdAndExerciseId(userId, exerciseId)).thenReturn(1L);
+        assertThat(new ExerciseAttemptService(exerciseRepository, attemptRepository, progressionService)
                 .submitAttempt(userId, lessonId, exerciseId, request).isCorrect()).isFalse();
-        verify(attemptRepository).save(existing);
+        verify(attemptRepository).save(any(ExerciseAttempt.class));
 
-        assertThatThrownBy(() -> new ExerciseAttemptService(exerciseRepository, attemptRepository)
-                .submitAttempt(userId, UUID.randomUUID(), exerciseId, request))
-                .isInstanceOf(ResourceNotFoundException.class);
+        UUID lockedLessonId = UUID.randomUUID();
+        when(progressionService.requireAccessible(userId, lockedLessonId)).thenThrow(new LessonLockedException(lockedLessonId));
+        assertThatThrownBy(() -> new ExerciseAttemptService(exerciseRepository, attemptRepository, progressionService)
+                .submitAttempt(userId, lockedLessonId, exerciseId, request))
+                .isInstanceOf(LessonLockedException.class);
+    }
+
+    @Test
+    void retry_createsSecondAppendOnlyAttempt() {
+        UUID userId = UUID.randomUUID(), lessonId = UUID.randomUUID(), exerciseId = UUID.randomUUID();
+        Lesson lesson = new Lesson(); lesson.setId(lessonId);
+        Exercise exercise = new Exercise(); exercise.setId(exerciseId); exercise.setLesson(lesson); exercise.setAnswerKey("42");
+        ExerciseAttemptRequest request = new ExerciseAttemptRequest(); request.setAnswer("42");
+        when(progressionService.requireAccessible(userId, lessonId)).thenReturn(lesson);
+        when(exerciseRepository.findById(exerciseId)).thenReturn(Optional.of(exercise));
+        when(attemptRepository.countByUserIdAndExerciseId(userId, exerciseId)).thenReturn(1L);
+
+        new ExerciseAttemptService(exerciseRepository, attemptRepository, progressionService)
+                .submitAttempt(userId, lessonId, exerciseId, request);
+
+        ArgumentCaptor<ExerciseAttempt> captor = ArgumentCaptor.forClass(ExerciseAttempt.class);
+        verify(attemptRepository).save(captor.capture());
+        assertThat(captor.getValue().getAttemptNumber()).isEqualTo(2);
+        assertThat(captor.getValue().getSubmittedAnswer()).isEqualTo("42");
+        assertThat(captor.getValue().isCorrect()).isTrue();
     }
 }

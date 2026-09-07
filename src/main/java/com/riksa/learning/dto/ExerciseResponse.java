@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.UUID;
+import java.util.List;
+import com.riksa.learning.entity.ExerciseType;
 
 @Getter
 @Setter
@@ -15,5 +17,10 @@ public class ExerciseResponse {
     private String question;
     private DifficultyLevel difficulty;
     private int points;
+    private int sectionIndex;
+    private ExerciseType type;
+    private List<String> options;
+    private String hint;
+    private String explanation;
     private boolean completed;
 }
