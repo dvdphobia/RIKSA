@@ -57,6 +57,10 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-google/gemini-2.5-flash}
       OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      MEDIA_STORAGE_DIR: /app/uploads/media
+      MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:-}
+    volumes:
+      - media_data:/app/uploads/media
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,3 +69,4 @@ services:
 
 volumes:
   postgres_data:
+  media_data:
