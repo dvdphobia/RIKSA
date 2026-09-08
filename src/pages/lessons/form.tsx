@@ -1,11 +1,9 @@
 import { type HttpError, useNavigation } from "@refinedev/core";
 import { useForm } from "@refinedev/react-hook-form";
 import { useQuery } from "@tanstack/react-query";
-import { useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
 import { apiFetch } from "../../lib/api";
-import type { Category, DifficultyLevel, ExerciseType } from "../../lib/types";
-import { StatusBadge } from "../../components/shared";
+import type { Category, DifficultyLevel, Lesson } from "../../lib/types";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -18,9 +16,13 @@ import {
 } from "../../components/ui/select";
 import { Textarea } from "../../components/ui/textarea";
 import { Skeleton } from "../../components/ui/skeleton";
-import { Alert, AlertDescription } from "../../components/ui/alert";
-import { ChevronLeft, Plus, Trash2 } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import { ChevronLeft } from "lucide-react";
+import { lazy, Suspense, useEffect, useState } from "react";
+import {
+  ExerciseEditor,
+  type ExerciseItem,
+  emptyExerciseItem,
+} from "../../components/lessons/exercise-editor";
 
 // The rich text editor pulls in ProseMirror and the markdown converters; keep
 // them out of the main bundle so only the lesson form pays for them.
@@ -32,17 +34,6 @@ const LessonBodyEditor = lazy(() =>
 
 const DIFFICULTIES: DifficultyLevel[] = ["EASY", "MEDIUM", "HARD", "DIFFICULT"];
 
-interface ExerciseForm {
-  question: string;
-  answerKey: string;
-  difficulty: DifficultyLevel;
-  points: number;
-  type: ExerciseType;
-  optionsText: string;
-  hint?: string;
-  explanation?: string;
-}
-
 interface LessonFormValues {
   title: string;
   description?: string;
@@ -51,22 +42,12 @@ interface LessonFormValues {
   position: number;
   categoryId?: string;
   reflectionPrompt?: string;
-  exercises: ExerciseForm[];
 }
-
-const emptyExercise = (): ExerciseForm => ({
-  question: "",
-  answerKey: "",
-  difficulty: "EASY",
-  points: 5,
-  type: "MULTIPLE_CHOICE",
-  optionsText: "",
-});
 
 export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
   const { list } = useNavigation();
   const isEdit = mode === "edit";
-  const [replaceExercises, setReplaceExercises] = useState(false);
+  const [exercises, setExercises] = useState<ExerciseItem[]>([emptyExerciseItem()]);
 
   const categories = useQuery({
     queryKey: ["categories-all"],
@@ -76,12 +57,11 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
   const {
     refineCore: { onFinish, query: recordQuery },
     register,
-    control,
     handleSubmit,
     setValue,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm<LessonFormValues, HttpError, LessonFormValues>({
+  } = useForm<Lesson, HttpError, LessonFormValues>({
     refineCoreProps: {
       resource: "lessons",
       action: mode,
@@ -96,58 +76,121 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
       difficulty: "EASY",
       baseXp: 10,
       position: 1,
-      exercises: [emptyExercise()],
     },
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: "exercises" });
   const difficulty = watch("difficulty");
-  const existingExercises = (recordQuery?.data?.data?.exercises ?? []) as {
-    id?: string;
-    question: string;
-    difficulty: DifficultyLevel;
-    points: number;
-  }[];
+
+  // Load existing exercises into state when editing an existing lesson
+  useEffect(() => {
+    if (recordQuery?.data?.data) {
+      const lesson = recordQuery.data.data;
+      if (Array.isArray(lesson.exercises) && lesson.exercises.length > 0) {
+        setExercises(
+          lesson.exercises.map((e: any) => ({
+            id: e.id,
+            question: e.question || "",
+            answerKey: e.answerKey || "",
+            difficulty: (e.difficulty as DifficultyLevel) || "EASY",
+            points: Number(e.points) || 5,
+            type: e.type || "MULTIPLE_CHOICE",
+            options:
+              Array.isArray(e.options) && e.options.length > 0
+                ? e.options
+                : ["", "", "", ""],
+            hint: e.hint || "",
+            explanation: e.explanation || "",
+          })),
+        );
+      }
+    }
+  }, [recordQuery?.data?.data]);
 
   const submit = (values: LessonFormValues) => {
+    // Client-side exercise validation
+    if (exercises.length === 0) {
+      toast.error("Please add at least one exercise");
+      return;
+    }
+
+    for (let i = 0; i < exercises.length; i++) {
+      const ex = exercises[i];
+      if (!ex.question.trim()) {
+        toast.error(`Exercise #${i + 1}: Please provide a question prompt`);
+        return;
+      }
+
+      if (ex.type === "MULTIPLE_CHOICE") {
+        const cleanOpts = ex.options.map((o) => o.trim()).filter(Boolean);
+        if (cleanOpts.length < 2) {
+          toast.error(`Exercise #${i + 1}: Needs at least 2 options`);
+          return;
+        }
+        if (!ex.answerKey || !cleanOpts.includes(ex.answerKey.trim())) {
+          toast.error(
+            `Exercise #${i + 1}: Please select a valid correct answer from the options`,
+          );
+          return;
+        }
+      } else if (ex.type === "TRUE_FALSE") {
+        if (!["True", "False"].includes(ex.answerKey)) {
+          toast.error(`Exercise #${i + 1}: Please select True or False`);
+          return;
+        }
+      } else if (ex.type === "TEXT") {
+        if (!ex.answerKey.trim()) {
+          toast.error(`Exercise #${i + 1}: Please provide an expected answer key`);
+          return;
+        }
+      }
+    }
+
     const payload: Record<string, unknown> = {
-      title: values.title,
+      title: values.title.trim(),
       description: values.description || null,
       difficulty: values.difficulty,
       baseXp: Number(values.baseXp) || 0,
       position: Number(values.position) || 1,
       categoryId: values.categoryId || null,
-      reflectionPrompt: values.reflectionPrompt || null,
-    };
-    if (!isEdit || replaceExercises) {
-      payload.exercises = values.exercises.map((e) => ({
-        question: e.question,
-        answerKey: e.answerKey,
+      reflectionPrompt: values.reflectionPrompt?.trim() || null,
+      exercises: exercises.map((e) => ({
+        question: e.question.trim(),
+        answerKey: e.answerKey.trim(),
         difficulty: e.difficulty,
         points: Number(e.points) || 5,
         type: e.type,
-        options: e.type === "TRUE_FALSE"
-          ? ["True", "False"]
-          : e.optionsText.split("\n").map((option) => option.trim()).filter(Boolean),
-        hint: e.hint || null,
-        explanation: e.explanation || null,
-      }));
-    }
+        options:
+          e.type === "TRUE_FALSE"
+            ? ["True", "False"]
+            : e.type === "MULTIPLE_CHOICE"
+            ? e.options.map((option) => option.trim()).filter(Boolean)
+            : [],
+        hint: e.hint?.trim() || null,
+        explanation: e.explanation?.trim() || null,
+      })),
+    };
+
     onFinish(payload as unknown as LessonFormValues);
   };
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-4xl pb-16">
       <div className="mb-6 flex items-center gap-2">
         <Button variant="ghost" size="icon" onClick={() => list("lessons")}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-2xl font-semibold">
-          {isEdit ? "Edit lesson" : "New lesson"}
-        </h1>
+        <div>
+          <h1 className="text-2xl font-semibold">
+            {isEdit ? "Edit lesson" : "New lesson"}
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Configure lesson details, learning content, and interactive QCM exercises.
+          </p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit(submit)} className="space-y-6">
+        {/* Basic Settings */}
         <div className="space-y-4 rounded-md border bg-card p-6">
           <div className="space-y-2">
             <Label>Title *</Label>
@@ -156,7 +199,7 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
               <p className="text-sm text-destructive">{errors.title.message}</p>
             )}
           </div>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Difficulty *</Label>
               <Select
@@ -187,7 +230,11 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
             </div>
             <div className="space-y-2">
               <Label>Position *</Label>
-              <Input type="number" min={1} {...register("position", { required: "Position is required" })} />
+              <Input
+                type="number"
+                min={1}
+                {...register("position", { required: "Position is required" })}
+              />
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
@@ -212,21 +259,22 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Reflection prompt</Label>
+            <Label>Reflection prompt (Optional)</Label>
             <Textarea
               rows={2}
-              placeholder="A question the learner answers at the end, e.g. “What surprised you?”"
+              placeholder="e.g. “What was your favorite phrase from today's lesson?”"
               {...register("reflectionPrompt")}
             />
           </div>
         </div>
 
+        {/* Lesson Markdown Content */}
         <div className="space-y-4 rounded-md border bg-card p-6">
           <div>
-            <h2 className="text-lg font-medium">Lesson content</h2>
+            <h2 className="text-lg font-medium">Lesson Content & Dialogue</h2>
             <p className="text-sm text-muted-foreground">
-              Write it like a document — the toolbar handles the formatting.
-              Each “New section” starts a new screen for the learner.
+              Write the lesson explanation, cultural notes, or vocabulary dialogue.
+              Each section corresponds to a step in the learner's journey.
             </p>
           </div>
           <Suspense fallback={<Skeleton className="h-[420px] w-full" />}>
@@ -239,165 +287,34 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
           </Suspense>
         </div>
 
+        {/* Interactive QCM Exercises Builder */}
         <div className="space-y-4 rounded-md border bg-card p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium">Exercises *</h2>
-            {isEdit && (
-              <Button
-                type="button"
-                variant={replaceExercises ? "default" : "outline"}
-                size="sm"
-                onClick={() => setReplaceExercises((v) => !v)}
-              >
-                {replaceExercises ? "Editing exercises" : "Replace exercises"}
-              </Button>
-            )}
+            <div>
+              <h2 className="text-lg font-medium">
+                Lesson Exercises ({exercises.length})
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Build multiple-choice (QCM) questions with 4 options, hints, and explanations.
+              </p>
+            </div>
           </div>
 
-          {isEdit && !replaceExercises && (
-            <>
-              <Alert>
-                <AlertDescription>
-                  These {existingExercises.length} exercise(s) stay exactly as
-                  they are when you save. Answer keys can't be shown again for
-                  security, so changing any exercise means rewriting all of them
-                  — click <strong>Replace exercises</strong> to do that.
-                </AlertDescription>
-              </Alert>
-              <div className="space-y-2">
-                {existingExercises.map((e, i) => (
-                  <div
-                    key={e.id ?? i}
-                    className="flex items-center justify-between rounded-md border p-3 text-sm"
-                  >
-                    <span className="max-w-lg truncate">{e.question}</span>
-                    <span className="flex items-center gap-2">
-                      <StatusBadge value={e.difficulty} />
-                      <span className="text-muted-foreground">
-                        {e.points} pts
-                      </span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {(!isEdit || replaceExercises) && (
-            <>
-              {fields.map((field, index) => (
-                <div
-                  key={(field as { id?: string }).id ?? index}
-                  className="space-y-3 rounded-md border p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Exercise {index + 1}</p>
-                    {fields.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => remove(index)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                  <Input
-                    placeholder="Question"
-                    {...register(`exercises.${index}.question`, {
-                      required: "Question is required",
-                    })}
-                  />
-                  {errors.exercises?.[index]?.question && (
-                    <p className="text-sm text-destructive">
-                      {errors.exercises[index]?.question?.message}
-                    </p>
-                  )}
-                  <Input
-                    placeholder="Answer key"
-                    {...register(`exercises.${index}.answerKey`, {
-                      required: "Answer key is required",
-                    })}
-                  />
-                  {errors.exercises?.[index]?.answerKey && (
-                    <p className="text-sm text-destructive">
-                      {errors.exercises[index]?.answerKey?.message}
-                    </p>
-                  )}
-                  <div className="grid grid-cols-3 gap-4">
-                    <Select
-                      value={watch(`exercises.${index}.type`)}
-                      onValueChange={(v) => {
-                        const type = v as ExerciseType;
-                        setValue(`exercises.${index}.type`, type);
-                        if (type === "TRUE_FALSE") {
-                          setValue(`exercises.${index}.optionsText`, "True\nFalse");
-                        }
-                      }}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="MULTIPLE_CHOICE">Multiple choice (QCM)</SelectItem>
-                        <SelectItem value="TRUE_FALSE">True / False</SelectItem>
-                        <SelectItem value="TEXT">Short text</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={watch(`exercises.${index}.difficulty`)}
-                      onValueChange={(v) =>
-                        setValue(
-                          `exercises.${index}.difficulty`,
-                          v as DifficultyLevel,
-                        )
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DIFFICULTIES.map((d) => (
-                          <SelectItem key={d} value={d}>
-                            {d}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      type="number"
-                      min={1}
-                      placeholder="Points"
-                      {...register(`exercises.${index}.points`, {
-                        valueAsNumber: true,
-                      })}
-                    />
-                  </div>
-                  {watch(`exercises.${index}.type`) !== "TEXT" && (
-                    <Textarea
-                      rows={3}
-                      placeholder={watch(`exercises.${index}.type`) === "TRUE_FALSE" ? "True\nFalse" : "One option per line"}
-                      disabled={watch(`exercises.${index}.type`) === "TRUE_FALSE"}
-                      {...register(`exercises.${index}.optionsText`)}
-                    />
-                  )}
-                  <Input placeholder="Hint (optional)" {...register(`exercises.${index}.hint`)} />
-                  <Textarea rows={3} placeholder="Explanation shown after submission (optional)" {...register(`exercises.${index}.explanation`)} />
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => append(emptyExercise())}
-              >
-                <Plus className="mr-1 h-4 w-4" /> Add exercise
-              </Button>
-            </>
-          )}
+          <ExerciseEditor exercises={exercises} onChange={setExercises} />
         </div>
 
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Saving..." : "Save lesson"}
-        </Button>
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => list("lessons")}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : isEdit ? "Update Lesson" : "Create Lesson"}
+          </Button>
+        </div>
       </form>
     </div>
   );
