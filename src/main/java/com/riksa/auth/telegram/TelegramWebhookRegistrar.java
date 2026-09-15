@@ -17,8 +17,18 @@ public class TelegramWebhookRegistrar {
     @EventListener(ApplicationReadyEvent.class)
     public void register() {
         if (!telegramConfig.isEnabled()
-                || telegramConfig.getWebhookUrl() == null
-                || telegramConfig.getWebhookUrl().isBlank()) {
+                || telegramConfig.getBotToken() == null
+                || telegramConfig.getBotToken().isBlank()) {
+            return;
+        }
+
+        try {
+            telegramService.registerCommands();
+        } catch (RuntimeException ex) {
+            log.warn("Telegram bot command registration failed ({})", ex.getClass().getSimpleName());
+        }
+
+        if (telegramConfig.getWebhookUrl() == null || telegramConfig.getWebhookUrl().isBlank()) {
             log.info("Telegram webhook auto-registration skipped; TELEGRAM_WEBHOOK_URL is not configured");
             return;
         }

@@ -28,6 +28,10 @@ public class TelegramAuthChallenge {
     @Column(name = "token_hash", nullable = false, unique = true, length = 64)
     private String tokenHash;
 
+    /** HMAC of the deep-link nonce or of the bot-issued sign-in code. */
+    @Column(name = "start_nonce_hash", unique = true, length = 64)
+    private String startNonceHash;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TelegramAuthChallengeStatus status = TelegramAuthChallengeStatus.PENDING;

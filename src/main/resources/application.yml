@@ -79,9 +79,15 @@ telegram:
   enabled: ${TELEGRAM_ENABLED:true}
   bot-token: ${TELEGRAM_BOT_TOKEN:}
   bot-username: ${TELEGRAM_BOT_USERNAME:}
+  api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
   webhook-url: ${TELEGRAM_WEBHOOK_URL:}
   webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
   auth-request-expiration-minutes: ${TELEGRAM_AUTH_REQUEST_EXPIRATION_MINUTES:10}
+  login-code-expiration-minutes: ${TELEGRAM_LOGIN_CODE_EXPIRATION_MINUTES:5}
+  # Local development without public HTTPS: pull updates instead of using the webhook.
+  polling-enabled: ${TELEGRAM_POLLING_ENABLED:false}
+  # Optional https link shown as an "Open Riksa" button under the bot's code message.
+  app-url: ${TELEGRAM_APP_URL:}
 
 google:
   client:

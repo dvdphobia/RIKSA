@@ -20,6 +20,10 @@ public interface TelegramAuthChallengeRepository extends JpaRepository<TelegramA
     @Query("SELECT c FROM TelegramAuthChallenge c WHERE c.tokenHash = :tokenHash")
     Optional<TelegramAuthChallenge> findByTokenHashForUpdate(@Param("tokenHash") String tokenHash);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM TelegramAuthChallenge c WHERE c.startNonceHash = :nonceHash")
+    Optional<TelegramAuthChallenge> findByStartNonceHashForUpdate(@Param("nonceHash") String nonceHash);
+
     void deleteByExpiresAtBefore(OffsetDateTime cutoff);
 }
 

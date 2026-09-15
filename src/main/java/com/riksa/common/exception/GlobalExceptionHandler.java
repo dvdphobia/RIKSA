@@ -45,6 +45,11 @@ public class GlobalExceptionHandler {
                 .body(errorBody(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage()));
     }
 
+    @ExceptionHandler(GoneException.class)
+    public ResponseEntity<Map<String, Object>> handleGone(GoneException ex) {
+        return ResponseEntity.status(HttpStatus.GONE).body(errorBody(HttpStatus.GONE, ex.getMessage()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
         return ResponseEntity.badRequest().body(errorBody(HttpStatus.BAD_REQUEST, ex.getMessage()));

@@ -1,5 +1,7 @@
 package com.riksa.auth.telegram;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -15,27 +17,43 @@ public class TelegramService {
 
     private final TelegramConfig telegramConfig;
 
-    private static final String TELEGRAM_API_BASE = "https://api.telegram.org/bot";
+    private static final List<String> ALLOWED_UPDATES = List.of("message", "callback_query");
 
     public void sendMessage(String chatId, String text) {
+        sendMessage(chatId, text, null);
+    }
+
+    public void sendMessage(String chatId, String text, InlineKeyboard keyboard) {
         if (!telegramConfig.isEnabled()) {
             log.info("Telegram disabled - message delivery skipped");
             return;
         }
-
-        String url = TELEGRAM_API_BASE + telegramConfig.getBotToken() + "/sendMessage";
-
         try {
-            RestClient restClient = RestClient.create();
-            restClient.post()
-                    .uri(url)
-                    .body(new SendMessageRequest(chatId, text, "HTML"))
-                    .retrieve()
-                    .toEntity(String.class);
+            post("sendMessage", new SendMessageRequest(chatId, text, "HTML", true, keyboard));
             log.info("Telegram message sent to chatId {}", chatId);
         } catch (Exception e) {
             log.error("Failed to send Telegram message to chatId {} ({})", chatId, e.getClass().getSimpleName());
             throw new RuntimeException("Failed to send Telegram message");
+        }
+    }
+
+    /** Replaces a bot message and removes its buttons. Best-effort: the state change already happened. */
+    public void editMessage(String chatId, Long messageId, String text) {
+        if (!telegramConfig.isEnabled() || messageId == null) return;
+        try {
+            post("editMessageText", new EditMessageRequest(chatId, messageId, text, "HTML", true));
+        } catch (Exception e) {
+            log.warn("Failed to edit Telegram message in chatId {} ({})", chatId, e.getClass().getSimpleName());
+        }
+    }
+
+    /** Stops the spinner on a tapped inline button and shows a short toast. */
+    public void answerCallback(String callbackQueryId, String text) {
+        if (!telegramConfig.isEnabled() || callbackQueryId == null) return;
+        try {
+            post("answerCallbackQuery", new AnswerCallbackRequest(callbackQueryId, text));
+        } catch (Exception e) {
+            log.warn("Failed to answer Telegram callback ({})", e.getClass().getSimpleName());
         }
     }
 
@@ -59,21 +77,89 @@ public class TelegramService {
         if (telegramConfig.getWebhookSecret() == null || telegramConfig.getWebhookSecret().isBlank()) {
             throw new IllegalStateException("TELEGRAM_WEBHOOK_SECRET is required when TELEGRAM_WEBHOOK_URL is set");
         }
+        post("setWebhook", new SetWebhookRequest(
+                telegramConfig.getWebhookUrl(),
+                telegramConfig.getWebhookSecret(),
+                ALLOWED_UPDATES
+        ));
+    }
 
-        String url = TELEGRAM_API_BASE + telegramConfig.getBotToken() + "/setWebhook";
-        RestClient.create().post()
-                .uri(url)
+    /** Shows /code and /help in Telegram's command menu. */
+    public void registerCommands() {
+        post("setMyCommands", new SetCommandsRequest(List.of(
+                new BotCommand("code", "Get a code to sign in to Riksa"),
+                new BotCommand("help", "How to sign in with Telegram")
+        )));
+    }
+
+    /** Required before long polling; Telegram rejects getUpdates while a webhook is set. */
+    public void deleteWebhook() {
+        post("deleteWebhook", new DeleteWebhookRequest(false));
+    }
+
+    public List<TelegramUpdate> getUpdates(long offset, int timeoutSeconds) {
+        UpdatesResponse response = RestClient.create().post()
+                .uri(url("getUpdates"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new SetWebhookRequest(
-                        telegramConfig.getWebhookUrl(),
-                        telegramConfig.getWebhookSecret(),
-                        List.of("message")
-                ))
+                .body(new GetUpdatesRequest(offset, timeoutSeconds, ALLOWED_UPDATES))
+                .retrieve()
+                .body(UpdatesResponse.class);
+        return response == null || response.result() == null ? List.of() : response.result();
+    }
+
+    private void post(String method, Object body) {
+        RestClient.create().post()
+                .uri(url(method))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
                 .retrieve()
                 .toBodilessEntity();
     }
 
-    private record SendMessageRequest(String chat_id, String text, String parse_mode) {}
+    private String url(String method) {
+        String base = telegramConfig.getApiBaseUrl() == null || telegramConfig.getApiBaseUrl().isBlank()
+                ? "https://api.telegram.org"
+                : telegramConfig.getApiBaseUrl().replaceAll("/+$", "");
+        return base + "/bot" + telegramConfig.getBotToken() + "/" + method;
+    }
+
+    public record InlineKeyboard(List<List<InlineButton>> inline_keyboard) {
+        public static InlineKeyboard row(InlineButton... buttons) {
+            return new InlineKeyboard(List.of(List.of(buttons)));
+        }
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record InlineButton(String text, String callback_data, String url) {
+        public static InlineButton callback(String text, String data) {
+            return new InlineButton(text, data, null);
+        }
+
+        public static InlineButton link(String text, String url) {
+            return new InlineButton(text, null, url);
+        }
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private record SendMessageRequest(
+            String chat_id, String text, String parse_mode, boolean disable_web_page_preview,
+            InlineKeyboard reply_markup) {}
+
+    private record EditMessageRequest(
+            String chat_id, Long message_id, String text, String parse_mode, boolean disable_web_page_preview) {}
+
+    private record AnswerCallbackRequest(String callback_query_id, String text) {}
 
     private record SetWebhookRequest(String url, String secret_token, List<String> allowed_updates) {}
+
+    private record DeleteWebhookRequest(boolean drop_pending_updates) {}
+
+    private record GetUpdatesRequest(long offset, int timeout, List<String> allowed_updates) {}
+
+    private record SetCommandsRequest(List<BotCommand> commands) {}
+
+    private record BotCommand(String command, String description) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record UpdatesResponse(boolean ok, List<TelegramUpdate> result) {}
 }

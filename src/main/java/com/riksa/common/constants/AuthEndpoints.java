@@ -16,8 +16,10 @@ public final class AuthEndpoints {
     public static final String LOGOUT = "/logout";
     public static final String GOOGLE = "/google";
     public static final String TELEGRAM = "/telegram";
+    public static final String TELEGRAM_BOT = "/telegram/bot";
     public static final String TELEGRAM_START = "/telegram/start";
     public static final String TELEGRAM_STATUS = "/telegram/status";
+    public static final String TELEGRAM_CODE = "/telegram/code";
     public static final String TELEGRAM_COMPLETE = "/telegram/complete";
     public static final String TELEGRAM_LINK = "/telegram/link";
     public static final String TELEGRAM_WEBHOOK = "/telegram/webhook";

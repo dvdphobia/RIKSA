@@ -41,6 +41,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 Map.entry("/otp/verify", new Policy("otp-verify", 20, Duration.ofMinutes(15))),
                 Map.entry("/telegram/start", new Policy("telegram-start", 10, Duration.ofMinutes(10))),
                 Map.entry("/telegram/status", new Policy("telegram-status", 60, Duration.ofMinutes(1))),
+                // Codes are 8 chars from a 32-symbol alphabet; this keeps guessing hopeless.
+                Map.entry("/telegram/code", new Policy("telegram-code", 10, Duration.ofMinutes(15))),
                 Map.entry("/telegram/complete", new Policy("telegram-complete", 20, Duration.ofMinutes(15))),
                 Map.entry("/telegram", new Policy("telegram", 10, Duration.ofMinutes(1))),
                 Map.entry("/google", new Policy("google", 10, Duration.ofMinutes(1))),

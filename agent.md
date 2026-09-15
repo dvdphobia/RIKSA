@@ -151,3 +151,7 @@ com.riksa
 # Docker (PostgreSQL + app)
 docker-compose up --build
 ```
+
+
+  git config --global user.email "l1gend@outlook.com"
+  git config --global user.name "DVDphobia"

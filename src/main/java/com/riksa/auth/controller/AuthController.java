@@ -8,8 +8,11 @@ import com.riksa.auth.telegram.TelegramAuthCompleteRequest;
 import com.riksa.auth.telegram.TelegramAuthFlowService;
 import com.riksa.auth.telegram.TelegramAuthRequest;
 import com.riksa.auth.telegram.TelegramAuthStartResponse;
+import com.riksa.auth.telegram.TelegramAuthResult;
 import com.riksa.auth.telegram.TelegramAuthStatusRequest;
-import com.riksa.auth.telegram.TelegramAuthStatusResponse;
+import com.riksa.auth.telegram.TelegramBotInfoResponse;
+import com.riksa.auth.telegram.TelegramCodeRequest;
+import com.riksa.auth.telegram.TelegramLinkRequest;
 import com.riksa.auth.telegram.TelegramUpdate;
 import com.riksa.auth.security.JwtService;
 import com.riksa.auth.service.AuthService;
@@ -67,29 +70,39 @@ public class AuthController {
         return ResponseEntity.ok(authService.telegramAuth(request));
     }
 
+    @GetMapping(AuthEndpoints.TELEGRAM_BOT)
+    public ResponseEntity<TelegramBotInfoResponse> telegramBotInfo() {
+        return ResponseEntity.ok(telegramAuthFlowService.botInfo());
+    }
+
     @PostMapping(AuthEndpoints.TELEGRAM_START)
     public ResponseEntity<TelegramAuthStartResponse> startTelegramAuth() {
         return ResponseEntity.ok(telegramAuthFlowService.start());
     }
 
     @PostMapping(AuthEndpoints.TELEGRAM_STATUS)
-    public ResponseEntity<TelegramAuthStatusResponse> getTelegramAuthStatus(
+    public ResponseEntity<TelegramAuthResult> getTelegramAuthStatus(
             @Valid @RequestBody TelegramAuthStatusRequest request
     ) {
         return ResponseEntity.ok(telegramAuthFlowService.status(request.requestToken()));
     }
 
+    @PostMapping(AuthEndpoints.TELEGRAM_CODE)
+    public ResponseEntity<TelegramAuthResult> redeemTelegramCode(@Valid @RequestBody TelegramCodeRequest request) {
+        return ResponseEntity.ok(telegramAuthFlowService.redeemCode(request.code()));
+    }
+
     @PostMapping(AuthEndpoints.TELEGRAM_COMPLETE)
-    public ResponseEntity<AuthResponse> completeTelegramAuth(
+    public ResponseEntity<AuthResponse> completeTelegramSignup(
             @Valid @RequestBody TelegramAuthCompleteRequest request
     ) {
-        return ResponseEntity.ok(telegramAuthFlowService.completeLogin(request));
+        return ResponseEntity.ok(telegramAuthFlowService.completeSignup(request));
     }
 
     @PostMapping(AuthEndpoints.TELEGRAM_LINK)
     public ResponseEntity<MessageResponse> linkTelegram(
             @RequestHeader("Authorization") String authHeader,
-            @Valid @RequestBody TelegramAuthCompleteRequest request
+            @Valid @RequestBody TelegramLinkRequest request
     ) {
         telegramAuthFlowService.link(extractUserId(authHeader), request);
         return ResponseEntity.ok(new MessageResponse("Telegram account linked successfully"));

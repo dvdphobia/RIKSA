@@ -31,6 +31,23 @@ public class RedisTelegramChallengeStore {
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Unable to serialize Telegram auth challenge", e);
         }
+        if (challenge.getStartNonceHash() != null) {
+            redisTemplate.opsForValue().set(nonceKey(challenge.getStartNonceHash()), challenge.getTokenHash(), ttl);
+        }
+    }
+
+    public Optional<TelegramAuthChallenge> findByNonce(String nonceHash) {
+        String tokenHash = redisTemplate.opsForValue().get(nonceKey(nonceHash));
+        return tokenHash == null ? Optional.empty() : find(tokenHash);
+    }
+
+    /**
+     * Claims a one-time transition such as issuing tokens or creating the account.
+     * Redis has no row lock, so concurrent polls race for this marker instead.
+     */
+    public boolean claim(String tokenHash, Duration ttl) {
+        return Boolean.TRUE.equals(redisTemplate.opsForValue()
+                .setIfAbsent(keyFactory.key("telegram", "v1", "claim", tokenHash), "1", ttl));
     }
 
     public Optional<TelegramAuthChallenge> find(String tokenHash) {
@@ -45,5 +62,9 @@ public class RedisTelegramChallengeStore {
 
     private String key(String tokenHash) {
         return keyFactory.key("telegram", "v1", "challenge", tokenHash);
+    }
+
+    private String nonceKey(String nonceHash) {
+        return keyFactory.key("telegram", "v1", "nonce", nonceHash);
     }
 }
