@@ -23,6 +23,7 @@ public final class SocialEndpoints {
     // --- Category mutations ---
     public static final String MUTATION_JOIN_CATEGORY = "joinCategory";
     public static final String MUTATION_LEAVE_CATEGORY = "leaveCategory";
+    public static final String MUTATION_CREATE_COMMUNITY = "createCommunity";
 
     // --- Reaction mutations ---
     public static final String MUTATION_REACT = "react";

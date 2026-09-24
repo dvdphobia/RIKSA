@@ -47,6 +47,7 @@ public class CategoryAdminService {
         category.setSlug(req.getSlug());
         category.setDescription(req.getDescription());
         category.setIconUrl(req.getIconUrl());
+        category.setOfficial(true);
         category = categoryRepository.save(category);
 
         return toResponse(category);

@@ -4,7 +4,9 @@ import com.riksa.blog.dto.*;
 import com.riksa.blog.enums.BlogStatus;
 import com.riksa.blog.service.BlogEngagementService;
 import com.riksa.blog.service.BlogService;
+import com.riksa.buddy.service.BuddyService;
 import com.riksa.common.constants.BlogEndpoints;
+import com.riksa.common.exception.ResourceNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 // import org.springframework.data.domain.Page;
@@ -22,6 +24,8 @@ public class BlogController {
 
     private final BlogService blogService;
     private final BlogEngagementService blogEngagementService;
+
+    private final BuddyService buddyService;
 
     @GetMapping(BlogEndpoints.ROOT)
     public ResponseEntity<BlogListResponse> listPosts(
@@ -106,6 +110,17 @@ public class BlogController {
         blogEngagementService.trackView(id, userId);
         return ResponseEntity.ok(BlogMapper.toResponse(post,
                 blogEngagementService.isLiked(id, userId)));
+    }
+
+    @PostMapping(BlogEndpoints.READ_COMPLETE)
+    public ResponseEntity<Void> readComplete(@PathVariable UUID id) {
+        UUID userId = getCurrentUserId();
+        var post = blogService.getPost(id);
+        if (post.getStatus() != BlogStatus.APPROVED) {
+            throw new ResourceNotFoundException("Blog post not found: " + id);
+        }
+        buddyService.recordCare(userId, "BLOG_READ", id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping(BlogEndpoints.LIKE)

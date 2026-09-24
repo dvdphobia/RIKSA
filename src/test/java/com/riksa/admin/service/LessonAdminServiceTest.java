@@ -41,6 +41,7 @@ class LessonAdminServiceTest {
         UUID categoryId = UUID.randomUUID();
         Category category = new Category();
         category.setId(categoryId);
+        category.setOfficial(true);
         category.setName("Physics");
 
         ExerciseRequest exerciseReq = new ExerciseRequest();
@@ -254,6 +255,7 @@ class LessonAdminServiceTest {
         UUID categoryId = UUID.randomUUID();
         Category category = new Category();
         category.setId(categoryId);
+        category.setOfficial(true);
 
         ExerciseRequest exerciseReq = new ExerciseRequest();
         exerciseReq.setQuestion("Q?");

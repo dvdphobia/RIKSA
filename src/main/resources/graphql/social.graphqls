@@ -14,6 +14,10 @@ type Category {
   iconUrl:     String
   memberCount: Int!
   joined:      Boolean!
+  # Curated by RIKSA staff; false for communities members created.
+  official:    Boolean!
+  # True when the signed-in viewer founded this community.
+  ownedByMe:   Boolean!
 }
 
 type User {
@@ -73,6 +77,13 @@ type PageInfo {
 }
 
 # ── Inputs ───────────────────────────────────────────
+# The server cleans and validates every field and picks the slug itself.
+input CreateCommunityInput {
+  name:        String!
+  description: String
+  iconUrl:     String
+}
+
 input CreatePostInput {
   title:      String!
   content:    String!
@@ -139,4 +150,5 @@ type Mutation {
 
   joinCategory(categoryId: UUID!): Category!
   leaveCategory(categoryId: UUID!): Category!
+  createCommunity(input: CreateCommunityInput!): Category!
 }

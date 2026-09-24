@@ -90,7 +90,8 @@ public class SocialResponseResolver {
                 .collect(Collectors.toMap(Category::getId, category -> SocialMapper.toCategoryResponse(
                         category,
                         categoryService.getMemberCount(category.getId()),
-                        categoryService.isMember(currentUserId, category.getId()))));
+                        categoryService.isMember(currentUserId, category.getId()),
+                        currentUserId)));
 
         Map<UUID, ReactionType> reactionsByPostId = Map.of();
         if (currentUserId != null) {
@@ -173,7 +174,8 @@ public class SocialResponseResolver {
                 .map(c -> SocialMapper.toCategoryResponse(
                         c,
                         categoryService.getMemberCount(c.getId()),
-                        categoryService.isMember(currentUserId, c.getId())))
+                        categoryService.isMember(currentUserId, c.getId()),
+                        currentUserId))
                 .orElse(null);
     }
 

@@ -41,10 +41,14 @@ public class CategoryService {
         if (!membershipRepository.existsByUserIdAndCategoryId(userId, categoryId)) {
             throw new IllegalStateException("Not a member of this category");
         }
-        membershipRepository.deleteByUserIdAndCategoryId(userId, categoryId);
-
-        return categoryRepository.findById(categoryId)
+        Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+        // A founder leaving would strand the community with nobody to answer for it.
+        if (userId.equals(category.getCreatedBy())) {
+            throw new IllegalStateException("You can't leave a community you created");
+        }
+        membershipRepository.deleteByUserIdAndCategoryId(userId, categoryId);
+        return category;
     }
 
     public boolean isMember(UUID userId, UUID categoryId) {

@@ -6,6 +6,8 @@ import com.riksa.social.entity.Post;
 import com.riksa.auth.entity.User;
 import com.riksa.social.enums.ReactionType;
 
+import java.util.UUID;
+
 public class SocialMapper {
 
     public static UserResponse toUserResponse(User user) {
@@ -17,7 +19,8 @@ public class SocialMapper {
         );
     }
 
-    public static CategoryResponse toCategoryResponse(Category category, int memberCount, boolean joined) {
+    public static CategoryResponse toCategoryResponse(
+            Category category, int memberCount, boolean joined, UUID viewerId) {
         return new CategoryResponse(
                 category.getId(),
                 category.getName(),
@@ -25,7 +28,9 @@ public class SocialMapper {
                 category.getDescription(),
                 category.getIconUrl(),
                 memberCount,
-                joined
+                joined,
+                category.isOfficial(),
+                viewerId != null && viewerId.equals(category.getCreatedBy())
         );
     }
 

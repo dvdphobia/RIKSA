@@ -193,8 +193,13 @@ public class LessonAdminService {
 
     private Category resolveCategory(UUID categoryId) {
         if (categoryId == null) return null;
-        return categoryRepository.findById(categoryId)
+        Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
+        // Learner-made communities must never become part of the curriculum.
+        if (!category.isOfficial()) {
+            throw new IllegalArgumentException("Lessons can only use official categories");
+        }
+        return category;
     }
 
     private List<Exercise> buildExercises(List<ExerciseRequest> requests, Lesson lesson) {

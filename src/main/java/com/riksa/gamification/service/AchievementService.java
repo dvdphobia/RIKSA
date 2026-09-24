@@ -113,7 +113,7 @@ public class AchievementService {
 
         if (achievements.isEmpty()) return;
 
-        long totalCategories = categoryRepository.count();
+        long totalCategories = categoryRepository.countByOfficialTrue();
         if (totalCategories == 0) return;
 
         long categoriesCompleted = lessonCompletionRepository.countDistinctCategoriesCompleted(userId);

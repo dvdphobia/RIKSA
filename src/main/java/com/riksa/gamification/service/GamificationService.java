@@ -265,7 +265,7 @@ public class GamificationService {
                 yield new int[]{0, 1};
             }
             case COMPLETE_COURSE_IN_EVERY_CATEGORY -> {
-                long totalCategories = categoryRepository.count();
+                long totalCategories = categoryRepository.countByOfficialTrue();
                 long categoriesCompleted = lessonCompletionRepository.countDistinctCategoriesCompleted(userId);
                 yield new int[]{(int) Math.min(categoriesCompleted, totalCategories), (int) Math.max(totalCategories, 1)};
             }

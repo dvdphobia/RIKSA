@@ -32,6 +32,7 @@ public class GraphQlExceptionResolver extends DataFetcherExceptionResolverAdapte
             case AccessDeniedException e -> error(env, ErrorType.FORBIDDEN, e.getMessage());
             case InvalidCursorException e -> error(env, ErrorType.BAD_REQUEST, e.getMessage());
             case RateLimitExceededException e -> error(env, ErrorType.BAD_REQUEST, e.getMessage());
+            case ServiceUnavailableException e -> error(env, ErrorType.INTERNAL_ERROR, e.getMessage());
             // Author-write refusals and validation failures both land here.
             case IllegalStateException e -> error(env, ErrorType.BAD_REQUEST, e.getMessage());
             case IllegalArgumentException e -> error(env, ErrorType.BAD_REQUEST, e.getMessage());

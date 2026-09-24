@@ -102,4 +102,21 @@ class CategoryServiceTest {
 
         assertThat(categoryService.getMemberCount(categoryId)).isEqualTo(42);
     }
+
+    @Test
+    void leaveCategory_founder_cannotLeave() {
+        UUID userId = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        Category category = new Category();
+        category.setId(categoryId);
+        category.setCreatedBy(userId);
+
+        when(membershipRepository.existsByUserIdAndCategoryId(userId, categoryId)).thenReturn(true);
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+
+        assertThatThrownBy(() -> categoryService.leaveCategory(userId, categoryId))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("You can't leave a community you created");
+        verify(membershipRepository, never()).deleteByUserIdAndCategoryId(any(), any());
+    }
 }

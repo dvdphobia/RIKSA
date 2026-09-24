@@ -2,9 +2,11 @@ package com.riksa.social.controller;
 
 import com.riksa.common.constants.SocialEndpoints;
 import com.riksa.social.dto.CategoryResponse;
+import com.riksa.social.dto.CreateCommunityInput;
 import com.riksa.social.dto.SocialMapper;
 import com.riksa.social.entity.Category;
 import com.riksa.social.service.CategoryService;
+import com.riksa.social.service.CommunityCreationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -21,6 +23,7 @@ import java.util.UUID;
 public class CategoryController {
 
     private final CategoryService categoryService;
+    private final CommunityCreationService communityCreationService;
 
     @QueryMapping(SocialEndpoints.QUERY_CATEGORIES)
     public List<CategoryResponse> categories() {
@@ -29,9 +32,18 @@ public class CategoryController {
                 .map(c -> SocialMapper.toCategoryResponse(
                         c,
                         categoryService.getMemberCount(c.getId()),
-                        categoryService.isMember(userId, c.getId())
+                        categoryService.isMember(userId, c.getId()),
+                        userId
                 ))
                 .toList();
+    }
+
+    @MutationMapping(SocialEndpoints.MUTATION_CREATE_COMMUNITY)
+    public CategoryResponse createCommunity(@Argument CreateCommunityInput input) {
+        UUID userId = getCurrentUserId();
+        Category category = communityCreationService.create(
+                userId, input.name(), input.description(), input.iconUrl());
+        return SocialMapper.toCategoryResponse(category, 1, true, userId);
     }
 
     @MutationMapping(SocialEndpoints.MUTATION_JOIN_CATEGORY)
@@ -41,7 +53,8 @@ public class CategoryController {
         return SocialMapper.toCategoryResponse(
                 category,
                 categoryService.getMemberCount(categoryId),
-                true
+                true,
+                userId
         );
     }
 
@@ -52,7 +65,8 @@ public class CategoryController {
         return SocialMapper.toCategoryResponse(
                 category,
                 categoryService.getMemberCount(categoryId),
-                false
+                false,
+                userId
         );
     }
 

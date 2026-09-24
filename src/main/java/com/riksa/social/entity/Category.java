@@ -29,6 +29,14 @@ public class Category {
     @Column(name = "icon_url")
     private String iconUrl;
 
+    /** Curated by admins; lessons and category achievements only use these. */
+    @Column(nullable = false)
+    private boolean official;
+
+    /** The member who founded a user community; null for official ones. */
+    @Column(name = "created_by")
+    private UUID createdBy;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
