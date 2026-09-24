@@ -1,6 +1,9 @@
 package com.riksa.learning.service;
 
+import com.riksa.common.event.EventPublisher;
 import com.riksa.common.exception.ResourceNotFoundException;
+import com.riksa.quest.event.ExerciseAnsweredEvent;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.riksa.learning.dto.AnswerResult;
 import com.riksa.learning.dto.ExerciseAttemptRequest;
 import com.riksa.learning.entity.Exercise;
@@ -21,6 +24,9 @@ public class ExerciseAttemptService {
     private final ExerciseRepository exerciseRepository;
     private final ExerciseAttemptRepository exerciseAttemptRepository;
     private final LessonProgressionService lessonProgressionService;
+
+    @Autowired(required = false)
+    private EventPublisher eventPublisher;
 
     /**
      * Submit an answer for a single exercise. The attempt is recorded (upserted)
@@ -56,6 +62,9 @@ public class ExerciseAttemptService {
         attempt.setCorrect(correct);
         attempt.setAttemptedAt(java.time.OffsetDateTime.now());
         exerciseAttemptRepository.save(attempt);
+        if (eventPublisher != null) {
+            eventPublisher.publish(new ExerciseAnsweredEvent(this, userId, exerciseId, correct));
+        }
 
         String message = correct ? "Correct!" : "Not quite. Try again.";
         return new AnswerResult(exerciseId, correct, exercise.getPoints(), message,
@@ -94,3 +103,4 @@ public class ExerciseAttemptService {
         return s.trim().toLowerCase();
     }
 }
+

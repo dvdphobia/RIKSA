@@ -6,6 +6,7 @@ import com.riksa.social.entity.Reaction;
 import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.enums.ReactionType;
 import com.riksa.social.event.ReactionReceivedEvent;
+import com.riksa.quest.event.SocialActionEvent;
 import com.riksa.social.repository.CommentRepository;
 import com.riksa.social.repository.PostRepository;
 import com.riksa.social.repository.ReactionRepository;
@@ -56,10 +57,19 @@ public class ReactionService {
             reactionRepository.save(reaction);
             Post updatedPost = adjustPostCounter(postId, +1);
 
-            // Notify achievement system that the post owner received a reaction
-            if (postId != null) {
-                Post post = getPost(postId);
-                eventPublisher.publishEvent(new ReactionReceivedEvent(this, postId, post.getAuthorId()));
+            // Preserve the achievement event and count one action on another learner's content.
+            UUID actionPostId = postId;
+            if (actionPostId == null && commentId != null) {
+                actionPostId = commentRepository.findById(commentId).map(Comment::getPostId).orElse(null);
+            }
+            if (actionPostId != null) {
+                Post post = getPost(actionPostId);
+                if (postId != null) {
+                    eventPublisher.publishEvent(new ReactionReceivedEvent(this, postId, post.getAuthorId()));
+                }
+                if (post.getAuthorId() != null && !post.getAuthorId().equals(userId)) {
+                    eventPublisher.publishEvent(new SocialActionEvent(this, userId));
+                }
             }
 
             return updatedPost;
@@ -105,3 +115,4 @@ public class ReactionService {
         }
     }
 }
+

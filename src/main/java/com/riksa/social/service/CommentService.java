@@ -5,6 +5,9 @@ import com.riksa.social.entity.Post;
 import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.repository.CommentRepository;
 import com.riksa.social.repository.PostRepository;
+import com.riksa.quest.event.SocialActionEvent;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +21,9 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final MediaUrlValidator mediaUrlValidator;
+
+    @Autowired(required = false)
+    private ApplicationEventPublisher eventPublisher;
 
     /**
      * A comment may be text, an image, or both — but not neither.
@@ -46,6 +52,10 @@ public class CommentService {
 
         post.setCommentCount(post.getCommentCount() + 1);
         postRepository.save(post);
+
+        if (eventPublisher != null && post.getAuthorId() != null && !post.getAuthorId().equals(authorId)) {
+            eventPublisher.publishEvent(new SocialActionEvent(this, authorId));
+        }
 
         return saved;
     }
@@ -113,3 +123,5 @@ public class CommentService {
         return value.trim();
     }
 }
+
+
