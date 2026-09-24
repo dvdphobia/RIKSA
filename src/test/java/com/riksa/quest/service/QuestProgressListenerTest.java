@@ -6,6 +6,7 @@ import com.riksa.quest.event.SocialActionEvent;
 import com.riksa.quest.listener.QuestProgressListener;
 import com.riksa.quest.service.QuestService;
 import org.junit.jupiter.api.Test;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -48,5 +49,11 @@ class QuestProgressListenerTest {
                         .isNotNull()
                         .extracting(TransactionalEventListener::phase)
                         .isEqualTo(TransactionPhase.AFTER_COMMIT));
+        // A synchronous handler would write inside the already-committed transaction.
+        assertThat(listenerMethods)
+                .allSatisfy(method -> assertThat(method.getAnnotation(Async.class))
+                        .isNotNull()
+                        .extracting(Async::value)
+                        .isEqualTo("gamificationTaskExecutor"));
     }
 }
