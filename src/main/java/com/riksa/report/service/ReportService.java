@@ -8,6 +8,7 @@ import com.riksa.report.entity.ContentReport;
 import com.riksa.report.enums.ReportReason;
 import com.riksa.report.enums.ReportTargetType;
 import com.riksa.report.repository.ContentReportRepository;
+import com.riksa.resource.repository.LessonResourceRepository;
 import com.riksa.social.repository.CommentRepository;
 import com.riksa.social.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class ReportService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final BlogPostRepository blogPostRepository;
+    private final LessonResourceRepository lessonResourceRepository;
 
     @Transactional
     public ReportResponse fileReport(UUID reporterId, CreateReportRequest request) {
@@ -51,6 +53,7 @@ public class ReportService {
             case POST -> postRepository.existsById(targetId);
             case COMMENT -> commentRepository.existsById(targetId);
             case BLOG -> blogPostRepository.existsById(targetId);
+            case RESOURCE -> lessonResourceRepository.existsById(targetId);
         };
         if (!exists) {
             throw new ResourceNotFoundException(
@@ -63,7 +66,7 @@ public class ReportService {
             return ReportTargetType.valueOf(value.toUpperCase());
         } catch (IllegalArgumentException | NullPointerException e) {
             throw new IllegalArgumentException(
-                    "Invalid targetType: " + value + ". Valid values: POST, COMMENT, BLOG");
+                    "Invalid targetType: " + value + ". Valid values: POST, COMMENT, BLOG, RESOURCE");
         }
     }
 

@@ -19,4 +19,5 @@ public class UpdateProfileRequest {
             message = "must be one of the bundled preset avatars"
     )
     private String avatarUrl;
+    private Boolean shareMilestones;
 }

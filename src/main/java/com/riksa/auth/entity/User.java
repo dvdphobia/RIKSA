@@ -30,6 +30,9 @@ public class User {
     @Column(length = 160)
     private String bio;
 
+    @Column(name = "share_milestones", nullable = false)
+    private boolean shareMilestones = true;
+
     @Column(length = 20)
     private String gender;
 

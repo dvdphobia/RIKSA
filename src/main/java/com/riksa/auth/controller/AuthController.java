@@ -158,7 +158,8 @@ public class AuthController {
                 request.getBio(),
                 request.getGender(),
                 request.getProvinceId(),
-                request.getAvatarUrl()
+                request.getAvatarUrl(),
+                request.getShareMilestones()
         ));
     }
 

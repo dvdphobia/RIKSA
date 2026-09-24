@@ -14,6 +14,8 @@ import com.riksa.report.enums.ReportStatus;
 import com.riksa.report.enums.ReportTargetType;
 import com.riksa.report.repository.ContentReportRepository;
 import com.riksa.report.service.ReportService;
+import com.riksa.resource.entity.LessonResource;
+import com.riksa.resource.repository.LessonResourceRepository;
 import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
 import com.riksa.social.enums.ContentStatus;
@@ -36,6 +38,7 @@ public class ReportAdminService {
 
     private final ContentReportRepository reportRepository;
     private final PostRepository postRepository;
+    private final LessonResourceRepository lessonResourceRepository;
     private final CommentRepository commentRepository;
     private final SocialModerationService socialModerationService;
     private final AuditLogService auditLogService;
@@ -151,6 +154,15 @@ public class ReportAdminService {
             }
             case BLOG -> throw new IllegalArgumentException(
                     "HIDE action is not supported for BLOG targets; use blog moderation");
+            case RESOURCE -> {
+                LessonResource resource = lessonResourceRepository.findById(report.getTargetId()).orElse(null);
+                if (resource == null) yield "targetMissing";
+                if (resource.getHiddenAt() != null) yield "alreadyHidden";
+                resource.setHiddenAt(OffsetDateTime.now());
+                resource.setHiddenBy(moderatorId);
+                lessonResourceRepository.save(resource);
+                yield null;
+            }
         };
     }
 

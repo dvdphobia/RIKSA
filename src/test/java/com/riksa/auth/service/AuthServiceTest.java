@@ -364,7 +364,7 @@ class AuthServiceTest {
         when(userRepository.save(user)).thenReturn(user);
 
         UserProfileResponse profile = authService.updateProfile(
-                userId, null, null, null, null, "/avatars/avatar-17.png");
+                userId, null, null, null, null, "/avatars/avatar-17.png", null);
 
         assertThat(user.getAvatarUrl()).isEqualTo("/avatars/avatar-17.png");
         assertThat(profile.getAvatarUrl()).isEqualTo("/avatars/avatar-17.png");
@@ -376,7 +376,7 @@ class AuthServiceTest {
         UUID userId = UUID.randomUUID();
 
         assertThatThrownBy(() -> authService.updateProfile(
-                userId, null, null, null, null, "https://example.com/avatar.png"))
+                userId, null, null, null, null, "https://example.com/avatar.png", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("avatarUrl must be one of the bundled preset avatars");
 

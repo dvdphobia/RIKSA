@@ -5,6 +5,7 @@ import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
 import com.riksa.auth.entity.User;
 import com.riksa.social.enums.ReactionType;
+import com.riksa.social.enums.MilestoneType;
 
 import java.util.UUID;
 
@@ -48,7 +49,12 @@ public class SocialMapper {
                 category,
                 myReaction,
                 post.getCreatedAt(),
-                post.getUpdatedAt()
+                post.getUpdatedAt(),
+                post.getKind(),
+                post.getKind() == com.riksa.social.enums.PostKind.MILESTONE
+                        ? new MilestoneResponse(MilestoneType.valueOf(post.getMilestoneType()),
+                                post.getMilestoneTitle(), post.getMilestoneTitleKm(), post.getMilestoneValue())
+                        : null
         );
     }
 

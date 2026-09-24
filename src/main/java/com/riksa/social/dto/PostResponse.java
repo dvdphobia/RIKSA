@@ -1,6 +1,7 @@
 package com.riksa.social.dto;
 
 import com.riksa.social.enums.ReactionType;
+import com.riksa.social.enums.PostKind;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -17,5 +18,7 @@ public record PostResponse(
         CategoryResponse category,
         ReactionType myReaction,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        PostKind kind,
+        MilestoneResponse milestone
 ) {}

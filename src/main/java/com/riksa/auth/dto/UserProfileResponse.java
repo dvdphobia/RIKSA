@@ -25,4 +25,5 @@ public class UserProfileResponse {
     private String countryId;
     private UUID provinceId;
     private OffsetDateTime createdAt;
+    private Boolean shareMilestones;
 }

@@ -179,7 +179,8 @@ public class AuthService {
             String bio,
             String gender,
             UUID provinceId,
-            String avatarUrl
+            String avatarUrl,
+            Boolean shareMilestones
     ) {
         if (avatarUrl != null && !AvatarCatalog.isAvailable(avatarUrl)) {
             throw new IllegalArgumentException("avatarUrl must be one of the bundled preset avatars");
@@ -192,6 +193,7 @@ public class AuthService {
         if (bio != null) user.setBio(bio);
         if (gender != null) user.setGender(gender);
         if (avatarUrl != null) user.setAvatarUrl(avatarUrl);
+        if (shareMilestones != null) user.setShareMilestones(shareMilestones);
         if (provinceId != null) {
             user.setProvince(provinceRepository.findById(provinceId)
                     .orElseThrow(() -> new IllegalArgumentException("Province not found")));
@@ -377,7 +379,8 @@ public class AuthService {
                 user.getRole().name(),
                 user.getCountryId(),
                 user.getProvince() == null ? null : user.getProvince().getId(),
-                user.getCreatedAt()
+                user.getCreatedAt(),
+                user.isShareMilestones()
         );
     }
 

@@ -52,6 +52,10 @@ public class PostService {
     public Post updatePost(UUID authorId, UUID postId, String title, String content, String mediaUrl) {
         Post post = getPost(postId);
 
+        if (post.getKind() == com.riksa.social.enums.PostKind.MILESTONE) {
+            throw new IllegalStateException("Milestone posts cannot be edited or deleted");
+        }
+
         if (!post.getAuthorId().equals(authorId)) {
             throw new IllegalStateException("You can only edit your own posts");
         }
@@ -66,6 +70,10 @@ public class PostService {
     @Transactional
     public void deletePost(UUID authorId, UUID postId) {
         Post post = getPost(postId);
+
+        if (post.getKind() == com.riksa.social.enums.PostKind.MILESTONE) {
+            throw new IllegalStateException("Milestone posts cannot be edited or deleted");
+        }
 
         if (!post.getAuthorId().equals(authorId)) {
             throw new IllegalStateException("You can only delete your own posts");

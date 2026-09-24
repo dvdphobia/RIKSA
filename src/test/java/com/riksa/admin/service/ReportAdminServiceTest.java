@@ -13,6 +13,7 @@ import com.riksa.report.enums.ReportReason;
 import com.riksa.report.enums.ReportStatus;
 import com.riksa.report.enums.ReportTargetType;
 import com.riksa.report.repository.ContentReportRepository;
+import com.riksa.resource.repository.LessonResourceRepository;
 import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
 import com.riksa.social.enums.ContentStatus;
@@ -45,6 +46,7 @@ class ReportAdminServiceTest {
 
     @Mock private ContentReportRepository reportRepository;
     @Mock private PostRepository postRepository;
+    @Mock private LessonResourceRepository lessonResourceRepository;
     @Mock private CommentRepository commentRepository;
     @Mock private SocialModerationService socialModerationService;
     @Mock private AuditLogService auditLogService;
@@ -58,7 +60,7 @@ class ReportAdminServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ReportAdminService(reportRepository, postRepository, commentRepository,
+        service = new ReportAdminService(reportRepository, postRepository, lessonResourceRepository, commentRepository,
                 socialModerationService, auditLogService, objectMapper);
     }
 

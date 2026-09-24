@@ -1,6 +1,7 @@
 package com.riksa.social.entity;
 
 import com.riksa.social.enums.ContentStatus;
+import com.riksa.social.enums.PostKind;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -57,6 +58,22 @@ public class Post {
 
     @Column(name = "category_id", nullable = false)
     private UUID categoryId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "kind", nullable = false, length = 16)
+    private PostKind kind = PostKind.USER;
+
+    @Column(name = "milestone_type", length = 24)
+    private String milestoneType;
+
+    @Column(name = "milestone_title")
+    private String milestoneTitle;
+
+    @Column(name = "milestone_title_km")
+    private String milestoneTitleKm;
+
+    @Column(name = "milestone_value")
+    private Integer milestoneValue;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

@@ -40,6 +40,8 @@ type Post {
   myReaction:    ReactionType
   createdAt:     DateTime!
   updatedAt:     DateTime!
+  kind:          PostKind!
+  milestone:     Milestone
   comments(cursor: UUID, limit: Int = 10): CommentPage!
 }
 
@@ -58,6 +60,15 @@ type Comment {
 
 # ── Enums ────────────────────────────────────────────
 enum ReactionType { UPVOTE DOWNVOTE HAHA LOVE }
+enum PostKind { USER MILESTONE }
+enum MilestoneType { STREAK RANK_UP UNIT_COMPLETE }
+
+type Milestone {
+  type: MilestoneType!
+  title: String!
+  titleKm: String!
+  value: Int
+}
 enum SharePlatform { TELEGRAM FACEBOOK COPY_LINK }
 
 # ── Pagination ───────────────────────────────────────
