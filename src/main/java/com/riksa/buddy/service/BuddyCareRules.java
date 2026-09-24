@@ -6,7 +6,10 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Locale;
 
+import org.springframework.stereotype.Component;
+
 /** Pure energy and bond rules shared with the Flutter BuddyCare model. */
+@Component
 public final class BuddyCareRules {
 
     public static final String LESSON = "LESSON";

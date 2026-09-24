@@ -45,8 +45,10 @@ fi
 log "database backed up to $BACKUP ($(du -h "$BACKUP" | cut -f1))"
 ls -1t "$BACKUP_DIR"/riksa_db_*.sql.gz | tail -n +15 | xargs -r rm --
 
+STASHED=0
 if [ -n "$(git status --porcelain)" ]; then
   git stash push -u -m "hand edits before deploy $TS" >/dev/null
+  STASHED=1
   log "moved hand edits on the server to: $(git stash list | head -1)"
 fi
 
@@ -88,6 +90,11 @@ docker logs --tail 60 "$API_CONTAINER" 2>&1 || true
 
 log "rolling code back to ${PREV:0:7}"
 git checkout --quiet "$PREV"
+if [ "$STASHED" = 1 ]; then
+  # The previous build included the hand edits, so the rollback must too.
+  git stash apply --quiet
+  log "re-applied the hand edits (still kept in the stash)"
+fi
 "${COMPOSE[@]}" up -d --build
 if wait_healthy; then
   log "previous version is back up. Server is on a detached HEAD at ${PREV:0:7};"

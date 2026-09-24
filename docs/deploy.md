@@ -23,7 +23,16 @@ In GitHub → the repo → **Settings → Secrets and variables → Actions**:
 | `DEPLOY_SSH_KEY` | the private key that can SSH to the server (the whole file, including the BEGIN/END lines) |
 | `DEPLOY_KNOWN_HOSTS` | `94.237.78.191 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKsnOZNAdtju/mzb8TrNx9HoAMjOl53nZYDZelmIe42Y` |
 
+Then add the repository **variable** `AUTO_DEPLOY` = `true` (same page,
+**Variables** tab). Until it is set, pushes only run the tests.
+
 Optional variables `DEPLOY_HOST` / `DEPLOY_USER` override `94.237.78.191` / `root`.
+
+Without GitHub, deploy from a machine that has the key (Git Bash):
+
+```bash
+ssh -i ~/.ssh/riksa_deploy root@94.237.78.191 'bash -s' < scripts/deploy-server.sh
+```
 
 Also create an environment named `production` (**Settings → Environments**).
 Add yourself as a required reviewer there if you want to approve each deploy

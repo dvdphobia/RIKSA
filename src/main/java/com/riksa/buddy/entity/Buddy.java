@@ -7,6 +7,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -28,7 +30,9 @@ public class Buddy {
     @Column(nullable = false, length = 16)
     private String name;
 
+    // V34 stores energy as SMALLINT; schema validation rejects the default INTEGER.
     @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private int energy;
 
     @Column(nullable = false)

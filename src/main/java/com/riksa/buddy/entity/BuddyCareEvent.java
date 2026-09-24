@@ -9,6 +9,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -37,10 +39,13 @@ public class BuddyCareEvent {
     @Column(name = "care_day", nullable = false)
     private LocalDate careDay;
 
+    // Both gains are SMALLINT columns in V34.
     @Column(name = "energy_gain", nullable = false)
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private int energyGain;
 
     @Column(name = "bond_gain", nullable = false)
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     private int bondGain;
 
     @Column(name = "created_at", nullable = false, updatable = false)

@@ -53,6 +53,8 @@ jobs:
 
   deploy:
     needs: test
+    # Off until the secrets exist: set the repository variable AUTO_DEPLOY=true.
+    if: vars.AUTO_DEPLOY == 'true'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 20
