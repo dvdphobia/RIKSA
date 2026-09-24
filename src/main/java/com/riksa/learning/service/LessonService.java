@@ -81,8 +81,7 @@ public class LessonService {
      */
     @Transactional(readOnly = true)
     public LessonDetailResponse getLesson(UUID userId, UUID lessonId) {
-        Lesson lesson = lessonRepository.findById(lessonId)
-                .orElseThrow(() -> new com.riksa.common.exception.ResourceNotFoundException("Lesson not found: " + lessonId));
+        Lesson lesson = lessonProgressionService.requireAccessible(userId, lessonId);
 
         List<Exercise> exercises = exerciseRepository.findByLessonId(lessonId);
         return toDetailResponse(userId, lesson, exercises);
@@ -142,7 +141,7 @@ public class LessonService {
         r.setType(e.getType());
         r.setOptions(e.getOptions());
         r.setHint(e.getHint());
-        r.setExplanation(e.getExplanation());
+        r.setExplanation(completed ? e.getExplanation() : null);
         r.setCompleted(completed);
         return r;
     }

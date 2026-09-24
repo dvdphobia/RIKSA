@@ -1,5 +1,6 @@
 package com.riksa.learning.service;
 
+import com.riksa.common.event.EventPublisher;
 import com.riksa.learning.dto.ExerciseAttemptRequest;
 import com.riksa.learning.entity.Exercise;
 import com.riksa.learning.entity.ExerciseAttempt;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +27,7 @@ class ExerciseAttemptServiceTest {
     @Mock ExerciseRepository exerciseRepository;
     @Mock ExerciseAttemptRepository attemptRepository;
     @Mock LessonProgressionService progressionService;
+    @Mock EventPublisher eventPublisher;
 
     @Test
     void comparesNormalizedAnswerAndCreatesAttempt() {
@@ -66,6 +69,32 @@ class ExerciseAttemptServiceTest {
         assertThatThrownBy(() -> new ExerciseAttemptService(exerciseRepository, attemptRepository, progressionService)
                 .submitAttempt(userId, lockedLessonId, exerciseId, request))
                 .isInstanceOf(LessonLockedException.class);
+    }
+
+
+    @Test
+    void checkAnswerReturnsResultWithoutPersistingOrPublishingProgress() {
+        UUID lessonId = UUID.randomUUID(), exerciseId = UUID.randomUUID();
+        Lesson lesson = new Lesson(); lesson.setId(lessonId);
+        Exercise exercise = new Exercise(); exercise.setId(exerciseId); exercise.setLesson(lesson);
+        exercise.setAnswerKey("42"); exercise.setPoints(7); exercise.setHint("Try again"); exercise.setExplanation("The answer is 42.");
+        ExerciseAttemptRequest correctRequest = new ExerciseAttemptRequest(); correctRequest.setAnswer("42");
+        ExerciseAttemptRequest wrongRequest = new ExerciseAttemptRequest(); wrongRequest.setAnswer("41");
+        when(exerciseRepository.findById(exerciseId)).thenReturn(Optional.of(exercise));
+        ExerciseAttemptService service = new ExerciseAttemptService(exerciseRepository, attemptRepository, progressionService);
+        ReflectionTestUtils.setField(service, "eventPublisher", eventPublisher);
+
+        var correct = service.checkAnswer(lessonId, exerciseId, correctRequest);
+        var incorrect = service.checkAnswer(lessonId, exerciseId, wrongRequest);
+
+        assertThat(correct.isCorrect()).isTrue();
+        assertThat(correct.getAttemptNumber()).isZero();
+        assertThat(incorrect.isCorrect()).isFalse();
+        assertThat(incorrect.getHint()).isEqualTo("Try again");
+        assertThat(incorrect.getExplanation()).isNull();
+        assertThat(correct.getExplanation()).isEqualTo("The answer is 42.");
+        verify(exerciseRepository, times(2)).findById(exerciseId);
+        verifyNoInteractions(attemptRepository, eventPublisher);
     }
 
     @Test

@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers("/graphql").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/lessons/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/learning/lessons/*/exercises/*/check").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/learning/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()

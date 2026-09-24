@@ -42,17 +42,12 @@ public class ExerciseAttemptService {
      */
     @Transactional
     public AnswerResult submitAttempt(UUID userId, UUID lessonId, UUID exerciseId, ExerciseAttemptRequest request) {
-        Exercise exercise = exerciseRepository.findById(exerciseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Exercise not found: " + exerciseId));
-
-        if (exercise.getLesson() == null || !exercise.getLesson().getId().equals(lessonId)) {
-            throw new ResourceNotFoundException("Exercise " + exerciseId + " does not belong to lesson " + lessonId);
-        }
+        lessonProgressionService.requireAccessible(userId, lessonId);
+        Exercise exercise = findExercise(lessonId, exerciseId);
 
         String submitted = request.getAnswer();
         boolean correct = isCorrect(exercise, submitted);
 
-        // Append-only history: once correct, an exercise remains passed.
         ExerciseAttempt attempt = new ExerciseAttempt();
         attempt.setUserId(userId);
         attempt.setExerciseId(exerciseId);
@@ -65,10 +60,28 @@ public class ExerciseAttemptService {
         if (eventPublisher != null) {
             eventPublisher.publish(new ExerciseAnsweredEvent(this, userId, exerciseId, correct));
         }
+        return answerResult(exercise, correct, attempt.getAttemptNumber());
+    }
 
+    @Transactional(readOnly = true)
+    public AnswerResult checkAnswer(UUID lessonId, UUID exerciseId, ExerciseAttemptRequest request) {
+        Exercise exercise = findExercise(lessonId, exerciseId);
+        return answerResult(exercise, isCorrect(exercise, request.getAnswer()), 0);
+    }
+
+    private Exercise findExercise(UUID lessonId, UUID exerciseId) {
+        Exercise exercise = exerciseRepository.findById(exerciseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Exercise not found: " + exerciseId));
+        if (exercise.getLesson() == null || !exercise.getLesson().getId().equals(lessonId)) {
+            throw new ResourceNotFoundException("Exercise " + exerciseId + " does not belong to lesson " + lessonId);
+        }
+        return exercise;
+    }
+
+    private AnswerResult answerResult(Exercise exercise, boolean correct, int attemptNumber) {
         String message = correct ? "Correct!" : "Not quite. Try again.";
-        return new AnswerResult(exerciseId, correct, exercise.getPoints(), message,
-                correct ? null : exercise.getHint(), exercise.getExplanation(), attempt.getAttemptNumber());
+        return new AnswerResult(exercise.getId(), correct, exercise.getPoints(), message,
+                correct ? null : exercise.getHint(), correct ? exercise.getExplanation() : null, attemptNumber);
     }
 
     private boolean isCorrect(Exercise exercise, String submitted) {

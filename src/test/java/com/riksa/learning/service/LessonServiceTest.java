@@ -65,7 +65,7 @@ class LessonServiceTest {
         Exercise exercise = new Exercise();
         exercise.setId(UUID.randomUUID());
         exercise.setQuestion("Q");
-        exercise.setSectionIndex(2);
+        exercise.setSectionIndex(2); exercise.setExplanation("The answer is 42.");
         when(progressionService.requireAccessible(userId, lessonId)).thenReturn(lesson);
         when(progressionService.getState(userId, lesson)).thenReturn(LessonProgressState.AVAILABLE);
         when(exerciseRepository.findByLessonId(lessonId)).thenReturn(List.of(exercise));
@@ -79,9 +79,30 @@ class LessonServiceTest {
         assertThat(response).hasSize(1);
         assertThat(response.getFirst().getSectionIndex()).isEqualTo(2);
         assertThat(response.getFirst().isCompleted()).isTrue();
+        assertThat(response.getFirst().getExplanation()).isEqualTo("The answer is 42.");
 
         UUID missing = UUID.randomUUID();
         when(progressionService.requireAccessible(userId, missing)).thenThrow(new LessonLockedException(missing));
         assertThatThrownBy(() -> service.getLesson(userId, missing)).isInstanceOf(LessonLockedException.class);
+    }
+
+    @Test
+    void getLessonHidesExplanationUntilExerciseIsAnsweredCorrectly() {
+        UUID userId = UUID.randomUUID(), lessonId = UUID.randomUUID();
+        Lesson lesson = new Lesson(); lesson.setId(lessonId);
+        Exercise exercise = new Exercise();
+        exercise.setId(UUID.randomUUID());
+        exercise.setExplanation("The answer is 42.");
+        when(progressionService.requireAccessible(userId, lessonId)).thenReturn(lesson);
+        when(progressionService.getState(userId, lesson)).thenReturn(LessonProgressState.AVAILABLE);
+        when(exerciseRepository.findByLessonId(lessonId)).thenReturn(List.of(exercise));
+        when(exerciseAttemptRepository.findByUserIdAndExerciseIdIn(eq(userId), anyList()))
+                .thenReturn(List.of());
+
+        var response = new LessonService(lessonRepository, exerciseRepository, exerciseAttemptRepository,
+                completionRepository, progressionService).getLesson(userId, lessonId).getExercises().getFirst();
+
+        assertThat(response.isCompleted()).isFalse();
+        assertThat(response.getExplanation()).isNull();
     }
 }
