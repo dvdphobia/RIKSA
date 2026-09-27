@@ -1,5 +1,7 @@
 package com.riksa.auth.security;
 
+import com.riksa.realtime.RealtimeConfig;
+
 import com.riksa.common.constants.MediaEndpoints;
 import com.riksa.common.constants.ProfileEndpoints;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +49,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, ProfileEndpoints.BASE + "/**").permitAll()
                         .requestMatchers("/graphql").permitAll()
+                        // The handshake checks the token itself: browsers cannot
+                        // send an Authorization header on a WebSocket.
+                        .requestMatchers(RealtimeConfig.PATH).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/lessons/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/learning/lessons/*/exercises/*/check").permitAll()

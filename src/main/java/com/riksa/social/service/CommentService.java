@@ -1,5 +1,8 @@
 package com.riksa.social.service;
 
+import com.riksa.realtime.RealtimeEvent;
+import com.riksa.realtime.RealtimeTypes;
+import java.util.Map;
 import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
 import com.riksa.social.enums.ContentStatus;
@@ -52,6 +55,7 @@ public class CommentService {
 
         post.setCommentCount(post.getCommentCount() + 1);
         postRepository.save(post);
+        announceChange(postId);
 
         if (eventPublisher != null && post.getAuthorId() != null && !post.getAuthorId().equals(authorId)) {
             eventPublisher.publishEvent(new SocialActionEvent(this, authorId));
@@ -103,6 +107,14 @@ public class CommentService {
             post.setCommentCount(Math.max(0, post.getCommentCount() - 1));
             postRepository.save(post);
         });
+        announceChange(comment.getPostId());
+    }
+
+    private void announceChange(UUID postId) {
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(RealtimeEvent.toEveryone(
+                    this, RealtimeTypes.POST_CHANGED, Map.of("postId", postId)));
+        }
     }
 
     public Comment getComment(UUID commentId) {

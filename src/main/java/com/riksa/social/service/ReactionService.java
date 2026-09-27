@@ -1,5 +1,8 @@
 package com.riksa.social.service;
 
+import com.riksa.realtime.RealtimeEvent;
+import com.riksa.realtime.RealtimeTypes;
+import java.util.Map;
 import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
 import com.riksa.social.entity.Reaction;
@@ -31,6 +34,7 @@ public class ReactionService {
     @Transactional
     public Post react(UUID userId, UUID postId, UUID commentId, ReactionType type) {
         rejectHiddenTargets(postId, commentId);
+        announceChange(postId, commentId);
 
         Optional<Reaction> existing = reactionRepository
                 .findByUserIdAndPostIdAndCommentId(userId, postId, commentId);
@@ -85,9 +89,22 @@ public class ReactionService {
 
     @Transactional
     public Post removeReaction(UUID userId, UUID postId, UUID commentId) {
+        announceChange(postId, commentId);
         reactionRepository.findByUserIdAndPostIdAndCommentId(userId, postId, commentId)
                 .ifPresent(reactionRepository::delete);
         return adjustPostCounter(postId, -1);
+    }
+
+    /** Delivered only if the transaction commits, so every return path is covered. */
+    private void announceChange(UUID postId, UUID commentId) {
+        UUID changedPostId = postId;
+        if (changedPostId == null && commentId != null) {
+            changedPostId = commentRepository.findById(commentId).map(Comment::getPostId).orElse(null);
+        }
+        if (changedPostId != null) {
+            eventPublisher.publishEvent(RealtimeEvent.toEveryone(
+                    this, RealtimeTypes.POST_CHANGED, Map.of("postId", changedPostId)));
+        }
     }
 
     private Post adjustPostCounter(UUID postId, int delta) {

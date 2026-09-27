@@ -1,6 +1,8 @@
 package com.riksa.social.service;
 
 import com.riksa.common.event.EventPublisher;
+import com.riksa.realtime.RealtimeEvent;
+import com.riksa.realtime.RealtimeTypes;
 import com.riksa.social.dto.PostMediaInput;
 import com.riksa.social.entity.Post;
 import com.riksa.social.entity.PostMedia;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -54,6 +57,8 @@ public class PostService {
         Post saved = postRepository.save(post);
         saveMediaRows(saved.getId(), normalizedMedia);
         eventPublisher.publish(new PostCreatedEvent(this, saved.getId(), authorId, categoryId));
+        eventPublisher.publish(RealtimeEvent.toEveryone(this, RealtimeTypes.POST_CREATED,
+                Map.of("postId", saved.getId(), "authorId", authorId)));
         return saved;
     }
 
@@ -112,6 +117,8 @@ public class PostService {
         }
 
         postRepository.delete(post);
+        eventPublisher.publish(RealtimeEvent.toEveryone(this, RealtimeTypes.POST_DELETED,
+                Map.of("postId", postId)));
     }
 
     public Post getPost(UUID postId) {
