@@ -1,8 +1,10 @@
 package com.riksa.quest.controller;
 import com.riksa.common.constants.QuestEndpoints;
 import com.riksa.common.security.SecurityUtils;
-import com.riksa.quest.dto.DailyQuestResponse;
+import com.riksa.quest.dto.QuestChestResponse;
+import com.riksa.quest.dto.QuestResponse;
 import com.riksa.quest.dto.TodayQuestsResponse;
+import com.riksa.quest.dto.WeekQuestsResponse;
 import com.riksa.quest.service.QuestService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,8 +19,16 @@ public class QuestController {
     public ResponseEntity<TodayQuestsResponse> today() {
         return ResponseEntity.ok(questService.getToday(SecurityUtils.currentUserId()));
     }
+    @GetMapping(QuestEndpoints.WEEK)
+    public ResponseEntity<WeekQuestsResponse> week() {
+        return ResponseEntity.ok(questService.getWeek(SecurityUtils.currentUserId()));
+    }
     @PostMapping(QuestEndpoints.CLAIM)
-    public ResponseEntity<DailyQuestResponse> claim(@PathVariable("id") UUID id) {
+    public ResponseEntity<QuestResponse> claim(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(questService.claim(SecurityUtils.currentUserId(), id));
+    }
+    @PostMapping(QuestEndpoints.CHEST_OPEN)
+    public ResponseEntity<QuestChestResponse> openChest() {
+        return ResponseEntity.ok(questService.openChest(SecurityUtils.currentUserId()));
     }
 }

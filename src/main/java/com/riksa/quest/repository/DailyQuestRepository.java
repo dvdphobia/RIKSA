@@ -33,4 +33,7 @@ public interface DailyQuestRepository extends JpaRepository<DailyQuest, UUID> {
     int incrementProgress(@Param("userId") UUID userId, @Param("questDate") LocalDate questDate,
             @Param("type") QuestType type);
     long countByUserIdAndQuestDateAndClaimedFalse(UUID userId, LocalDate questDate);
+
+    long countByUserIdAndQuestDateGreaterThanEqualAndQuestDateLessThanAndClaimedTrue(
+            UUID userId, LocalDate fromInclusive, LocalDate toExclusive);
 }
