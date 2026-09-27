@@ -3,6 +3,7 @@ package com.riksa.gamification.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.repository.UserRepository;
+import com.riksa.buddy.service.BuddyPublicLookService;
 import com.riksa.blog.repository.BlogLikeRepository;
 import com.riksa.blog.repository.BlogPostRepository;
 import com.riksa.common.enums.AchievementCriteriaType;
@@ -45,6 +46,7 @@ class GamificationServiceTest {
     @Mock private RankHistoryRepository rankHistoryRepository;
     @Mock private StreakMilestoneRepository streakMilestoneRepository;
     @Mock private UserRepository userRepository;
+    @Mock private BuddyPublicLookService buddyPublicLookService;
     // ── repos for achievement progress computation ──
     @Mock private LessonCompletionRepository lessonCompletionRepository;
     @Mock private LessonRepository lessonRepository;
@@ -64,6 +66,7 @@ class GamificationServiceTest {
         UserGamification ug = new UserGamification();
         ug.setUserId(userId);
         ug.setTotalXp(500);
+        ug.setXpBalance(350);
         ug.setCurrentStreak(3);
         ug.setHighestStreak(10);
 
@@ -87,6 +90,7 @@ class GamificationServiceTest {
 
         assertThat(response).isNotNull();
         assertThat(response.getTotalXp()).isEqualTo(500);
+        assertThat(response.getXpBalance()).isEqualTo(350);
         assertThat(response.getCurrentTier()).isEqualTo("BRONZE");
         assertThat(response.getNextTier()).isEqualTo("SILVER");
         assertThat(response.getXpToNext()).isEqualTo(500);
@@ -358,6 +362,7 @@ class GamificationServiceTest {
         assertThat(result.getEdges().get(1).getRank()).isEqualTo(2);
         assertThat(result.getEdges().get(1).getDisplayName()).isEqualTo("Bob");
         assertThat(result.getEdges().get(1).getTierName()).isEqualTo("BRONZE");
+        verify(buddyPublicLookService).getLooks(List.of(userId1, userId2));
     }
 
     @Test

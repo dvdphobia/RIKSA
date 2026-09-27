@@ -5,6 +5,7 @@ import com.riksa.auth.entity.Province;
 import com.riksa.auth.entity.Role;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.repository.UserRepository;
+import com.riksa.buddy.service.BuddyPublicLookService;
 import com.riksa.common.exception.ResourceNotFoundException;
 import com.riksa.gamification.dto.GamificationProfileResponse;
 import com.riksa.gamification.service.GamificationService;
@@ -29,6 +30,7 @@ class PublicProfileServiceTest {
 
     @Mock private UserRepository userRepository;
     @Mock private GamificationService gamificationService;
+    @Mock private BuddyPublicLookService buddyPublicLookService;
 
     @InjectMocks private PublicProfileService publicProfileService;
 

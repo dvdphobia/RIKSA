@@ -3,6 +3,9 @@ package com.riksa.quest.service;
 import com.riksa.gamification.entity.UserGamification;
 import com.riksa.gamification.repository.UserGamificationRepository;
 import com.riksa.gamification.service.XpLedgerService;
+import com.riksa.market.dto.ChestRewardItemResponse;
+import com.riksa.market.entity.MarketSlot;
+import com.riksa.market.service.MarketService;
 import com.riksa.quest.dto.QuestResponse;
 import com.riksa.quest.entity.DailyQuest;
 import com.riksa.quest.entity.QuestChest;
@@ -49,6 +52,7 @@ class QuestServiceTest {
     private QuestChestRepository questChestRepository;
     private XpLedgerService xpLedgerService;
     private UserGamificationRepository userGamificationRepository;
+    private MarketService marketService;
     private QuestService service;
 
     @BeforeEach
@@ -58,6 +62,7 @@ class QuestServiceTest {
         questChestRepository = mock(QuestChestRepository.class);
         xpLedgerService = mock(XpLedgerService.class);
         userGamificationRepository = mock(UserGamificationRepository.class);
+        marketService = mock(MarketService.class);
         service = newService(Instant.parse("2026-09-23T18:30:00Z"));
     }
 
@@ -217,6 +222,23 @@ class QuestServiceTest {
     }
 
     @Test
+    void openingChestGrantsTheMarketRewardItem() {
+        QuestChest chest = chest();
+        ChestRewardItemResponse reward = new ChestRewardItemResponse(
+                UUID.randomUUID(), MarketSlot.HAT, "hat_straw", "Straw hat", "មួកចំបើង");
+        when(questChestRepository.findForUpdate(USER_ID, WEEK_START)).thenReturn(Optional.of(chest));
+        when(questRepository.countByUserIdAndQuestDateGreaterThanEqualAndQuestDateLessThanAndClaimedTrue(
+                USER_ID, WEEK_START, WEEK_START.plusWeeks(1))).thenReturn(15L);
+        when(marketService.grantChestItem(USER_ID)).thenReturn(Optional.of(reward));
+        when(marketService.findChestReward(eq(USER_ID), any(), any())).thenReturn(Optional.of(reward));
+
+        var response = service.openChest(USER_ID);
+
+        assertThat(response.rewardItem()).isEqualTo(reward);
+        verify(marketService).grantChestItem(USER_ID);
+    }
+
+    @Test
     void openingChestBelowFifteenConflictsWithoutAwardingXp() {
         QuestChest chest = chest();
         when(questChestRepository.findForUpdate(USER_ID, WEEK_START)).thenReturn(Optional.of(chest));
@@ -257,7 +279,7 @@ class QuestServiceTest {
     private QuestService newService(Instant instant) {
         Clock clock = Clock.fixed(instant, ZoneOffset.UTC);
         return new QuestService(questRepository, weeklyQuestRepository, questChestRepository,
-                xpLedgerService, userGamificationRepository, clock);
+                xpLedgerService, userGamificationRepository, marketService, clock);
     }
 
     private DailyQuest dailyQuest(QuestType type, int target, int progress, boolean claimed) {

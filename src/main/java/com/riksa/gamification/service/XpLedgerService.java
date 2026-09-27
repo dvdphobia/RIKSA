@@ -1,6 +1,7 @@
 package com.riksa.gamification.service;
 
 import com.riksa.common.event.EventPublisher;
+import com.riksa.common.cache.CacheNames;
 import com.riksa.gamification.entity.UserGamification;
 import com.riksa.gamification.entity.XpTransaction;
 import com.riksa.gamification.event.XpGainedEvent;
@@ -9,6 +10,7 @@ import com.riksa.gamification.repository.XpTransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
@@ -39,6 +41,8 @@ public class XpLedgerService {
      * @return the new total XP after the grant
      */
     @Transactional
+    @CacheEvict(cacheNames = CacheNames.GAMIFICATION_PROFILE, key = "#userId.toString()",
+            condition = "@redisCacheFeatureSwitch.enabled()")
     public long awardXp(UUID userId, int amount, String sourceType, UUID sourceId) {
         if (amount <= 0) {
             throw new IllegalArgumentException("XP amount must be positive, got: " + amount);
@@ -62,6 +66,7 @@ public class XpLedgerService {
 
         long newTotal = ug.getTotalXp() + amount;
         ug.setTotalXp(newTotal);
+        ug.setXpBalance(ug.getXpBalance() + amount);
         userGamificationRepository.save(ug);
 
         // Append the transaction with running balance

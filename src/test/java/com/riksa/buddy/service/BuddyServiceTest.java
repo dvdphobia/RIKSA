@@ -4,6 +4,7 @@ import com.riksa.buddy.entity.Buddy;
 import com.riksa.buddy.entity.BuddyCareEvent;
 import com.riksa.buddy.repository.BuddyCareEventRepository;
 import com.riksa.buddy.repository.BuddyRepository;
+import com.riksa.market.service.MarketService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +16,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,6 +36,7 @@ class BuddyServiceTest {
 
     @Mock BuddyRepository buddyRepository;
     @Mock BuddyCareEventRepository eventRepository;
+    @Mock MarketService marketService;
 
     private Buddy buddy;
     private BuddyService service;
@@ -48,15 +51,19 @@ class BuddyServiceTest {
         buddy.setBond(30);
         buddy.setUpdatedAt(NOW);
         buddy.setCreatedAt(NOW);
+        buddy.setChosenAt(NOW);
         service = new BuddyService(
                 buddyRepository,
                 eventRepository,
                 new BuddyCareRules(),
-                Clock.fixed(NOW.toInstant(), ZoneOffset.UTC));
+                Clock.fixed(NOW.toInstant(), ZoneOffset.UTC),
+                marketService);
         when(buddyRepository.insertIfMissing(any(), anyString(), anyString(), any())).thenReturn(0);
         when(buddyRepository.findByUserIdForUpdate(USER_ID)).thenReturn(Optional.of(buddy));
         lenient().when(buddyRepository.save(any(Buddy.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(marketService.equippedItems(USER_ID)).thenReturn(Map.of());
+        lenient().when(marketService.getBalance(USER_ID)).thenReturn(120L);
     }
 
     @Test
@@ -113,7 +120,8 @@ class BuddyServiceTest {
     void eventCountsUseThePhnomPenhCalendarDay() {
         Clock afterMidnight = Clock.fixed(
                 OffsetDateTime.parse("2026-09-24T17:01:00Z").toInstant(), ZoneOffset.UTC);
-        service = new BuddyService(buddyRepository, eventRepository, new BuddyCareRules(), afterMidnight);
+        service = new BuddyService(buddyRepository, eventRepository, new BuddyCareRules(), afterMidnight,
+                marketService);
         buddy.setUpdatedAt(OffsetDateTime.parse("2026-09-24T17:00:00Z"));
         UUID postId = UUID.randomUUID();
         when(eventRepository.existsByUserIdAndSourceKeyAndSourceId(USER_ID, "POST", postId))
@@ -136,8 +144,7 @@ class BuddyServiceTest {
 
         assertThat(merged.getEnergy()).isEqualTo(95);
         assertThat(merged.getBond()).isEqualTo(30);
-        // Existing server identity wins during merge; explicit later updates
-        // can still change species and name through PUT /buddy/me.
+        // A chosen server identity is protected from a stale guest snapshot.
         assertThat(merged.getSpecies()).isEqualTo("crocodile");
         assertThat(merged.getName()).isEqualTo("Croco");
     }
@@ -148,6 +155,52 @@ class BuddyServiceTest {
 
         assertThat(merged.getEnergy()).isEqualTo(80);
         assertThat(merged.getBond()).isEqualTo(45);
+    }
+
+    @Test
+    void guestMergeOnNewRowChoosesGuestSpeciesAndName() {
+        buddy.setChosenAt(null);
+        when(buddyRepository.insertIfMissing(any(), anyString(), anyString(), any())).thenReturn(1);
+
+        Buddy merged = service.mergeGuestState(USER_ID, "capybara", "Mochi", 75, 8);
+
+        assertThat(merged.getSpecies()).isEqualTo("capybara");
+        assertThat(merged.getName()).isEqualTo("Mochi");
+        assertThat(merged.getChosenAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void guestMergeOnUnchosenExistingRowChoosesGuestSpeciesAndName() {
+        buddy.setChosenAt(null);
+
+        Buddy merged = service.mergeGuestState(USER_ID, "capybara", "Mochi", 75, 8);
+
+        assertThat(merged.getSpecies()).isEqualTo("capybara");
+        assertThat(merged.getName()).isEqualTo("Mochi");
+        assertThat(merged.getChosenAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void explicitSpeciesPutMarksBuddyChosen() {
+        buddy.setChosenAt(null);
+
+        var response = service.update(USER_ID,
+                new com.riksa.buddy.dto.BuddyUpdateRequest("capybara", "Mochi", null, null));
+
+        assertThat(response.chosen()).isTrue();
+        assertThat(buddy.getSpecies()).isEqualTo("capybara");
+        assertThat(buddy.getName()).isEqualTo("Mochi");
+        assertThat(buddy.getChosenAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void getMeLeavesAutoCreatedBuddyUnchosen() {
+        buddy.setChosenAt(null);
+
+        var response = service.getMe(USER_ID);
+
+        assertThat(response.chosen()).isFalse();
+        assertThat(response.balance()).isEqualTo(120);
     }
 }
 

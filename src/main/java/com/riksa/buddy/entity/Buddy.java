@@ -43,4 +43,7 @@ public class Buddy {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
+
+    @Column(name = "chosen_at")
+    private OffsetDateTime chosenAt;
 }

@@ -50,7 +50,8 @@ class PublicProfileControllerTest {
                 "KH",
                 null,
                 OffsetDateTime.parse("2026-08-01T10:15:30+07:00"),
-                gamification
+                gamification,
+                null
         );
         when(publicProfileService.getProfile(userId)).thenReturn(response);
 

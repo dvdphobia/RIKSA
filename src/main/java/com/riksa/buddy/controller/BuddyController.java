@@ -1,6 +1,7 @@
 package com.riksa.buddy.controller;
 
 import com.riksa.buddy.dto.BuddyResponse;
+import com.riksa.buddy.dto.BuddyEquipRequest;
 import com.riksa.buddy.dto.BuddyUpdateRequest;
 import com.riksa.buddy.service.BuddyService;
 import jakarta.validation.Valid;
@@ -31,6 +32,11 @@ public class BuddyController {
     @PutMapping("/me")
     public ResponseEntity<BuddyResponse> update(@RequestBody @Valid BuddyUpdateRequest request) {
         return ResponseEntity.ok(buddyService.update(currentUserId(), request));
+    }
+
+    @PutMapping("/me/equipped")
+    public ResponseEntity<BuddyResponse> equip(@RequestBody BuddyEquipRequest request) {
+        return ResponseEntity.ok(buddyService.equip(currentUserId(), request));
     }
 
     private UUID currentUserId() {

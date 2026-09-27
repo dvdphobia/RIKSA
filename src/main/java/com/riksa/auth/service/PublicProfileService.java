@@ -5,6 +5,8 @@ import com.riksa.auth.dto.PublicProfileResponse;
 import com.riksa.auth.entity.Province;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.repository.UserRepository;
+import com.riksa.buddy.dto.BuddyLookResponse;
+import com.riksa.buddy.service.BuddyPublicLookService;
 import com.riksa.common.exception.ResourceNotFoundException;
 import com.riksa.gamification.dto.GamificationProfileResponse;
 import com.riksa.gamification.service.GamificationService;
@@ -20,12 +22,14 @@ public class PublicProfileService {
 
     private final UserRepository userRepository;
     private final GamificationService gamificationService;
+    private final BuddyPublicLookService buddyPublicLookService;
 
     @Transactional(readOnly = true)
     public PublicProfileResponse getProfile(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
         GamificationProfileResponse gamification = gamificationService.getProfile(userId);
+        BuddyLookResponse buddy = buddyPublicLookService.getLook(userId);
 
         return new PublicProfileResponse(
                 user.getId(),
@@ -37,7 +41,8 @@ public class PublicProfileService {
                 user.getCountryId(),
                 mapProvince(user.getProvince()),
                 user.getCreatedAt(),
-                gamification
+                gamification,
+                buddy
         );
     }
 

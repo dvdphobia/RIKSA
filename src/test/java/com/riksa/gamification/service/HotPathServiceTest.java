@@ -51,6 +51,7 @@ class XpLedgerServiceTest {
 
         assertThat(newTotal).isEqualTo(150);
         assertThat(ug.getTotalXp()).isEqualTo(150);
+        assertThat(ug.getXpBalance()).isEqualTo(50);
         verify(userGamificationRepository).save(ug);
         verify(xpTransactionRepository).save(any(XpTransaction.class));
 

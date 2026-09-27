@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.repository.UserRepository;
+import com.riksa.buddy.dto.BuddyLookResponse;
+import com.riksa.buddy.service.BuddyPublicLookService;
 import com.riksa.blog.enums.BlogStatus;
 import com.riksa.blog.repository.BlogLikeRepository;
 import com.riksa.blog.repository.BlogPostRepository;
@@ -61,6 +63,7 @@ public class GamificationService {
     private final RankHistoryRepository rankHistoryRepository;
     private final StreakMilestoneRepository streakMilestoneRepository;
     private final UserRepository userRepository;
+    private final BuddyPublicLookService buddyPublicLookService;
     private final ObjectMapper objectMapper;
     // ── repos for achievement progress computation ──
     private final LessonCompletionRepository lessonCompletionRepository;
@@ -119,6 +122,7 @@ public class GamificationService {
         GamificationProfileResponse response = new GamificationProfileResponse();
         response.setUserId(user.getUserId());
         response.setTotalXp(user.getTotalXp());
+        response.setXpBalance(user.getXpBalance());
         response.setCurrentStreak(user.getCurrentStreak());
         response.setHighestStreak(user.getHighestStreak());
         response.setCurrentTier(currentTier != null ? currentTier.getTierName().name() : null);
@@ -376,6 +380,8 @@ public class GamificationService {
         }
 
         List<UUID> userIds = rows.stream().map(UserGamification::getUserId).toList();
+        Map<UUID, BuddyLookResponse> looksByUserId = buddyPublicLookService.getLooks(
+                rows.stream().limit(limit).map(UserGamification::getUserId).toList());
         Map<UUID, User> usersById = userRepository.findAllById(userIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
 
@@ -385,7 +391,7 @@ public class GamificationService {
 
         List<LeaderboardEntryResponse> edges = new java.util.ArrayList<>();
         for (int i = 0; i < Math.min(rows.size(), limit); i++) {
-            edges.add(toLeaderboardEntry(rows.get(i), usersById, allTiers, startRank + i));
+            edges.add(toLeaderboardEntry(rows.get(i), usersById, allTiers, looksByUserId, startRank + i));
         }
 
         boolean hasNext = rows.size() > limit;
@@ -400,7 +406,9 @@ public class GamificationService {
     }
 
     private LeaderboardEntryResponse toLeaderboardEntry(UserGamification ug, Map<UUID, User> usersById,
-                                                         List<RankTier> sortedTiers, int rank) {
+                                                         List<RankTier> sortedTiers,
+                                                         Map<UUID, BuddyLookResponse> looksByUserId,
+                                                         int rank) {
         User user = usersById.get(ug.getUserId());
 
         // O(n) scan over sorted tiers, but n is tiny (6 tiers) and list is pre-sorted
@@ -417,6 +425,7 @@ public class GamificationService {
         e.setTotalXp(ug.getTotalXp());
         e.setTierName(tier != null ? tier.getTierName().name() : null);
         e.setTierIcon(tier != null ? tier.getIconUrl() : null);
+        e.setBuddy(looksByUserId.get(ug.getUserId()));
         return e;
     }
 }

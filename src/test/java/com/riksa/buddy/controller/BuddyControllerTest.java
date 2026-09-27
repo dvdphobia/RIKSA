@@ -72,9 +72,9 @@ class BuddyControllerTest {
     @Test
     void authenticatedLearnerCanReadBuddy() throws Exception {
         when(buddyService.getMe(USER_ID))
-                .thenReturn(new BuddyResponse("crocodile", "Croco", 60, 0, 1,
+                .thenReturn(new BuddyResponse("crocodile", "Croco", false, 60, 0, 1,
                         OffsetDateTime.parse("2026-09-24T10:00:00Z"),
-                        List.of(new BuddyTodayActionResponse("LESSON", false, 0, null))));
+                        List.of(new BuddyTodayActionResponse("LESSON", false, 0, null)), Map.of(), 0));
 
         mockMvc.perform(get("/api/v1/buddy/me")
                         .with(SecurityMockMvcRequestPostProcessors.user(USER_ID.toString())))

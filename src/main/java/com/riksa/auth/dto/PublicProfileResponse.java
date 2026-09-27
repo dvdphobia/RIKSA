@@ -1,6 +1,7 @@
 package com.riksa.auth.dto;
 
 import com.riksa.gamification.dto.GamificationProfileResponse;
+import com.riksa.buddy.dto.BuddyLookResponse;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -19,5 +20,6 @@ public record PublicProfileResponse(
         String countryId,
         ProvinceResponse province,
         OffsetDateTime joinedAt,
-        GamificationProfileResponse gamification
+        GamificationProfileResponse gamification,
+        BuddyLookResponse buddy
 ) {}

@@ -22,6 +22,9 @@ public class UserGamification {
     @Column(name = "total_xp", nullable = false)
     private long totalXp = 0;
 
+    @Column(name = "xp_balance", nullable = false)
+    private long xpBalance = 0;
+
     @Column(name = "current_streak", nullable = false)
     private long currentStreak = 0;
 

@@ -1,12 +1,14 @@
 package com.riksa.buddy.service;
 
 import com.riksa.buddy.dto.BuddyResponse;
+import com.riksa.buddy.dto.BuddyEquipRequest;
 import com.riksa.buddy.dto.BuddyTodayActionResponse;
 import com.riksa.buddy.dto.BuddyUpdateRequest;
 import com.riksa.buddy.entity.Buddy;
 import com.riksa.buddy.entity.BuddyCareEvent;
 import com.riksa.buddy.repository.BuddyCareEventRepository;
 import com.riksa.buddy.repository.BuddyRepository;
+import com.riksa.market.service.MarketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,7 @@ public class BuddyService {
     private final BuddyCareEventRepository eventRepository;
     private final BuddyCareRules rules;
     private final Clock buddyCareClock;
+    private final MarketService marketService;
 
     @Transactional
     public Buddy getOrCreate(UUID userId) {
@@ -60,6 +63,7 @@ public class BuddyService {
         Buddy buddy = ensureAndLock(userId, DEFAULT_SPECIES, DEFAULT_NAME, now);
         buddy.setEnergy(rules.settle(buddy.getEnergy(), buddy.getUpdatedAt(), now));
         if (request.species() != null) buddy.setSpecies(validateSpecies(request.species()));
+        if (request.species() != null) buddy.setChosenAt(now);
         if (request.name() != null && !request.name().trim().isEmpty()) {
             buddy.setName(validateName(request.name()));
         }
@@ -80,12 +84,31 @@ public class BuddyService {
         String newName = guestName == null || guestName.trim().isEmpty()
                 ? defaultName(newSpecies)
                 : validateName(guestName);
-        Buddy buddy = ensureAndLock(userId, newSpecies, newName, now);
+        int inserted = buddyRepository.insertIfMissing(userId, newSpecies, newName, now);
+        Buddy buddy = buddyRepository.findByUserIdForUpdate(userId)
+                .orElseThrow(() -> new IllegalStateException("Buddy row could not be created for user " + userId));
+        if (guestSpecies != null && (inserted > 0 || buddy.getChosenAt() == null)) {
+            buddy.setSpecies(newSpecies);
+            buddy.setName(newName);
+            buddy.setChosenAt(now);
+        }
         int settledEnergy = rules.settle(buddy.getEnergy(), buddy.getUpdatedAt(), now);
         buddy.setEnergy(Math.max(settledEnergy, guestEnergy == null ? 0 : guestEnergy));
         buddy.setBond(Math.max(buddy.getBond(), guestBond == null ? 0 : guestBond));
         buddy.setUpdatedAt(now);
         return buddyRepository.save(buddy);
+    }
+
+    @Transactional
+    public BuddyResponse equip(UUID userId, BuddyEquipRequest request) {
+        if (request.slot() == null) throw new IllegalArgumentException("A valid buddy equipment slot is required");
+        OffsetDateTime now = now();
+        Buddy buddy = ensureAndLock(userId, DEFAULT_SPECIES, DEFAULT_NAME, now);
+        marketService.equip(userId, request.slot(), request.itemId());
+        buddy.setEnergy(rules.settle(buddy.getEnergy(), buddy.getUpdatedAt(), now));
+        buddy.setUpdatedAt(now);
+        buddyRepository.save(buddy);
+        return response(buddy, buddy.getEnergy(), now);
     }
 
     @Transactional
@@ -144,11 +167,14 @@ public class BuddyService {
         return new BuddyResponse(
                 buddy.getSpecies(),
                 buddy.getName(),
+                buddy.getChosenAt() != null,
                 energy,
                 buddy.getBond(),
                 rules.bondLevel(buddy.getBond()),
                 settledAt,
-                today(buddy.getUserId()));
+                today(buddy.getUserId()),
+                marketService.equippedItems(buddy.getUserId()),
+                marketService.getBalance(buddy.getUserId()));
     }
 
     private Buddy ensureAndLock(UUID userId, String species, String name, OffsetDateTime now) {

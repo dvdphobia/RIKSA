@@ -2,6 +2,8 @@ package com.riksa.quest.service;
 
 import com.riksa.gamification.repository.UserGamificationRepository;
 import com.riksa.gamification.service.XpLedgerService;
+import com.riksa.market.dto.ChestRewardItemResponse;
+import com.riksa.market.service.MarketService;
 import com.riksa.quest.dto.DailyQuestResponse;
 import com.riksa.quest.dto.QuestChestResponse;
 import com.riksa.quest.dto.QuestResponse;
@@ -46,6 +48,7 @@ public class QuestService {
     private final QuestChestRepository questChestRepository;
     private final XpLedgerService xpLedgerService;
     private final UserGamificationRepository userGamificationRepository;
+    private final MarketService marketService;
     private final Clock clock;
 
     @Transactional
@@ -120,6 +123,7 @@ public class QuestService {
         chest.setOpenedAt(OffsetDateTime.now(clock));
         questChestRepository.saveAndFlush(chest);
         xpLedgerService.awardXp(userId, CHEST_XP_REWARD, "QUEST_CHEST", chest.getId());
+        marketService.grantChestItem(userId);
         return chestResponse(userId, start, chest);
     }
 
@@ -191,8 +195,12 @@ public class QuestService {
     }
 
     private QuestChestResponse chestResponse(UUID userId, LocalDate start, QuestChest chest) {
+        ChestRewardItemResponse reward = chest.getOpenedAt() == null ? null : marketService.findChestReward(
+                userId,
+                start.atStartOfDay(DAY_ZONE).toOffsetDateTime(),
+                start.plusWeeks(1).atStartOfDay(DAY_ZONE).toOffsetDateTime()).orElse(null);
         return new QuestChestResponse(chest.getId(), chestPoints(userId, start), CHEST_TARGET_POINTS,
-                CHEST_MAX_POINTS, chest.getOpenedAt() != null, CHEST_XP_REWARD, null);
+                CHEST_MAX_POINTS, chest.getOpenedAt() != null, CHEST_XP_REWARD, reward);
     }
 
     private int chestPoints(UUID userId, LocalDate start) {
