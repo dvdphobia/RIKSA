@@ -8,6 +8,9 @@ import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.repository.CommentRepository;
 import com.riksa.social.repository.PostRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -56,6 +59,25 @@ class SocialModerationServiceTest {
 
         verify(auditLogService).record(eq(moderatorId), eq("POST_HIDE"), eq("POST"), eq(postId),
                 eq(Map.of("reason", "spam")));
+    }
+
+    @Test
+    void listPosts_mapsAnImageOnlyPostWithAnEmptyTitle() {
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setTitle("");
+        post.setContent("");
+        post.setMediaUrl("https://api.example.test/api/v1/media/image.png");
+        post.setCreatedAt(java.time.OffsetDateTime.now());
+        when(postRepository.findByStatus(eq(ContentStatus.VISIBLE), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(java.util.List.of(post), PageRequest.of(0, 10), 1));
+
+        var page = moderationService.listPosts(ContentStatus.VISIBLE, 0, 10);
+
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getContent().getFirst().id()).isEqualTo(postId);
+        assertThat(page.getContent().getFirst().title()).isEmpty();
     }
 
     @Test

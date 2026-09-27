@@ -27,11 +27,18 @@ type User {
   avatarUrl:   String!
 }
 
+type PostMedia {
+  url:    String!
+  width:  Int
+  height: Int
+}
+
 type Post {
   id:            UUID!
   title:         String!
   content:       String!
   mediaUrl:      String
+  media:         [PostMedia!]!
   reactionCount: Int!
   commentCount:  Int!
   shareCount:    Int!
@@ -96,18 +103,31 @@ input CreateCommunityInput {
 }
 
 input CreatePostInput {
-  title:      String!
+  # Optional, 0–200 characters; omitted titles are stored as an empty string.
+  title:      String
+  # May be empty when at least one image is supplied.
   content:    String!
+  media:      [PostMediaInput!]
+  # Deprecated. If both media and mediaUrl are supplied, media wins.
   mediaUrl:   String
   categoryId: UUID!
 }
 
-# null leaves a field unchanged; an empty mediaUrl clears the image.
+# Null title/content/media leaves that field unchanged; an empty media list
+# clears all images. Titles are limited to 200 characters.
 input UpdatePostInput {
   id:       UUID!
   title:    String
   content:  String
+  media:    [PostMediaInput!]
+  # Deprecated. If both media and mediaUrl are supplied, media wins.
   mediaUrl: String
+}
+
+input PostMediaInput {
+  url:    String!
+  width:  Int
+  height: Int
 }
 
 # At least one of content / mediaUrl must be supplied.

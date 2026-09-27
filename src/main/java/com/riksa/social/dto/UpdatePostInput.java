@@ -1,13 +1,16 @@
 package com.riksa.social.dto;
 
 import java.util.UUID;
+import java.util.List;
 
 /**
- * @param mediaUrl null leaves the existing image alone; blank clears it
+ * A null media list leaves the existing images alone; an empty list clears them.
+ * The deprecated mediaUrl field is accepted when media is null.
  */
 public record UpdatePostInput(
         UUID id,
         String title,
         String content,
-        String mediaUrl
+        String mediaUrl,
+        List<PostMediaInput> media
 ) {}

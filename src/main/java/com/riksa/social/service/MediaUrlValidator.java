@@ -8,7 +8,9 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Validates client-supplied media URLs.
+ * Validates client-supplied media URLs used by legacy comment and community
+ * fields. Post images use {@link UploadedMediaUrlValidator}, which only accepts
+ * files uploaded through this API.
  *
  * <p>The backend never fetches these URLs — the client uploads the image to its
  * own storage (S3/Cloudinary/etc.) and sends back the resulting link, exactly as

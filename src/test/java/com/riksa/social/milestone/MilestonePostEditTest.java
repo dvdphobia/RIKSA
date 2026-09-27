@@ -3,9 +3,10 @@ package com.riksa.social.milestone;
 import com.riksa.common.event.EventPublisher;
 import com.riksa.social.entity.Post;
 import com.riksa.social.enums.PostKind;
+import com.riksa.social.repository.PostMediaRepository;
 import com.riksa.social.repository.PostRepository;
 import com.riksa.social.repository.UserCategoryMembershipRepository;
-import com.riksa.social.service.MediaUrlValidator;
+import com.riksa.social.service.UploadedMediaUrlValidator;
 import com.riksa.social.service.PostService;
 import org.junit.jupiter.api.Test;
 
@@ -21,8 +22,9 @@ class MilestonePostEditTest {
         PostRepository posts = mock(PostRepository.class);
         PostService service = new PostService(
                 posts,
+                mock(PostMediaRepository.class),
                 mock(UserCategoryMembershipRepository.class),
-                mock(MediaUrlValidator.class),
+                mock(UploadedMediaUrlValidator.class),
                 mock(EventPublisher.class));
         UUID id = UUID.randomUUID();
         UUID author = UUID.randomUUID();
@@ -32,7 +34,7 @@ class MilestonePostEditTest {
         post.setKind(PostKind.MILESTONE);
         when(posts.findById(id)).thenReturn(Optional.of(post));
 
-        assertThrows(IllegalStateException.class, () -> service.updatePost(author, id, "title", "body", null));
+        assertThrows(IllegalStateException.class, () -> service.updatePost(author, id, "title", "body", null, null));
         assertThrows(IllegalStateException.class, () -> service.deletePost(author, id));
         verify(posts, never()).save(any());
         verify(posts, never()).delete(any(Post.class));

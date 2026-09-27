@@ -7,10 +7,15 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.io.ByteArrayInputStream;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
+import java.util.Iterator;
 import java.util.regex.Pattern;
 
 /**
@@ -115,5 +120,51 @@ public class MediaStorageService {
         }
     }
 
+    /** Returns true only for a generated name that currently exists in storage. */
+    public boolean exists(String id) {
+        if (id == null || !STORED_NAME.matcher(id).matches()) {
+            return false;
+        }
+
+        Path file = root.resolve(id).normalize();
+        String extension = id.substring(id.lastIndexOf('.') + 1);
+        return file.startsWith(root)
+                && ImageType.fromExtension(extension) != null
+                && Files.isRegularFile(file);
+    }
+
+    /** Reads image dimensions from metadata without decoding the full bitmap. */
+    public ImageDimensions dimensions(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return null;
+        }
+
+        try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
+            if (input == null) {
+                return null;
+            }
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
+            if (!readers.hasNext()) {
+                return null;
+            }
+
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(input, true, true);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                return width > 0 && height > 0 ? new ImageDimensions(width, height) : null;
+            } finally {
+                reader.dispose();
+            }
+        } catch (IOException | RuntimeException ignored) {
+            // Some accepted formats (notably WebP without an ImageIO plugin) do
+            // not expose dimensions here. Upload still succeeds, with null dims.
+            return null;
+        }
+    }
+
     public record StoredImage(byte[] bytes, String contentType) {}
+
+    public record ImageDimensions(int width, int height) {}
 }
