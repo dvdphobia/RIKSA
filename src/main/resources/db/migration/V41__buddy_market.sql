@@ -2,7 +2,7 @@ ALTER TABLE user_gamification
     ADD COLUMN xp_balance BIGINT NOT NULL DEFAULT 0 CHECK (xp_balance >= 0);
 
 UPDATE user_gamification
-SET xp_balance = total_xp;
+SET xp_balance = GREATEST(COALESCE(total_xp, 0), 0);
 
 ALTER TABLE buddy
     ADD COLUMN chosen_at TIMESTAMPTZ NULL;
