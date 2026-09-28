@@ -1,5 +1,8 @@
 package com.riksa.common.exception;
 
+import com.riksa.moderation.ContentBlockedException;
+import com.riksa.moderation.ModerationReason;
+import com.riksa.moderation.RateLimitedException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,11 +17,27 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ContentBlockedException.class)
+    public ResponseEntity<Map<String, Object>> handleContentBlocked(ContentBlockedException ex) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(errorBodyWithCode(HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Content was blocked by moderation.", "CONTENT_BLOCKED", reasonCodes(ex.reasons())));
+    }
+
+    @ExceptionHandler(RateLimitedException.class)
+    public ResponseEntity<Map<String, Object>> handleModerationRateLimit(RateLimitedException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(errorBodyWithCode(HttpStatus.TOO_MANY_REQUESTS,
+                        "Please wait before posting again.", "RATE_LIMITED", List.of()));
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(ResourceNotFoundException ex) {
@@ -117,5 +136,19 @@ public class GlobalExceptionHandler {
                 "error", status.getReasonPhrase(),
                 "message", message
         );
+    }
+
+    private Map<String, Object> errorBodyWithCode(HttpStatus status, String message, String code,
+                                                  List<String> reasons) {
+        Map<String, Object> body = new LinkedHashMap<>(errorBody(status, message));
+        body.put("code", code);
+        if ("CONTENT_BLOCKED".equals(code)) {
+            body.put("reasons", reasons);
+        }
+        return body;
+    }
+
+    private List<String> reasonCodes(List<ModerationReason> reasons) {
+        return reasons.stream().map(reason -> reason.code().name()).distinct().toList();
     }
 }

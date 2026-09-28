@@ -2,7 +2,10 @@ package com.riksa.blog.service;
 
 import com.riksa.blog.entity.BlogPost;
 import com.riksa.blog.enums.BlogStatus;
+import com.riksa.blog.event.BlogApprovedEvent;
+import com.riksa.blog.event.BlogPostApprovedEvent;
 import com.riksa.blog.repository.BlogPostRepository;
+import com.riksa.common.event.DomainEvent;
 import com.riksa.common.event.EventPublisher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,33 +39,41 @@ class BlogModerationServiceTest {
         post.setId(postId);
         post.setStatus(BlogStatus.PENDING);
 
-        when(blogPostRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(blogPostRepository.findByIdForUpdate(postId)).thenReturn(Optional.of(post));
         when(blogPostRepository.save(any(BlogPost.class))).thenAnswer(inv -> inv.getArgument(0));
 
         BlogPost result = blogModerationService.approve(postId, moderatorId);
 
         assertThat(result.getStatus()).isEqualTo(BlogStatus.APPROVED);
         assertThat(result.getRejectionReason()).isNull();
+        assertThat(result.getFirstApprovedAt()).isNotNull();
+        org.mockito.ArgumentCaptor<DomainEvent> events = org.mockito.ArgumentCaptor.forClass(DomainEvent.class);
+        verify(eventPublisher, times(2)).publish(events.capture());
+        assertThat(events.getAllValues()).extracting(Object::getClass)
+                .containsExactly(BlogApprovedEvent.class, BlogPostApprovedEvent.class);
     }
 
     @Test
-    void approve_alreadyApproved_throwsException() {
+    void approve_autoApprovedPostDoesNotDoubleFireEvents() {
         UUID postId = UUID.randomUUID();
         BlogPost post = new BlogPost();
         post.setId(postId);
         post.setStatus(BlogStatus.APPROVED);
+        post.setFirstApprovedAt(OffsetDateTime.now().minusDays(1));
 
-        when(blogPostRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(blogPostRepository.findByIdForUpdate(postId)).thenReturn(Optional.of(post));
+        when(blogPostRepository.save(any(BlogPost.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        assertThatThrownBy(() -> blogModerationService.approve(postId, moderatorId))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Post already moderated");
+        BlogPost result = blogModerationService.approve(postId, moderatorId);
+
+        assertThat(result.getStatus()).isEqualTo(BlogStatus.APPROVED);
+        verify(eventPublisher, never()).publish(any());
     }
 
     @Test
     void approve_nonExistentPost_throwsException() {
         UUID postId = UUID.randomUUID();
-        when(blogPostRepository.findById(postId)).thenReturn(Optional.empty());
+        when(blogPostRepository.findByIdForUpdate(postId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> blogModerationService.approve(postId, moderatorId))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -75,7 +87,7 @@ class BlogModerationServiceTest {
         post.setId(postId);
         post.setStatus(BlogStatus.PENDING);
 
-        when(blogPostRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(blogPostRepository.findByIdForUpdate(postId)).thenReturn(Optional.of(post));
         when(blogPostRepository.save(any(BlogPost.class))).thenAnswer(inv -> inv.getArgument(0));
 
         BlogPost result = blogModerationService.reject(postId, "Inappropriate content", moderatorId);
@@ -91,7 +103,7 @@ class BlogModerationServiceTest {
         post.setId(postId);
         post.setStatus(BlogStatus.REJECTED);
 
-        when(blogPostRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(blogPostRepository.findByIdForUpdate(postId)).thenReturn(Optional.of(post));
 
         assertThatThrownBy(() -> blogModerationService.reject(postId, "reason", moderatorId))
                 .isInstanceOf(IllegalStateException.class)
@@ -101,7 +113,7 @@ class BlogModerationServiceTest {
     @Test
     void reject_nonExistentPost_throwsException() {
         UUID postId = UUID.randomUUID();
-        when(blogPostRepository.findById(postId)).thenReturn(Optional.empty());
+        when(blogPostRepository.findByIdForUpdate(postId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> blogModerationService.reject(postId, "reason", moderatorId))
                 .isInstanceOf(IllegalArgumentException.class)

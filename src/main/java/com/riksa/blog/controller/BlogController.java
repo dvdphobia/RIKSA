@@ -71,6 +71,27 @@ public class BlogController {
         return ResponseEntity.ok(BlogMapper.toResponse(post, false));
     }
 
+    @PutMapping(BlogEndpoints.UPDATE)
+    public ResponseEntity<BlogPostResponse> updatePost(
+            @PathVariable UUID id, @RequestBody @Valid BlogPostRequest request) {
+        UUID userId = getCurrentUserId();
+        var post = blogService.updatePost(
+                userId,
+                id,
+                request.title(),
+                request.content(),
+                request.coverUrl(),
+                request.categoryId()
+        );
+        return ResponseEntity.ok(BlogMapper.toResponse(post, false));
+    }
+
+    @DeleteMapping(BlogEndpoints.DELETE)
+    public ResponseEntity<Void> deletePost(@PathVariable UUID id) {
+        blogService.deletePost(getCurrentUserId(), id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping(BlogEndpoints.MY_POSTS)
     public ResponseEntity<BlogListResponse> getMyPosts(
             @RequestParam(required = false) BlogStatus status,

@@ -1,6 +1,13 @@
 package com.riksa.social.service;
 
+import com.riksa.auth.repository.UserRepository;
 import com.riksa.common.event.EventPublisher;
+import com.riksa.moderation.ContentBlockedException;
+import com.riksa.moderation.ContentModerationService;
+import com.riksa.moderation.AuthorSlidingWindowRateLimiter;
+import com.riksa.moderation.RateLimitedException;
+import com.riksa.moderation.ModerationProperties;
+import com.riksa.moderation.WordListLoader;
 import com.riksa.social.dto.PostMediaInput;
 import com.riksa.social.entity.Post;
 import com.riksa.social.entity.PostMedia;
@@ -10,13 +17,15 @@ import com.riksa.social.repository.PostMediaRepository;
 import com.riksa.social.repository.PostRepository;
 import com.riksa.social.repository.UserCategoryMembershipRepository;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.time.OffsetDateTime;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,7 +44,18 @@ class PostServiceTest {
     @Mock private UploadedMediaUrlValidator uploadedMediaUrlValidator;
     @Mock private EventPublisher eventPublisher;
 
-    @InjectMocks private PostService postService;
+    @Mock private UserRepository userRepository;
+
+    private PostService postService;
+
+    @BeforeEach
+    void setUp() {
+        ContentModerationService moderation = new ContentModerationService(
+                new WordListLoader(), new ModerationProperties(5, 2, List.of(), Duration.ofHours(24)));
+        postService = new PostService(postRepository, postMediaRepository, membershipRepository,
+                uploadedMediaUrlValidator, eventPublisher, userRepository, moderation,
+                new AuthorSlidingWindowRateLimiter());
+    }
 
     @Test
     void createPost_withZeroMedia_savesAndPublishesEvent() {
@@ -50,6 +70,51 @@ class PostServiceTest {
         assertThat(result.getMediaUrl()).isNull();
         verify(postMediaRepository, never()).saveAll(any());
         verify(eventPublisher).publish(any(PostCreatedEvent.class));
+    }
+
+    @Test
+    void createPost_severeTermIsBlockedBeforeSaveOrEvent() {
+        UUID authorId = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        allowMembership(authorId, categoryId);
+
+        assertThatThrownBy(() -> postService.createPost(authorId, "Question", "shit", null, null, categoryId))
+                .isInstanceOf(ContentBlockedException.class);
+
+        verify(postRepository, never()).save(any());
+        verify(postMediaRepository, never()).saveAll(any());
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void createPost_reviewVerdictStillSavesAndPublishes() {
+        UUID authorId = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        allowMembership(authorId, categoryId);
+        saveWithId();
+
+        Post saved = postService.createPost(authorId, "History", "Free money is a phrase to flag",
+                null, null, categoryId);
+
+        assertThat(saved.getId()).isNotNull();
+        verify(postRepository).save(any(Post.class));
+        verify(eventPublisher).publish(any(PostCreatedEvent.class));
+    }
+
+    @Test
+    void createPost_mediaOnlyWithBlankTextPassesModeration() {
+        UUID authorId = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        allowMembership(authorId, categoryId);
+        saveWithId();
+        when(uploadedMediaUrlValidator.normalize("https://api.example.test/photo.png"))
+                .thenReturn("https://api.example.test/photo.png");
+
+        Post saved = postService.createPost(authorId, "  ", "", null,
+                List.of(new PostMediaInput("https://api.example.test/photo.png", 100, 100)), categoryId);
+
+        assertThat(saved.getMediaUrl()).isEqualTo("https://api.example.test/photo.png");
+        verify(postRepository).save(any(Post.class));
     }
 
     @Test
@@ -272,6 +337,42 @@ class PostServiceTest {
 
         assertThat(result.getTitle()).isEqualTo("New Title");
         assertThat(result.getContent()).isEqualTo("New content");
+    }
+
+    @Test
+    void eleventhEditOfAnOldPostInTenMinutesIsRateLimited() {
+        UUID authorId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = existingPost(authorId, postId, "Old title", "Old content", null);
+        post.setCreatedAt(OffsetDateTime.now().minusDays(2));
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(postRepository.findByAuthorIdAndCreatedAtAfterOrderByCreatedAtDescIdDesc(any(), any(), any()))
+                .thenReturn(List.of());
+        when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        for (int edit = 0; edit < 10; edit++) {
+            postService.updatePost(authorId, postId, "Updated " + edit, "A normal study question " + edit,
+                    null, null);
+        }
+
+        assertThatThrownBy(() -> postService.updatePost(authorId, postId, "Too many", "Another study question",
+                null, null)).isInstanceOf(RateLimitedException.class);
+    }
+
+    @Test
+    void updatePost_severeTermIsBlockedWithoutChangingOrSavingPost() {
+        UUID authorId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = existingPost(authorId, postId, "Old Title", "Old content", null);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        assertThatThrownBy(() -> postService.updatePost(authorId, postId, "Updated", "shit", null, null))
+                .isInstanceOf(ContentBlockedException.class);
+
+        assertThat(post.getTitle()).isEqualTo("Old Title");
+        assertThat(post.getContent()).isEqualTo("Old content");
+        verify(postRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test

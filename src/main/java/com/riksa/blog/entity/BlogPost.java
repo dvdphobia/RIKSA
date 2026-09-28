@@ -49,6 +49,18 @@ public class BlogPost {
     @Column(name = "rejection_reason", length = 500)
     private String rejectionReason;
 
+    @Column(name = "first_approved_at")
+    private OffsetDateTime firstApprovedAt;
+
+    @Column(name = "normalized_hash", length = 64)
+    private String normalizedHash;
+
+    @Column(name = "moderation_score")
+    private Integer moderationScore;
+
+    @Column(name = "moderation_reasons", length = 500)
+    private String moderationReasons;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;

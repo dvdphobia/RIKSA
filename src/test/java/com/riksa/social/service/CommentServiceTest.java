@@ -1,17 +1,29 @@
 package com.riksa.social.service;
 
+import com.riksa.auth.repository.UserRepository;
+import com.riksa.moderation.ContentBlockedException;
+import com.riksa.moderation.ContentModerationService;
+import com.riksa.moderation.AuthorSlidingWindowRateLimiter;
+import com.riksa.moderation.ModerationProperties;
+import com.riksa.moderation.RateLimitedException;
+import com.riksa.moderation.WordListLoader;
 import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
 import com.riksa.social.repository.CommentRepository;
 import com.riksa.social.repository.PostRepository;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -24,8 +36,19 @@ class CommentServiceTest {
     @Mock private CommentRepository commentRepository;
     @Mock private PostRepository postRepository;
     @Mock private MediaUrlValidator mediaUrlValidator;
+    @Mock private UserRepository userRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
-    @InjectMocks private CommentService commentService;
+    private CommentService commentService;
+
+    @BeforeEach
+    void setUp() {
+        ContentModerationService moderation = new ContentModerationService(
+                new WordListLoader(), new ModerationProperties(5, 2, List.of(), Duration.ofHours(24)));
+        commentService = new CommentService(commentRepository, postRepository, mediaUrlValidator,
+                userRepository, moderation, new AuthorSlidingWindowRateLimiter());
+        ReflectionTestUtils.setField(commentService, "eventPublisher", eventPublisher);
+    }
 
     @Test
     void createComment_validContent_savesAndIncrementsCount() {
@@ -49,6 +72,40 @@ class CommentServiceTest {
         assertThat(result.getAuthorId()).isEqualTo(authorId);
         assertThat(result.getPostId()).isEqualTo(postId);
         assertThat(post.getCommentCount()).isEqualTo(6);
+    }
+
+    @Test
+    void createComment_severeTermIsBlockedBeforeCommentOrPostSave() {
+        UUID authorId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+
+        assertThatThrownBy(() -> commentService.createComment(authorId, postId, "shit", null, null))
+                .isInstanceOf(ContentBlockedException.class);
+
+        verify(commentRepository, never()).save(any());
+        verify(postRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void createComment_eleventhInTenMinutesIsRateLimitedBeforeModerationOrSave() {
+        UUID authorId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(commentRepository.countByAuthorIdAndCreatedAtAfter(
+                eq(authorId), any(OffsetDateTime.class))).thenReturn(10L);
+
+        assertThatThrownBy(() -> commentService.createComment(authorId, postId, "A normal reply", null, null))
+                .isInstanceOf(RateLimitedException.class);
+
+        verify(commentRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
+        verify(postRepository, never()).save(any());
     }
 
     @Test
@@ -93,6 +150,47 @@ class CommentServiceTest {
         Comment result = commentService.updateComment(authorId, commentId, "Updated physics content", null);
 
         assertThat(result.getContent()).isEqualTo("Updated physics content");
+    }
+
+    @Test
+    void eleventhEditOfAnOldCommentInTenMinutesIsRateLimited() {
+        UUID authorId = UUID.randomUUID();
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setAuthorId(authorId);
+        comment.setContent("Old educational comment");
+        comment.setCreatedAt(OffsetDateTime.now().minusDays(2));
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentRepository.findByAuthorIdAndCreatedAtAfterOrderByCreatedAtDescIdDesc(any(), any(), any()))
+                .thenReturn(List.of());
+        when(commentRepository.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        for (int edit = 0; edit < 10; edit++) {
+            commentService.updateComment(authorId, commentId, "Updated study comment " + edit, null);
+        }
+
+        assertThatThrownBy(() -> commentService.updateComment(authorId, commentId,
+                "Too many study comment edits", null)).isInstanceOf(RateLimitedException.class);
+    }
+
+    @Test
+    void updateComment_severeTermIsBlockedWithoutChangingOrSavingComment() {
+        UUID authorId = UUID.randomUUID();
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setAuthorId(authorId);
+        comment.setContent("Old content");
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+
+        assertThatThrownBy(() -> commentService.updateComment(authorId, commentId, "shit", null))
+                .isInstanceOf(ContentBlockedException.class);
+
+        assertThat(comment.getContent()).isEqualTo("Old content");
+        verify(commentRepository, never()).save(any());
+        verify(postRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test

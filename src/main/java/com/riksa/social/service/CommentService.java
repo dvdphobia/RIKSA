@@ -1,5 +1,14 @@
 package com.riksa.social.service;
 
+import com.riksa.auth.entity.User;
+import com.riksa.auth.repository.UserRepository;
+import com.riksa.moderation.ContentModerationService;
+import com.riksa.moderation.AuthorSlidingWindowRateLimiter;
+import com.riksa.moderation.ModerationInput;
+import com.riksa.moderation.ModerationReasonCode;
+import com.riksa.moderation.ModerationResult;
+import com.riksa.moderation.ModerationSurface;
+import com.riksa.moderation.RateLimitedException;
 import com.riksa.realtime.RealtimeEvent;
 import com.riksa.realtime.RealtimeTypes;
 import java.util.Map;
@@ -11,19 +20,33 @@ import com.riksa.social.repository.PostRepository;
 import com.riksa.quest.event.SocialActionEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.time.Duration;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class CommentService {
 
+    private static final Logger log = LoggerFactory.getLogger(CommentService.class);
+    private static final int COMMENT_RATE_LIMIT = 10;
+    private static final int COMMENT_EDIT_RATE_LIMIT = 10;
+
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final MediaUrlValidator mediaUrlValidator;
+    private final UserRepository userRepository;
+    private final ContentModerationService contentModerationService;
+    private final AuthorSlidingWindowRateLimiter editRateLimiter;
 
     @Autowired(required = false)
     private ApplicationEventPublisher eventPublisher;
@@ -43,6 +66,7 @@ public class CommentService {
         if (post.getStatus() == ContentStatus.HIDDEN) {
             throw new IllegalArgumentException("Post not found: " + postId);
         }
+        ModerationResult moderation = screenComment(authorId, normalizedContent, null, null);
 
         Comment comment = new Comment();
         comment.setAuthorId(authorId);
@@ -55,6 +79,7 @@ public class CommentService {
 
         post.setCommentCount(post.getCommentCount() + 1);
         postRepository.save(post);
+        logReview(moderation, saved.getId());
         announceChange(postId);
 
         if (eventPublisher != null && post.getAuthorId() != null && !post.getAuthorId().equals(authorId)) {
@@ -87,10 +112,16 @@ public class CommentService {
         }
 
         requirePresent(nextContent, nextMediaUrl);
+        editRateLimiter.checkAndRecord("social-comment-edit", authorId,
+                COMMENT_EDIT_RATE_LIMIT, Duration.ofMinutes(10));
+        ModerationResult moderation = screenComment(
+                authorId, nextContent, comment.getId(), comment.getCreatedAt());
 
         comment.setContent(nextContent);
         comment.setMediaUrl(nextMediaUrl);
-        return commentRepository.save(comment);
+        Comment saved = commentRepository.save(comment);
+        logReview(moderation, saved.getId());
+        return saved;
     }
 
     @Transactional
@@ -133,6 +164,45 @@ public class CommentService {
             return null;
         }
         return value.trim();
+    }
+
+    private ModerationResult screenComment(UUID authorId, String content,
+                                           UUID ignoredCommentId, OffsetDateTime ignoredCreatedAt) {
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime rateCutoff = now.minusMinutes(10);
+        long recentCommentCount = commentRepository.countByAuthorIdAndCreatedAtAfter(authorId, rateCutoff);
+        if (ignoredCreatedAt != null && ignoredCreatedAt.isAfter(rateCutoff)) {
+            recentCommentCount--;
+        }
+        if (recentCommentCount >= COMMENT_RATE_LIMIT) {
+            throw new RateLimitedException();
+        }
+
+        OffsetDateTime duplicateCutoff = now.minusHours(24);
+        List<Comment> recentComments = commentRepository.findByAuthorIdAndCreatedAtAfterOrderByCreatedAtDescIdDesc(
+                authorId, duplicateCutoff, PageRequest.of(0, 50));
+        OffsetDateTime accountCreatedAt = userRepository.findById(authorId)
+                .map(User::getCreatedAt)
+                .orElse(null);
+        ModerationResult result = contentModerationService.assess(
+                new ModerationInput(authorId, accountCreatedAt, ModerationSurface.COMMENT, null, content),
+                duplicateKey -> recentComments.stream()
+                        .filter(candidate -> ignoredCommentId == null
+                                || !Objects.equals(candidate.getId(), ignoredCommentId))
+                        .anyMatch(candidate -> contentModerationService.normalizeForDuplicate(candidate.getContent())
+                                .equals(duplicateKey)));
+        contentModerationService.requireNotBlocked(result);
+        return result;
+    }
+
+    private void logReview(ModerationResult result, UUID commentId) {
+        if (result.verdict() == com.riksa.moderation.ModerationVerdict.REVIEW) {
+            List<ModerationReasonCode> reasonCodes = result.reasons().stream()
+                    .map(reason -> reason.code())
+                    .toList();
+            log.info("Content moderation review surface=COMMENT id={} score={} reasonCodes={}",
+                    commentId, result.score(), reasonCodes);
+        }
     }
 }
 

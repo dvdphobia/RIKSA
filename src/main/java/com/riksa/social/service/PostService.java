@@ -1,6 +1,15 @@
 package com.riksa.social.service;
 
+import com.riksa.auth.entity.User;
+import com.riksa.auth.repository.UserRepository;
 import com.riksa.common.event.EventPublisher;
+import com.riksa.moderation.ContentModerationService;
+import com.riksa.moderation.AuthorSlidingWindowRateLimiter;
+import com.riksa.moderation.ModerationInput;
+import com.riksa.moderation.ModerationReasonCode;
+import com.riksa.moderation.ModerationResult;
+import com.riksa.moderation.ModerationSurface;
+import com.riksa.moderation.RateLimitedException;
 import com.riksa.realtime.RealtimeEvent;
 import com.riksa.realtime.RealtimeTypes;
 import com.riksa.social.dto.PostMediaInput;
@@ -13,27 +22,39 @@ import com.riksa.social.repository.PostMediaRepository;
 import com.riksa.social.repository.PostRepository;
 import com.riksa.social.repository.UserCategoryMembershipRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class PostService {
 
+    private static final Logger log = LoggerFactory.getLogger(PostService.class);
     private static final int MAX_MEDIA = 4;
     private static final int MAX_DIMENSION = 10_000;
     private static final int MAX_TITLE_LENGTH = 200;
+    private static final int POST_RATE_LIMIT = 5;
+    private static final int POST_EDIT_RATE_LIMIT = 10;
 
     private final PostRepository postRepository;
     private final PostMediaRepository postMediaRepository;
     private final UserCategoryMembershipRepository membershipRepository;
     private final UploadedMediaUrlValidator uploadedMediaUrlValidator;
     private final EventPublisher eventPublisher;
+    private final UserRepository userRepository;
+    private final ContentModerationService contentModerationService;
+    private final AuthorSlidingWindowRateLimiter editRateLimiter;
 
     @Transactional
     public Post createPost(UUID authorId, String title, String content, String mediaUrl,
@@ -44,6 +65,7 @@ public class PostService {
 
         String normalizedTitle = title == null ? "" : title;
         String normalizedContent = content == null ? "" : content;
+        ModerationResult moderation = screenPost(authorId, normalizedTitle, normalizedContent, null, null);
         List<MediaValue> normalizedMedia = normalizeMedia(media != null ? media : legacyMedia(mediaUrl));
         validatePost(normalizedTitle, normalizedContent, normalizedMedia);
 
@@ -56,6 +78,7 @@ public class PostService {
 
         Post saved = postRepository.save(post);
         saveMediaRows(saved.getId(), normalizedMedia);
+        logReview(moderation, saved.getId());
         eventPublisher.publish(new PostCreatedEvent(this, saved.getId(), authorId, categoryId));
         eventPublisher.publish(RealtimeEvent.toEveryone(this, RealtimeTypes.POST_CREATED,
                 Map.of("postId", saved.getId(), "authorId", authorId)));
@@ -78,9 +101,12 @@ public class PostService {
         if (!post.getAuthorId().equals(authorId)) {
             throw new IllegalStateException("You can only edit your own posts");
         }
+        editRateLimiter.checkAndRecord("social-post-edit", authorId, POST_EDIT_RATE_LIMIT, Duration.ofMinutes(10));
 
         String nextTitle = title == null ? post.getTitle() : title;
         String nextContent = content == null ? post.getContent() : content;
+        ModerationResult moderation = screenPost(
+                authorId, nextTitle, nextContent, post.getId(), post.getCreatedAt());
         List<MediaValue> replacementMedia = null;
         if (media != null) {
             replacementMedia = normalizeMedia(media);
@@ -99,6 +125,7 @@ public class PostService {
         post.setContent(nextContent);
         post.setMediaUrl(nextMediaUrl);
         Post saved = postRepository.save(post);
+        logReview(moderation, saved.getId());
         if (replacementMedia != null) {
             replaceMediaRows(postId, replacementMedia);
         }
@@ -175,6 +202,45 @@ public class PostService {
         boolean hasContent = content != null && !content.trim().isEmpty();
         if (!hasTitle && !hasContent && media.isEmpty()) {
             throw new IllegalArgumentException("A post must include a title, content, or at least one image");
+        }
+    }
+
+    private ModerationResult screenPost(UUID authorId, String title, String content,
+                                        UUID ignoredPostId, OffsetDateTime ignoredCreatedAt) {
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime rateCutoff = now.minusMinutes(10);
+        long recentPostCount = postRepository.countByAuthorIdAndCreatedAtAfter(authorId, rateCutoff);
+        if (ignoredCreatedAt != null && ignoredCreatedAt.isAfter(rateCutoff)) {
+            recentPostCount--;
+        }
+        if (recentPostCount >= POST_RATE_LIMIT) {
+            throw new RateLimitedException();
+        }
+
+        OffsetDateTime duplicateCutoff = now.minusHours(24);
+        List<Post> recentPosts = postRepository.findByAuthorIdAndCreatedAtAfterOrderByCreatedAtDescIdDesc(
+                authorId, duplicateCutoff, PageRequest.of(0, 50));
+        OffsetDateTime accountCreatedAt = userRepository.findById(authorId)
+                .map(User::getCreatedAt)
+                .orElse(null);
+        ModerationResult result = contentModerationService.assess(
+                new ModerationInput(authorId, accountCreatedAt, ModerationSurface.POST, title, content),
+                duplicateKey -> recentPosts.stream()
+                        .filter(candidate -> ignoredPostId == null
+                                || !Objects.equals(candidate.getId(), ignoredPostId))
+                        .anyMatch(candidate -> contentModerationService.normalizeForDuplicate(candidate.getContent())
+                                .equals(duplicateKey)));
+        contentModerationService.requireNotBlocked(result);
+        return result;
+    }
+
+    private void logReview(ModerationResult result, UUID postId) {
+        if (result.verdict() == com.riksa.moderation.ModerationVerdict.REVIEW) {
+            List<ModerationReasonCode> reasonCodes = result.reasons().stream()
+                    .map(reason -> reason.code())
+                    .toList();
+            log.info("Content moderation review surface=POST id={} score={} reasonCodes={}",
+                    postId, result.score(), reasonCodes);
         }
     }
 

@@ -1,6 +1,9 @@
 package com.riksa.social.milestone;
 
+import com.riksa.auth.repository.UserRepository;
 import com.riksa.common.event.EventPublisher;
+import com.riksa.moderation.ContentModerationService;
+import com.riksa.moderation.AuthorSlidingWindowRateLimiter;
 import com.riksa.social.entity.Post;
 import com.riksa.social.enums.PostKind;
 import com.riksa.social.repository.PostMediaRepository;
@@ -25,7 +28,10 @@ class MilestonePostEditTest {
                 mock(PostMediaRepository.class),
                 mock(UserCategoryMembershipRepository.class),
                 mock(UploadedMediaUrlValidator.class),
-                mock(EventPublisher.class));
+                mock(EventPublisher.class),
+                mock(UserRepository.class),
+                mock(ContentModerationService.class),
+                new AuthorSlidingWindowRateLimiter());
         UUID id = UUID.randomUUID();
         UUID author = UUID.randomUUID();
         Post post = new Post();
