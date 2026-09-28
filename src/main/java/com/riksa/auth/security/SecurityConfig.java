@@ -2,6 +2,7 @@ package com.riksa.auth.security;
 
 import com.riksa.realtime.RealtimeConfig;
 
+import com.riksa.common.constants.AdminEndpoints;
 import com.riksa.common.constants.MediaEndpoints;
 import com.riksa.common.constants.ProfileEndpoints;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, ProfileEndpoints.BASE + "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                AdminEndpoints.PUBLIC_ANNOUNCEMENTS + AdminEndpoints.ACTIVE_ANNOUNCEMENTS).permitAll()
+                        .requestMatchers(HttpMethod.GET, AdminEndpoints.APP_CONFIG).permitAll()
                         .requestMatchers("/graphql").permitAll()
                         // The handshake checks the token itself: browsers cannot
                         // send an Authorization header on a WebSocket.

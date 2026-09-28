@@ -42,11 +42,8 @@ class SettingsServiceTest {
 
         assertThat(all.get("xp.rules")).isEqualTo(new XpRulesSettings(0));
         assertThat(all.get("app.flags")).isEqualTo(new AppFlagsSettings(false, "", "1.0.0", "1.0.0"));
-        assertThat(all.get("ai.chat")).isEqualTo(new AiChatSettings(true, 50,
-                "You are Riksa AI Tutor, a patient bilingual learning coach for Cambodian students.\n"
-                        + "Explain concepts step by step, ask a short checking question, and match the learner's\n"
-                        + "language (Khmer or English). Teach reasoning instead of giving unsupported final answers.\n"
-                        + "Never claim to have performed actions outside this conversation.\n"));
+        assertThat(all.get("ai.chat")).isEqualTo(new AiChatSettings(true, 0,
+                SettingsService.DEFAULT_SYSTEM_PROMPT));
         assertThat(all.get("moderation.bannedWords")).isEqualTo(new BannedWordsSettings(List.of()));
     }
 
@@ -73,5 +70,18 @@ class SettingsServiceTest {
         assertThatThrownBy(() -> service.update("unknown.key", body, UUID.randomUUID()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Unknown setting key: unknown.key");
+    }
+
+    @Test
+    void update_acceptsZeroAsUnlimitedAiDailyMessageLimit() throws Exception {
+        JsonNode body = new ObjectMapper().readTree(
+                "{\"enabled\":true,\"dailyMessageLimit\":0,\"systemPrompt\":\"\"}");
+        SettingsService service = new SettingsService(appSettingRepository, auditLogService,
+                new ObjectMapper(), Validation.buildDefaultValidatorFactory().getValidator());
+
+        var result = service.update("ai.chat", body, UUID.randomUUID());
+
+        assertThat(result).isEqualTo(new AiChatSettings(true, 0, ""));
+        verify(appSettingRepository).save(any());
     }
 }

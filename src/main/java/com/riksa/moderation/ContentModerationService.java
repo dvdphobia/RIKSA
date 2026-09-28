@@ -1,5 +1,8 @@
 package com.riksa.moderation;
 
+import com.riksa.admin.dto.settings.BannedWordsSettings;
+import com.riksa.admin.service.SettingsService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -67,11 +70,19 @@ public class ContentModerationService {
 
     private final WordListLoader wordLists;
     private final ModerationProperties properties;
+    private final SettingsService settingsService;
     private final Map<String, Integer> latinTerms;
 
     public ContentModerationService(WordListLoader wordLists, ModerationProperties properties) {
+        this(wordLists, properties, null);
+    }
+
+    @Autowired
+    public ContentModerationService(WordListLoader wordLists, ModerationProperties properties,
+                                    SettingsService settingsService) {
         this.wordLists = wordLists;
         this.properties = properties;
+        this.settingsService = settingsService;
         Map<String, Integer> allLatinTerms = new LinkedHashMap<>(wordLists.englishTerms());
         wordLists.khmerLatinTerms().forEach((term, weight) ->
                 allLatinTerms.merge(term, weight, Math::max));
@@ -96,7 +107,29 @@ public class ContentModerationService {
         Map<ModerationReasonCode, ModerationReason> reasons = new LinkedHashMap<>();
         Set<String> matchedLatin = new LinkedHashSet<>();
         List<String> latinCopies = latinCopies(normalized);
-        for (Map.Entry<String, Integer> entry : latinTerms.entrySet()) {
+        Map<String, Integer> latinTermsForCheck = latinTerms;
+        Map<String, Integer> khmerTermsForCheck = wordLists.khmerTerms();
+        if (settingsService != null) {
+            BannedWordsSettings configuredWords = settingsService.getBannedWords();
+            if (!configuredWords.words().isEmpty()) {
+                Map<String, Integer> configuredLatinTerms = new LinkedHashMap<>(latinTerms);
+                Map<String, Integer> configuredKhmerTerms = new LinkedHashMap<>(wordLists.khmerTerms());
+                for (String configuredWord : configuredWords.words()) {
+                    String term = normalizeText(configuredWord);
+                    if (term.isBlank()) {
+                        continue;
+                    }
+                    if (containsKhmerScript(term)) {
+                        configuredKhmerTerms.merge(term, 3, Math::max);
+                    } else {
+                        configuredLatinTerms.merge(term, 3, Math::max);
+                    }
+                }
+                latinTermsForCheck = configuredLatinTerms;
+                khmerTermsForCheck = configuredKhmerTerms;
+            }
+        }
+        for (Map.Entry<String, Integer> entry : latinTermsForCheck.entrySet()) {
             if (latinCopies.stream().anyMatch(copy -> hasWholeTokenTerm(copy, entry.getKey()))) {
                 matchedLatin.add(entry.getKey());
             }
@@ -104,7 +137,7 @@ public class ContentModerationService {
 
         Set<String> matchedKhmer = new LinkedHashSet<>();
         String khmerMatchingText = collapseKhmerSeparators(normalized);
-        for (String term : wordLists.khmerTerms().keySet()) {
+        for (String term : khmerTermsForCheck.keySet()) {
             if (khmerMatchingText.contains(collapseKhmerSeparators(term))) {
                 matchedKhmer.add(term);
             }
@@ -114,7 +147,7 @@ public class ContentModerationService {
         boolean severeTerm = false;
         boolean profanityFound = false;
         for (String term : matchedLatin) {
-            int weight = latinTerms.get(term);
+            int weight = latinTermsForCheck.get(term);
             profanityFound = true;
             severeTerm |= weight == 3;
             if (weight < 3) {
@@ -122,7 +155,7 @@ public class ContentModerationService {
             }
         }
         for (String term : matchedKhmer) {
-            int weight = wordLists.khmerTerms().get(term);
+            int weight = khmerTermsForCheck.get(term);
             profanityFound = true;
             severeTerm |= weight == 3;
             if (weight < 3) {
@@ -314,6 +347,11 @@ public class ContentModerationService {
         String normalized = stripInvisible(Normalizer.normalize(text, Normalizer.Form.NFKC))
                 .toLowerCase(Locale.ROOT);
         return collapseRunsToTwo(normalized);
+    }
+
+    private boolean containsKhmerScript(String text) {
+        return text.codePoints().anyMatch(codePoint ->
+                Character.UnicodeScript.of(codePoint) == Character.UnicodeScript.KHMER);
     }
 
     private String mapLeetspeak(String text) {

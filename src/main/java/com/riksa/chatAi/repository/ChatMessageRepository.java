@@ -4,6 +4,7 @@ import com.riksa.chatAi.entity.ChatMessage;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
 import java.util.List;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -12,6 +13,18 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     List<ChatMessage> findBySessionIdOrderByCreatedAtAsc(UUID sessionId);
     List<ChatMessage> findBySessionIdOrderByCreatedAtAscIdAsc(UUID sessionId);
     List<ChatMessage> findTop20BySessionIdOrderByCreatedAtDesc(UUID sessionId);
+
+    @Query("""
+            SELECT COUNT(message) FROM ChatMessage message
+            WHERE message.session.user.id = :userId
+              AND message.role = 'user'
+              AND message.createdAt >= :start
+              AND message.createdAt < :end
+            """)
+    long countUserMessagesByUserIdAndCreatedAtInRange(
+            @Param("userId") UUID userId,
+            @Param("start") OffsetDateTime start,
+            @Param("end") OffsetDateTime end);
 
     @Query(value = """
         SELECT cs.user_id AS "userId",

@@ -91,4 +91,11 @@ public final class AdminEndpoints {
     public static final String ADMIN_RESOURCES = "/resources";
     public static final String ADMIN_RESOURCE_BY_ID = "/{id}";
     public static final String ADMIN_RESOURCE_STATUS = "/{id}/status";
+
+    // ── Platform administration and public config ──
+    public static final String ADMIN_ANNOUNCEMENTS = "/announcements";
+    public static final String ANNOUNCEMENT_BY_ID = "/{id}";
+    public static final String PUBLIC_ANNOUNCEMENTS = ApiConstants.API_V1 + "/announcements";
+    public static final String ACTIVE_ANNOUNCEMENTS = "/active";
+    public static final String APP_CONFIG = ApiConstants.API_V1 + "/app/config";
 }

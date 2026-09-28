@@ -1,6 +1,7 @@
 package com.riksa.admin.service;
 
 import com.riksa.auth.repository.UserRepository;
+import com.riksa.admin.dto.settings.AiChatSettings;
 import com.riksa.chatAi.repository.ChatMessageRepository;
 import com.riksa.chatAi.repository.ChatSessionRepository;
 import com.riksa.common.audit.AuditLogService;
@@ -27,6 +28,7 @@ class ChatAiAdminServiceTest {
     @Mock private ChatSessionRepository chatSessionRepository;
     @Mock private UserRepository userRepository;
     @Mock private AuditLogService auditLogService;
+    @Mock private SettingsService settingsService;
     @InjectMocks private ChatAiAdminService chatAiAdminService;
 
     @Test
@@ -52,6 +54,7 @@ class ChatAiAdminServiceTest {
 
         when(chatMessageRepository.findUsageByCreatedAtAfter(any()))
                 .thenReturn(List.of(second, mostActive));
+        when(settingsService.getAiChat()).thenReturn(new AiChatSettings(true, 0, "system"));
         ReflectionTestUtils.setField(chatAiAdminService, "openRouterApiKey", "configured-key");
 
         var result = chatAiAdminService.usage(7);
@@ -63,5 +66,29 @@ class ChatAiAdminServiceTest {
         assertThat(result.enabled()).isTrue();
         assertThat(result.topUsers()).extracting("userId").containsExactly(mostActiveId, secondId);
         assertThat(result.topUsers().getFirst().messages()).isEqualTo(6);
+    }
+
+    @Test
+    void usageUsesConfiguredEnabledStateAndDailyLimit() {
+        when(chatMessageRepository.findUsageByCreatedAtAfter(any())).thenReturn(List.of());
+        when(settingsService.getAiChat()).thenReturn(new AiChatSettings(false, 17, "system"));
+        ReflectionTestUtils.setField(chatAiAdminService, "openRouterApiKey", "configured-key");
+
+        var result = chatAiAdminService.usage(1);
+
+        assertThat(result.dailyLimit()).isEqualTo(17);
+        assertThat(result.enabled()).isFalse();
+    }
+
+    @Test
+    void usageReportsDisabledWhenProviderKeyIsMissing() {
+        when(chatMessageRepository.findUsageByCreatedAtAfter(any())).thenReturn(List.of());
+        when(settingsService.getAiChat()).thenReturn(new AiChatSettings(true, 3, "system"));
+        ReflectionTestUtils.setField(chatAiAdminService, "openRouterApiKey", "");
+
+        var result = chatAiAdminService.usage(1);
+
+        assertThat(result.enabled()).isFalse();
+        assertThat(result.dailyLimit()).isEqualTo(3);
     }
 }

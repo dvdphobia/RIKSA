@@ -25,13 +25,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ChatAiAdminService {
 
-    private static final int CURRENT_DAILY_LIMIT = 0;
     private static final int TOP_USER_LIMIT = 10;
 
     private final ChatMessageRepository chatMessageRepository;
     private final ChatSessionRepository chatSessionRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final SettingsService settingsService;
 
     @Value("${openrouter.api-key:}")
     private String openRouterApiKey;
@@ -51,10 +51,10 @@ public class ChatAiAdminService {
                         row.getDisplayName(), row.getMessageCount(), row.getSessionCount(), row.getLastMessageAt()))
                 .toList();
 
-        // TODO(b4): read ai.chat setting
-        // ChatAiService currently gates requests on provider-key presence and has no daily limit, so 0 means unlimited.
-        boolean enabled = openRouterApiKey != null && !openRouterApiKey.isBlank();
-        return new ChatUsageResponse(safeDays, totalMessages, rows.size(), CURRENT_DAILY_LIMIT, enabled, topUsers);
+        var settings = settingsService.getAiChat();
+        boolean enabled = settings.enabled() && openRouterApiKey != null && !openRouterApiKey.isBlank();
+        return new ChatUsageResponse(safeDays, totalMessages, rows.size(), settings.dailyMessageLimit(), enabled,
+                topUsers);
     }
 
     @Transactional(readOnly = true)

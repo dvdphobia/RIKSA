@@ -2,6 +2,8 @@ package com.riksa.chatAi.service;
 
 import com.riksa.auth.entity.User;
 import com.riksa.auth.repository.UserRepository;
+import com.riksa.admin.dto.settings.AiChatSettings;
+import com.riksa.admin.service.SettingsService;
 import com.riksa.chatAi.dto.*;
 import com.riksa.chatAi.entity.ChatMessage;
 import com.riksa.chatAi.entity.ChatSession;
@@ -9,6 +11,8 @@ import com.riksa.chatAi.repository.ChatMessageRepository;
 import com.riksa.chatAi.repository.ChatSessionRepository;
 import com.riksa.common.exception.ResourceNotFoundException;
 import com.riksa.common.exception.ServiceUnavailableException;
+import com.riksa.common.exception.RateLimitExceededException;
+import com.riksa.quest.service.QuestService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -16,20 +20,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import java.time.OffsetDateTime;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class ChatAiService {
-    private static final String SYSTEM_PROMPT = """
-            You are Riksa AI Tutor, a patient bilingual learning coach for Cambodian students.
-            Explain concepts step by step, ask a short checking question, and match the learner's
-            language (Khmer or English). Teach reasoning instead of giving unsupported final answers.
-            Never claim to have performed actions outside this conversation.
-            """;
     private final ChatSessionRepository sessions;
     private final ChatMessageRepository messages;
     private final UserRepository users;
+    private final SettingsService settingsService;
     @Value("${openrouter.api-key:}") private String apiKey;
     @Value("${openrouter.model:openrouter/auto}") private String model;
     @Value("${openrouter.base-url:https://openrouter.ai/api/v1}") private String baseUrl;
@@ -55,9 +56,14 @@ public class ChatAiService {
 
     @Transactional
     public ChatTurnResponse send(UUID userId, SendChatMessageRequest request) {
+        AiChatSettings settings = settingsService.getAiChat();
+        if (!settings.enabled()) {
+            throw new ServiceUnavailableException("AI tutor is currently disabled", null);
+        }
         if (apiKey == null || apiKey.isBlank()) {
             throw new ServiceUnavailableException("AI tutor is not configured", null);
         }
+        enforceDailyMessageLimit(userId, settings.dailyMessageLimit());
         ChatSession session = request.sessionId() == null
                 ? create(userId, request.learningContext()) : owned(userId, request.sessionId());
         if (request.learningContext() != null && !request.learningContext().isBlank()) {
@@ -71,7 +77,7 @@ public class ChatAiService {
 
         var recent = new ArrayList<>(messages.findTop20BySessionIdOrderByCreatedAtDesc(session.getId()));
         Collections.reverse(recent);
-        String answer = complete(session, recent);
+        String answer = complete(session, recent, settings);
         ChatMessage tutor = new ChatMessage();
         tutor.setSession(session);
         tutor.setRole("assistant");
@@ -96,11 +102,29 @@ public class ChatAiService {
                 .orElseThrow(() -> new ResourceNotFoundException("Chat not found"));
     }
 
-    private String complete(ChatSession session, List<ChatMessage> history) {
+    private void enforceDailyMessageLimit(UUID userId, int dailyLimit) {
+        if (dailyLimit <= 0) {
+            return;
+        }
+        LocalDate today = LocalDate.now(QuestService.DAY_ZONE);
+        OffsetDateTime start = today.atStartOfDay(QuestService.DAY_ZONE).toOffsetDateTime();
+        OffsetDateTime end = today.plusDays(1).atStartOfDay(QuestService.DAY_ZONE).toOffsetDateTime();
+        if (messages.countUserMessagesByUserIdAndCreatedAtInRange(userId, start, end) >= dailyLimit) {
+            long retryAfterSeconds = Math.max(1L, Duration.between(OffsetDateTime.now(QuestService.DAY_ZONE), end)
+                    .getSeconds());
+            throw new RateLimitExceededException(
+                    "Daily AI tutor message limit reached. Try again after midnight Cambodia time.",
+                    retryAfterSeconds);
+        }
+    }
+
+    private String complete(ChatSession session, List<ChatMessage> history, AiChatSettings settings) {
         List<Map<String, String>> prompt = new ArrayList<>();
         String context = session.getContextSummary();
+        String systemPrompt = settings.systemPrompt() == null || settings.systemPrompt().isBlank()
+                ? SettingsService.DEFAULT_SYSTEM_PROMPT : settings.systemPrompt();
         prompt.add(Map.of("role", "system", "content", context == null
-                ? SYSTEM_PROMPT : SYSTEM_PROMPT + "\nLearning context: " + context));
+                ? systemPrompt : systemPrompt + "\nLearning context: " + context));
         history.forEach(item -> prompt.add(Map.of("role", item.getRole(), "content", item.getContent())));
         try {
             Map<?, ?> body = RestClient.create(baseUrl).post().uri("/chat/completions")

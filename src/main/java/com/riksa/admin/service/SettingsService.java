@@ -31,7 +31,7 @@ public class SettingsService {
     public static final String AI_CHAT = "ai.chat";
     public static final String BANNED_WORDS = "moderation.bannedWords";
 
-    private static final String DEFAULT_SYSTEM_PROMPT = """
+    public static final String DEFAULT_SYSTEM_PROMPT = """
             You are Riksa AI Tutor, a patient bilingual learning coach for Cambodian students.
             Explain concepts step by step, ask a short checking question, and match the learner's
             language (Khmer or English). Teach reasoning instead of giving unsupported final answers.
@@ -55,7 +55,7 @@ public class SettingsService {
 
     @Transactional(readOnly = true)
     public AiChatSettings getAiChat() {
-        return get(AI_CHAT, AiChatSettings.class, new AiChatSettings(true, 50, DEFAULT_SYSTEM_PROMPT));
+        return get(AI_CHAT, AiChatSettings.class, new AiChatSettings(true, 0, DEFAULT_SYSTEM_PROMPT));
     }
 
     @Transactional(readOnly = true)
