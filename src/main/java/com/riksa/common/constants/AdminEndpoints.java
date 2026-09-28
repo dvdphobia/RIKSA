@@ -67,4 +67,21 @@ public final class AdminEndpoints {
     public static final String ADMIN_XP_BOOSTS = "/xp-boosts";
     public static final String ADMIN_XP_AUDIT = "/xp-audit";
     public static final String ADMIN_SETTINGS = "/settings";
+
+    // ── User detail, leaderboard, and AI chat ──
+    public static final String USER_OVERVIEW = "/{id}/overview";
+    public static final String USER_XP = "/{id}/xp";
+    public static final String USER_STREAK = "/{id}/streak";
+    public static final String USER_ACHIEVEMENTS = "/{id}/achievements/{achievementId}";
+    public static final String USER_LOCK = "/{id}/lock";
+    public static final String USER_LEADERBOARD_EXCLUSION = "/{id}/leaderboard-exclusion";
+
+    public static final String ADMIN_LEADERBOARD = "/leaderboard";
+    public static final String ADMIN_LEADERBOARD_META = "/meta";
+    public static final String ADMIN_LEADERBOARD_REFRESH = "/refresh";
+
+    public static final String ADMIN_AI_CHAT = "/ai-chat";
+    public static final String ADMIN_AI_CHAT_USAGE = "/usage";
+    public static final String ADMIN_AI_CHAT_USER_SESSIONS = "/users/{userId}/sessions";
+    public static final String ADMIN_AI_CHAT_SESSION = "/sessions/{id}";
 }

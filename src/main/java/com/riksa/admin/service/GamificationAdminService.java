@@ -259,11 +259,10 @@ public class GamificationAdminService {
         return aggregates.stream().filter(row -> users.containsKey(row.getUserId())).map(row -> {
             User user = users.get(row.getUserId());
             UserGamification state = gamification.get(row.getUserId());
-            // TODO(b3): leaderboard_excluded
             return new XpAuditRow(row.getUserId(), user.getUsername(), user.getDisplayName(),
                     row.getXpGained(), row.getTransactionCount(), row.getLessonCompletions(),
                     state == null ? 0 : state.getTotalXp(), row.getFirstAt(), row.getLastAt(),
-                    user.isSuspended(), false);
+                    user.isSuspended(), user.isLeaderboardExcluded());
         }).toList();
     }
 

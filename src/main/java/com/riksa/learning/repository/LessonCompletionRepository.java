@@ -2,6 +2,7 @@ package com.riksa.learning.repository;
 
 import com.riksa.learning.entity.LessonCompletion;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -16,6 +17,27 @@ public interface LessonCompletionRepository extends JpaRepository<LessonCompleti
     List<LessonCompletion> findByUserIdAndLessonIdIn(UUID userId, List<UUID> lessonIds);
     long countByUserId(UUID userId);
     boolean existsByUserIdAndLessonId(UUID userId, UUID lessonId);
+
+    @Query("""
+        SELECT lc.lessonId AS lessonId,
+               l.title AS lessonTitle,
+               lc.xpEarned AS xpEarned,
+               lc.score AS score,
+               lc.completedAt AS completedAt
+        FROM LessonCompletion lc
+        LEFT JOIN Lesson l ON l.id = lc.lessonId
+        WHERE lc.userId = :userId
+        ORDER BY lc.completedAt DESC, lc.id DESC
+        """)
+    List<RecentCompletionRow> findRecentByUserId(@Param("userId") UUID userId, Pageable pageable);
+
+    interface RecentCompletionRow {
+        UUID getLessonId();
+        String getLessonTitle();
+        int getXpEarned();
+        int getScore();
+        java.time.OffsetDateTime getCompletedAt();
+    }
 
     long countByCompletedAtAfter(java.time.OffsetDateTime cutoff);
 

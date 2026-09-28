@@ -23,7 +23,7 @@ public class LeaderboardSnapshotService {
     private final JdbcTemplate jdbcTemplate;
 
     @Transactional
-    public void refreshSnapshots() {
+    public SnapshotCounts refreshSnapshots() {
         LocalDate today = LocalDate.now();
         log.info("Refreshing leaderboard snapshots for {}", today);
         snapshotRepository.deleteBySnapshotDate(today);
@@ -36,6 +36,7 @@ public class LeaderboardSnapshotService {
                 RANK() OVER (ORDER BY (ug.total_xp + (ug.current_streak * 5)) DESC) AS rank,
                 rt.tier_name
             FROM user_gamification ug
+            JOIN users u ON u.id = ug.user_id
             JOIN LATERAL (
                 SELECT tier_name
                 FROM rank_tiers
@@ -43,6 +44,8 @@ public class LeaderboardSnapshotService {
                 ORDER BY min_xp DESC
                 LIMIT 1
             ) rt ON TRUE
+            WHERE u.leaderboard_excluded = FALSE
+              AND (u.suspended_until IS NULL OR u.suspended_until <= now())
         """, (rs, rowNum) -> {
             LeaderboardSnapshot s = new LeaderboardSnapshot();
             s.setUserId(UUID.fromString(rs.getString("user_id")));
@@ -75,6 +78,8 @@ public class LeaderboardSnapshotService {
                 LIMIT 1
             ) rt ON TRUE
             WHERE u.province_id IS NOT NULL
+              AND u.leaderboard_excluded = FALSE
+              AND (u.suspended_until IS NULL OR u.suspended_until <= now())
             ORDER BY u.province_id, rank
         """, (rs, rowNum) -> {
             LeaderboardSnapshot s = new LeaderboardSnapshot();
@@ -91,10 +96,13 @@ public class LeaderboardSnapshotService {
         snapshotRepository.saveAll(provinceSnapshots);
         log.info("Leaderboard refresh done — {} country + {} province rows",
                 countrySnapshots.size(), provinceSnapshots.size());
+        return new SnapshotCounts(countrySnapshots.size(), provinceSnapshots.size());
     }
 
     @Transactional(readOnly = true)
     public List<LeaderboardSnapshot> loadSnapshots(LocalDate date) {
         return snapshotRepository.findBySnapshotDate(date);
     }
+
+    public record SnapshotCounts(int countryRows, int provinceRows) {}
 }

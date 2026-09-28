@@ -78,6 +78,9 @@ public class User {
     @Column(name = "locked_until")
     private OffsetDateTime lockedUntil;
 
+    @Column(name = "leaderboard_excluded", nullable = false)
+    private boolean leaderboardExcluded = false;
+
     @Column(name = "suspended_until")
     private OffsetDateTime suspendedUntil;
 

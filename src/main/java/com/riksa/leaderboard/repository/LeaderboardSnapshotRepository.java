@@ -23,6 +23,9 @@ public interface LeaderboardSnapshotRepository extends JpaRepository<Leaderboard
 
     List<LeaderboardSnapshot> findBySnapshotDate(LocalDate snapshotDate);
 
+    @Query("SELECT DISTINCT s.snapshotDate FROM LeaderboardSnapshot s ORDER BY s.snapshotDate DESC")
+    List<LocalDate> findSnapshotDates();
+
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("DELETE FROM LeaderboardSnapshot s WHERE s.snapshotDate = :snapshotDate")
     void deleteBySnapshotDate(LocalDate snapshotDate);

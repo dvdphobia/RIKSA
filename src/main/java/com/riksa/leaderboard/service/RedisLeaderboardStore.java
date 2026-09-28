@@ -61,6 +61,23 @@ public class RedisLeaderboardStore {
         redisTemplate.opsForValue().set(readyKey(), LocalDate.now().toString());
     }
 
+    public boolean isEnabled() {
+        return properties.isLeaderboardEnabled();
+    }
+
+    public void removeUser(UUID userId) {
+        if (!properties.isLeaderboardEnabled()) return;
+
+        String member = userId.toString();
+        redisTemplate.opsForZSet().remove(boardKey(ScopeType.COUNTRY, "CAMBODIA"), member);
+        Object provinceId = redisTemplate.opsForHash().get(userProvinceKey(), member);
+        if (provinceId != null) {
+            redisTemplate.opsForZSet().remove(boardKey(ScopeType.PROVINCE, provinceId.toString()), member);
+        }
+        redisTemplate.opsForHash().delete(metadataKey(), member);
+        redisTemplate.opsForHash().delete(userProvinceKey(), member);
+    }
+
     public void updateUser(UUID userId, int score, TierType tier, String provinceId) {
         if (!properties.isLeaderboardEnabled()) return;
 

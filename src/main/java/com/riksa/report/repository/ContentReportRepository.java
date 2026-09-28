@@ -20,6 +20,23 @@ public interface ContentReportRepository extends JpaRepository<ContentReport, UU
 
     long countByStatus(ReportStatus status);
 
+    long countByReporterId(UUID reporterId);
+
+    // The current schema supports POST, COMMENT, and BLOG targets only. This returns
+    // reports on owned content; direct user-target reports are not part of the schema.
+    @Query(value = """
+        SELECT r.*
+        FROM content_reports r
+        WHERE (r.target_type = 'POST' AND r.target_id IN
+                   (SELECT p.id FROM posts p WHERE p.author_id = :userId))
+           OR (r.target_type = 'COMMENT' AND r.target_id IN
+                   (SELECT c.id FROM comments c WHERE c.author_id = :userId))
+           OR (r.target_type = 'BLOG' AND r.target_id IN
+                   (SELECT b.id FROM blog_posts b WHERE b.author_id = :userId))
+        ORDER BY r.created_at DESC, r.id DESC
+        """, nativeQuery = true)
+    List<ContentReport> findReportsAgainstUserContent(@Param("userId") UUID userId);
+
     @Query("""
         SELECT r FROM ContentReport r
         WHERE r.status = :status

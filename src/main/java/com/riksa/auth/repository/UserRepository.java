@@ -10,6 +10,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.OffsetDateTime;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,6 +43,15 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     long countByLockedUntilAfter(OffsetDateTime cutoff);
 
     long countBySuspendedUntilAfter(OffsetDateTime cutoff);
+
+    @Query("""
+        SELECT u.id FROM User u
+        WHERE u.id IN :ids
+          AND u.leaderboardExcluded = false
+          AND (u.suspendedUntil IS NULL OR u.suspendedUntil <= :now)
+        """)
+    List<UUID> findLeaderboardEligibleIds(@Param("ids") Collection<UUID> ids,
+                                          @Param("now") OffsetDateTime now);
 
     @Query("SELECT COALESCE(SUM(u.failedLoginAttempts), 0) FROM User u")
     long sumFailedLoginAttempts();

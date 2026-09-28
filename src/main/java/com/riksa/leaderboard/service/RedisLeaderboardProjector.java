@@ -22,7 +22,11 @@ public class RedisLeaderboardProjector {
     public void update(UUID userId) {
         var gamification = userGamificationRepository.findByUserId(userId).orElse(null);
         var user = userRepository.findById(userId).orElse(null);
-        if (gamification == null || user == null) return;
+        if (user == null || user.isLeaderboardExcluded()) {
+            leaderboardStore.removeUser(userId);
+            return;
+        }
+        if (gamification == null) return;
 
         var tier = rankTierRepository
                 .findFirstByMinXpLessThanEqualOrderByMinXpDesc(gamification.getTotalXp())
