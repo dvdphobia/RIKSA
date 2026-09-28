@@ -14,6 +14,8 @@ import java.util.UUID;
 public interface BuddyEquippedRepository extends JpaRepository<BuddyEquipped, BuddyEquippedId> {
     List<BuddyEquipped> findByIdUserId(UUID userId);
 
+    long countByItemId(UUID itemId);
+
     @Modifying
     @Query("delete from BuddyEquipped equipped where equipped.id.userId = :userId and equipped.id.slot = :slot")
     void deleteByUserAndSlot(@Param("userId") UUID userId, @Param("slot") MarketSlot slot);

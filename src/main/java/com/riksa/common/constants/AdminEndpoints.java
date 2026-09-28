@@ -84,4 +84,11 @@ public final class AdminEndpoints {
     public static final String ADMIN_AI_CHAT_USAGE = "/usage";
     public static final String ADMIN_AI_CHAT_USER_SESSIONS = "/users/{userId}/sessions";
     public static final String ADMIN_AI_CHAT_SESSION = "/sessions/{id}";
+
+    // ── Buddy market and lesson resources ──
+    public static final String ADMIN_MARKET_ITEMS = "/market/items";
+    public static final String ADMIN_MARKET_ITEM_BY_ID = "/{id}";
+    public static final String ADMIN_RESOURCES = "/resources";
+    public static final String ADMIN_RESOURCE_BY_ID = "/{id}";
+    public static final String ADMIN_RESOURCE_STATUS = "/{id}/status";
 }

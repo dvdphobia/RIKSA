@@ -13,6 +13,8 @@ import java.util.UUID;
 public interface BuddyInventoryRepository extends JpaRepository<BuddyInventory, BuddyInventoryId> {
     List<BuddyInventory> findByIdUserId(UUID userId);
 
+    long countByIdItemId(UUID itemId);
+
     Optional<BuddyInventory> findByIdUserIdAndIdempotencyKey(UUID userId, UUID idempotencyKey);
 
     boolean existsByIdUserIdAndIdItemId(UUID userId, UUID itemId);

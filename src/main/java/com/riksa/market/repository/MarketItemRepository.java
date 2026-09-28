@@ -13,6 +13,36 @@ import java.util.UUID;
 
 public interface MarketItemRepository extends JpaRepository<MarketItem, UUID> {
 
+    boolean existsByAssetKey(String assetKey);
+
+    boolean existsByAssetKeyAndIdNot(String assetKey, UUID id);
+
+    @Query("""
+            select item.id as id,
+                   item.slot as slot,
+                   item.name as name,
+                   item.nameKm as nameKm,
+                   item.price as price,
+                   item.rarity as rarity,
+                   item.assetKey as assetKey,
+                   item.speciesMask as speciesMask,
+                   item.minTier as minTier,
+                   item.availableFrom as availableFrom,
+                   item.availableUntil as availableUntil,
+                   item.sortOrder as sortOrder,
+                   item.active as active,
+                   (select count(inventory) from BuddyInventory inventory
+                    where inventory.id.itemId = item.id) as ownedCount,
+                   (select count(equipped) from BuddyEquipped equipped
+                    where equipped.itemId = item.id) as equippedCount
+            from MarketItem item
+            where (:slot is null or item.slot = :slot)
+              and (:active is null or item.active = :active)
+            order by item.slot asc, item.sortOrder asc, item.id asc
+            """)
+    List<MarketItemAdminProjection> findAllForAdmin(@Param("slot") MarketSlot slot,
+                                                     @Param("active") Boolean active);
+
     @Query("""
             select item from MarketItem item
             where item.active = true
@@ -33,4 +63,22 @@ public interface MarketItemRepository extends JpaRepository<MarketItem, UUID> {
             """)
     List<MarketItem> findAvailableByRarity(@Param("rarity") MarketRarity rarity,
                                            @Param("now") OffsetDateTime now);
+
+    interface MarketItemAdminProjection {
+        UUID getId();
+        MarketSlot getSlot();
+        String getName();
+        String getNameKm();
+        long getPrice();
+        MarketRarity getRarity();
+        String getAssetKey();
+        String getSpeciesMask();
+        String getMinTier();
+        OffsetDateTime getAvailableFrom();
+        OffsetDateTime getAvailableUntil();
+        int getSortOrder();
+        boolean getActive();
+        long getOwnedCount();
+        long getEquippedCount();
+    }
 }
