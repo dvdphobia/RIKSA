@@ -26,7 +26,8 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog";
 import { Textarea } from "../../components/ui/textarea";
-import { Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { Badge } from "../../components/ui/badge";
+import { BookOpen, CheckCircle2, Pencil, Plus, Trash2, Upload } from "lucide-react";
 
 interface BulkResult {
   successCount: number;
@@ -37,6 +38,7 @@ interface BulkResult {
 export const LessonList = () => {
   const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<Lesson | null>(null);
+  const [previewLesson, setPreviewLesson] = useState<Lesson | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkJson, setBulkJson] = useState("");
   const [search, setSearch] = useState("");
@@ -86,7 +88,18 @@ export const LessonList = () => {
       {
         id: "exercises",
         header: "Exercises",
-        cell: ({ row }) => row.original.exercises.length,
+        cell: ({ row }) => (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1.5 text-xs font-medium"
+            onClick={() => setPreviewLesson(row.original)}
+            title="Click to preview exercises"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+            <span>{row.original.exercises.length} QCM</span>
+          </Button>
+        ),
       },
       {
         id: "updatedAt",
@@ -325,6 +338,93 @@ export const LessonList = () => {
             >
               {bulkImport.isPending ? "Importing..." : "Import"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Exercise Preview Modal */}
+      <Dialog
+        open={Boolean(previewLesson)}
+        onOpenChange={(open) => !open && setPreviewLesson(null)}
+      >
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <DialogTitle>
+                {previewLesson?.title}
+              </DialogTitle>
+              {previewLesson && <StatusBadge value={previewLesson.difficulty} />}
+            </div>
+            <DialogDescription>
+              {previewLesson?.exercises.length} Exercise(s) • {previewLesson?.baseXp} Base XP
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {previewLesson?.exercises.map((ex, i) => (
+              <div key={ex.id ?? i} className="rounded-lg border p-4 space-y-2.5 bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-primary">
+                    Question #{i + 1}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{ex.points} pts</span>
+                    <Badge variant="outline" className="text-[11px]">{ex.type}</Badge>
+                  </div>
+                </div>
+                <p className="font-medium text-sm">{ex.question}</p>
+
+                {ex.options && ex.options.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {ex.options.map((opt, optIndex) => {
+                      const isCorrect = opt.trim() === ex.answerKey.trim();
+                      const letter = String.fromCharCode(65 + optIndex);
+                      return (
+                        <div
+                          key={optIndex}
+                          className={`flex items-center gap-2 rounded-md border p-2 text-xs ${
+                            isCorrect
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-900 font-semibold dark:bg-emerald-950/40 dark:text-emerald-200"
+                              : "bg-background text-muted-foreground"
+                          }`}
+                        >
+                          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                            isCorrect ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"
+                          }`}>
+                            {letter}
+                          </span>
+                          <span className="truncate">{opt}</span>
+                          {isCorrect && <CheckCircle2 className="ml-auto h-3.5 w-3.5 shrink-0 text-emerald-600" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {ex.explanation && (
+                  <p className="text-xs text-muted-foreground italic pt-1 border-t">
+                    Explanation: {ex.explanation}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setPreviewLesson(null)}>
+              Close
+            </Button>
+            {previewLesson && (
+              <Button
+                onClick={() => {
+                  const id = previewLesson.id;
+                  setPreviewLesson(null);
+                  navigate(`/lessons/edit/${id}`);
+                }}
+              >
+                <Pencil className="mr-1.5 h-4 w-4" /> Edit Exercises
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
