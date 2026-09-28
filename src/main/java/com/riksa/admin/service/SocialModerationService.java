@@ -4,10 +4,13 @@ import com.riksa.admin.dto.CommentModerationResponse;
 import com.riksa.admin.dto.ContentModerationResponse;
 import com.riksa.admin.dto.PostModerationResponse;
 import com.riksa.common.audit.AuditLogService;
+import com.riksa.common.exception.ResourceNotFoundException;
 import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
+import com.riksa.social.entity.PostMedia;
 import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.repository.CommentRepository;
+import com.riksa.social.repository.PostMediaRepository;
 import com.riksa.social.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -18,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -26,6 +30,7 @@ import java.util.UUID;
 public class SocialModerationService {
 
     private final PostRepository postRepository;
+    private final PostMediaRepository postMediaRepository;
     private final CommentRepository commentRepository;
     private final AuditLogService auditLogService;
 
@@ -115,6 +120,42 @@ public class SocialModerationService {
         return toResponse(comment.getId(), comment.getStatus(), comment.getHiddenReason(), comment.getHiddenBy(), comment.getHiddenAt());
     }
 
+    @Transactional
+    public void removePostMedia(UUID moderatorId, UUID postId, String reason) {
+        requireReasonForMediaRemoval(reason);
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found: " + postId));
+        List<PostMedia> media = postMediaRepository.findAllByPostIds(List.of(postId));
+        String previousMediaUrl = post.getMediaUrl();
+        if (media.isEmpty() && (previousMediaUrl == null || previousMediaUrl.isBlank())) {
+            throw new IllegalArgumentException("Post has no media to remove");
+        }
+
+        postMediaRepository.deleteByPostId(postId);
+        post.setMediaUrl(null);
+        postRepository.save(post);
+        int removedMediaCount = Math.max(media.size(),
+                previousMediaUrl == null || previousMediaUrl.isBlank() ? 0 : 1);
+        auditLogService.record(moderatorId, "POST_MEDIA_REMOVE", "POST", postId,
+                Map.of("reason", reason.trim(), "removedMediaCount", removedMediaCount));
+    }
+
+    @Transactional
+    public void removeCommentMedia(UUID moderatorId, UUID commentId, String reason) {
+        requireReasonForMediaRemoval(reason);
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comment not found: " + commentId));
+        String previousMediaUrl = comment.getMediaUrl();
+        if (previousMediaUrl == null || previousMediaUrl.isBlank()) {
+            throw new IllegalArgumentException("Comment has no media to remove");
+        }
+
+        comment.setMediaUrl(null);
+        commentRepository.save(comment);
+        auditLogService.record(moderatorId, "COMMENT_MEDIA_REMOVE", "COMMENT", commentId,
+                Map.of("reason", reason.trim(), "hadMedia", true));
+    }
+
     private void adjustCommentCount(UUID postId, int delta) {
         postRepository.findById(postId).ifPresent(post -> {
             post.setCommentCount(Math.max(0, post.getCommentCount() + delta));
@@ -128,13 +169,19 @@ public class SocialModerationService {
         }
     }
 
+    private void requireReasonForMediaRemoval(String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("Reason is required to remove media");
+        }
+    }
+
     private ContentModerationResponse toResponse(UUID id, ContentStatus status, String reason, UUID hiddenBy, OffsetDateTime hiddenAt) {
         return new ContentModerationResponse(id, status.name(), reason, hiddenBy, hiddenAt);
     }
 
     private PostModerationResponse toPostResponse(Post post) {
         return new PostModerationResponse(
-                post.getId(), post.getTitle(), post.getAuthorId(), post.getCategoryId(),
+                post.getId(), post.getTitle(), post.getMediaUrl(), post.getAuthorId(), post.getCategoryId(),
                 post.getStatus().name(), post.getHiddenReason(), post.getHiddenBy(),
                 post.getHiddenAt(), post.getCreatedAt());
     }

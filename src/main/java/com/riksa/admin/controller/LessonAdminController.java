@@ -4,6 +4,7 @@ import com.riksa.admin.dto.*;
 import com.riksa.admin.service.LessonAdminService;
 import com.riksa.common.constants.AdminEndpoints;
 import com.riksa.common.enums.DifficultyLevel;
+import com.riksa.common.security.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -28,7 +29,7 @@ public class LessonAdminController {
 
     @PostMapping(AdminEndpoints.ROOT)
     public ResponseEntity<LessonResponse> create(@RequestBody @Valid LessonCreateRequest request) {
-        LessonResponse response = lessonAdminService.create(request);
+        LessonResponse response = lessonAdminService.create(SecurityUtils.currentUserId(), request);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path(AdminEndpoints.LESSON_BY_ID)
@@ -41,23 +42,23 @@ public class LessonAdminController {
     public ResponseEntity<LessonResponse> update(
             @PathVariable UUID id,
             @RequestBody @Valid LessonUpdateRequest request) {
-        return ResponseEntity.ok(lessonAdminService.update(id, request));
+        return ResponseEntity.ok(lessonAdminService.update(SecurityUtils.currentUserId(), id, request));
     }
 
     @DeleteMapping(AdminEndpoints.LESSON_BY_ID)
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        lessonAdminService.delete(id);
+        lessonAdminService.delete(SecurityUtils.currentUserId(), id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping(AdminEndpoints.LESSON_BULK)
     public ResponseEntity<BulkLessonResult> bulkCreate(@RequestBody @Valid List<LessonCreateRequest> requests) {
-        return ResponseEntity.ok(lessonAdminService.bulkCreate(requests));
+        return ResponseEntity.ok(lessonAdminService.bulkCreate(SecurityUtils.currentUserId(), requests));
     }
 
     @PostMapping(value = AdminEndpoints.LESSON_UPLOAD, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<LessonResponse> upload(@RequestParam("file") MultipartFile file) {
-        LessonResponse response = lessonAdminService.uploadMarkdown(file);
+        LessonResponse response = lessonAdminService.uploadMarkdown(SecurityUtils.currentUserId(), file);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path(AdminEndpoints.LESSON_BY_ID)
@@ -68,7 +69,7 @@ public class LessonAdminController {
 
     @PostMapping(value = AdminEndpoints.LESSON_UPLOAD_BULK, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<BulkLessonResult> uploadBulk(@RequestParam("files") List<MultipartFile> files) {
-        return ResponseEntity.ok(lessonAdminService.uploadMarkdownBulk(files));
+        return ResponseEntity.ok(lessonAdminService.uploadMarkdownBulk(SecurityUtils.currentUserId(), files));
     }
 
     @GetMapping(AdminEndpoints.ROOT)
@@ -84,5 +85,11 @@ public class LessonAdminController {
     @GetMapping(AdminEndpoints.LESSON_BY_ID)
     public ResponseEntity<LessonResponse> get(@PathVariable UUID id) {
         return ResponseEntity.ok(lessonAdminService.get(id));
+    }
+
+    @PutMapping(AdminEndpoints.LESSON_REORDER)
+    public ResponseEntity<Void> reorder(@RequestBody @Valid LessonReorderRequest request) {
+        lessonAdminService.reorder(SecurityUtils.currentUserId(), request);
+        return ResponseEntity.noContent().build();
     }
 }

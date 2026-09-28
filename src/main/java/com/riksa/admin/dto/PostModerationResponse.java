@@ -6,6 +6,7 @@ import java.util.UUID;
 public record PostModerationResponse(
         UUID id,
         String title,
+        String mediaUrl,
         UUID authorId,
         UUID categoryId,
         String status,

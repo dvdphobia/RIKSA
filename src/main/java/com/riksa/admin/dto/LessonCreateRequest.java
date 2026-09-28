@@ -29,7 +29,15 @@ public class LessonCreateRequest {
     @Min(1)
     private Integer position;
 
+    @Min(1)
+    private Integer estimatedMinutes;
+
     private UUID categoryId;
+
+    private UUID roadmapUnitId;
+
+    /** Accepted from the panel; lesson publication is not persisted by the current schema. */
+    private Boolean published;
 
     private String reflectionPrompt;
 

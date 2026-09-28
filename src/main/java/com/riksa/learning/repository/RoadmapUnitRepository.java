@@ -8,4 +8,6 @@ import java.util.UUID;
 
 public interface RoadmapUnitRepository extends JpaRepository<RoadmapUnit, UUID> {
     List<RoadmapUnit> findByCategoryIdOrderByPositionAsc(UUID categoryId);
+    List<RoadmapUnit> findAllByOrderByCategory_IdAscPositionAsc();
+    java.util.Optional<RoadmapUnit> findFirstByCategoryIdOrderByPositionDesc(UUID categoryId);
 }

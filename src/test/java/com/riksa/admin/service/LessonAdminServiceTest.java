@@ -1,12 +1,15 @@
 package com.riksa.admin.service;
 
 import com.riksa.admin.dto.*;
+import com.riksa.common.audit.AuditLogService;
 import com.riksa.common.enums.DifficultyLevel;
 import com.riksa.learning.entity.Exercise;
 import com.riksa.learning.entity.ExerciseType;
 import com.riksa.learning.entity.Lesson;
+import com.riksa.learning.entity.RoadmapUnit;
 import com.riksa.learning.repository.ExerciseRepository;
 import com.riksa.learning.repository.LessonRepository;
+import com.riksa.learning.repository.RoadmapUnitRepository;
 import com.riksa.social.entity.Category;
 import com.riksa.social.repository.CategoryRepository;
 import org.junit.jupiter.api.Test;
@@ -30,11 +33,63 @@ import static org.mockito.Mockito.*;
 class LessonAdminServiceTest {
 
     @Mock private LessonRepository lessonRepository;
+    @Mock private RoadmapUnitRepository roadmapUnitRepository;
     @Mock private ExerciseRepository exerciseRepository;
     @Mock private CategoryRepository categoryRepository;
     @Mock private LessonMarkdownParser markdownParser;
+    @Mock private AuditLogService auditLogService;
 
     @InjectMocks private LessonAdminService lessonAdminService;
+    private final UUID actorId = UUID.randomUUID();
+
+    @Test
+    void reorder_updatesTrackPositionsAndPreservesUnitAssignments() {
+        UUID actorId = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        Category category = new Category();
+        category.setId(categoryId);
+        category.setOfficial(true);
+        RoadmapUnit firstUnit = new RoadmapUnit();
+        firstUnit.setId(UUID.randomUUID());
+        firstUnit.setCategory(category);
+        RoadmapUnit secondUnit = new RoadmapUnit();
+        secondUnit.setId(UUID.randomUUID());
+        secondUnit.setCategory(category);
+
+        Lesson first = new Lesson();
+        first.setId(UUID.randomUUID());
+        first.setCategory(category);
+        first.setRoadmapUnit(firstUnit);
+        first.setPosition(1);
+        Lesson second = new Lesson();
+        second.setId(UUID.randomUUID());
+        second.setCategory(category);
+        second.setRoadmapUnit(secondUnit);
+        second.setPosition(2);
+        Lesson standalone = new Lesson();
+        standalone.setId(UUID.randomUUID());
+        standalone.setCategory(category);
+        standalone.setPosition(51);
+
+        LessonReorderRequest request = new LessonReorderRequest();
+        request.setCategoryId(categoryId);
+        request.setIds(List.of(second.getId(), first.getId()));
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(category));
+        when(lessonRepository.findByCategoryIdOrderByPositionAsc(categoryId))
+                .thenReturn(List.of(first, second, standalone));
+        when(lessonRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        lessonAdminService.reorder(actorId, request);
+
+        assertThat(second.getPosition()).isEqualTo(1);
+        assertThat(first.getPosition()).isEqualTo(2);
+        assertThat(standalone.getPosition()).isEqualTo(51);
+        assertThat(first.getRoadmapUnit()).isSameAs(firstUnit);
+        assertThat(second.getRoadmapUnit()).isSameAs(secondUnit);
+        verify(lessonRepository, times(2)).flush();
+        verify(auditLogService).record(eq(actorId), eq("LESSON_REORDER"), eq("CATEGORY"), eq(categoryId),
+                eq(java.util.Map.of("ids", request.getIds())));
+    }
 
     @Test
     void create_validRequest_createsLessonWithExercises() {
@@ -70,7 +125,7 @@ class LessonAdminServiceTest {
             return exercises;
         });
 
-        LessonResponse result = lessonAdminService.create(req);
+        LessonResponse result = lessonAdminService.create(actorId, req);
 
         assertThat(result).isNotNull();
         assertThat(result.getTitle()).isEqualTo("Physics Basics");
@@ -110,7 +165,7 @@ class LessonAdminServiceTest {
         });
         when(exerciseRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        LessonResponse result = lessonAdminService.create(req);
+        LessonResponse result = lessonAdminService.create(actorId, req);
 
         assertThat(result.getExercises()).extracting("type")
                 .containsExactly(ExerciseType.MULTIPLE_CHOICE, ExerciseType.TRUE_FALSE);
@@ -130,7 +185,7 @@ class LessonAdminServiceTest {
 
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> lessonAdminService.create(req))
+        assertThatThrownBy(() -> lessonAdminService.create(actorId, req))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Category not found");
     }
@@ -156,7 +211,7 @@ class LessonAdminServiceTest {
         });
         when(exerciseRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        LessonResponse result = lessonAdminService.create(req);
+        LessonResponse result = lessonAdminService.create(actorId, req);
 
         assertThat(result.getCategoryId()).isNull();
     }
@@ -178,7 +233,7 @@ class LessonAdminServiceTest {
         when(lessonRepository.save(any(Lesson.class))).thenAnswer(inv -> inv.getArgument(0));
         when(exerciseRepository.findByLessonId(lessonId)).thenReturn(List.of());
 
-        LessonResponse result = lessonAdminService.update(lessonId, req);
+        LessonResponse result = lessonAdminService.update(actorId, lessonId, req);
 
         assertThat(result.getTitle()).isEqualTo("New Title");
         assertThat(result.getBaseXp()).isEqualTo(30);
@@ -192,7 +247,7 @@ class LessonAdminServiceTest {
 
         when(lessonRepository.findById(lessonId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> lessonAdminService.update(lessonId, req))
+        assertThatThrownBy(() -> lessonAdminService.update(actorId, lessonId, req))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Lesson not found");
     }
@@ -219,7 +274,7 @@ class LessonAdminServiceTest {
         when(lessonRepository.save(any(Lesson.class))).thenAnswer(inv -> inv.getArgument(0));
         when(exerciseRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        LessonResponse result = lessonAdminService.update(lessonId, req);
+        LessonResponse result = lessonAdminService.update(actorId, lessonId, req);
 
         verify(exerciseRepository).deleteByLessonId(lessonId);
         verify(exerciseRepository).flush();
@@ -235,7 +290,7 @@ class LessonAdminServiceTest {
 
         when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(lesson));
 
-        lessonAdminService.delete(lessonId);
+        lessonAdminService.delete(actorId, lessonId);
 
         verify(lessonRepository).delete(lesson);
     }
@@ -245,7 +300,7 @@ class LessonAdminServiceTest {
         UUID lessonId = UUID.randomUUID();
         when(lessonRepository.findById(lessonId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> lessonAdminService.delete(lessonId))
+        assertThatThrownBy(() -> lessonAdminService.delete(actorId, lessonId))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Lesson not found");
     }
@@ -287,7 +342,7 @@ class LessonAdminServiceTest {
         // For badReq, category not found
         when(categoryRepository.findById(badReq.getCategoryId())).thenReturn(Optional.empty());
 
-        BulkLessonResult result = lessonAdminService.bulkCreate(List.of(goodReq, badReq));
+        BulkLessonResult result = lessonAdminService.bulkCreate(actorId, List.of(goodReq, badReq));
 
         assertThat(result.getSuccessCount()).isEqualTo(1);
         assertThat(result.getFailureCount()).isEqualTo(1);
@@ -320,7 +375,7 @@ class LessonAdminServiceTest {
         });
         when(exerciseRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        LessonResponse result = lessonAdminService.uploadMarkdown(file);
+        LessonResponse result = lessonAdminService.uploadMarkdown(actorId, file);
 
         assertThat(result.getTitle()).isEqualTo("T");
         assertThat(result.getDescription()).isEqualTo("body");
@@ -331,7 +386,7 @@ class LessonAdminServiceTest {
     void uploadMarkdown_emptyFile_throws() {
         MockMultipartFile file = new MockMultipartFile("file", "lesson.md", "text/markdown", new byte[0]);
 
-        assertThatThrownBy(() -> lessonAdminService.uploadMarkdown(file))
+        assertThatThrownBy(() -> lessonAdminService.uploadMarkdown(actorId, file))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("empty");
     }
@@ -341,7 +396,7 @@ class LessonAdminServiceTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "lesson.txt", "text/plain", "content".getBytes(StandardCharsets.UTF_8));
 
-        assertThatThrownBy(() -> lessonAdminService.uploadMarkdown(file))
+        assertThatThrownBy(() -> lessonAdminService.uploadMarkdown(actorId, file))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(".md");
     }
@@ -374,7 +429,7 @@ class LessonAdminServiceTest {
         });
         when(exerciseRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        BulkLessonResult result = lessonAdminService.uploadMarkdownBulk(List.of(good, bad));
+        BulkLessonResult result = lessonAdminService.uploadMarkdownBulk(actorId, List.of(good, bad));
 
         assertThat(result.getSuccessCount()).isEqualTo(1);
         assertThat(result.getFailureCount()).isEqualTo(1);

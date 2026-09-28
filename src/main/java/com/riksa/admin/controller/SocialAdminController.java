@@ -56,4 +56,20 @@ public class SocialAdminController {
         return ResponseEntity.ok(socialModerationService.setCommentStatus(
                 SecurityUtils.currentUserId(), id, request.getStatus(), request.getReason()));
     }
+
+    @DeleteMapping(AdminEndpoints.POSTS + AdminEndpoints.POST_MEDIA)
+    public ResponseEntity<Void> removePostMedia(
+            @PathVariable UUID id,
+            @RequestParam String reason) {
+        socialModerationService.removePostMedia(SecurityUtils.currentUserId(), id, reason);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping(AdminEndpoints.COMMENTS + AdminEndpoints.COMMENT_MEDIA)
+    public ResponseEntity<Void> removeCommentMedia(
+            @PathVariable UUID id,
+            @RequestParam String reason) {
+        socialModerationService.removeCommentMedia(SecurityUtils.currentUserId(), id, reason);
+        return ResponseEntity.noContent().build();
+    }
 }

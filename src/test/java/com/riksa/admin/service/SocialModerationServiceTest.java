@@ -4,8 +4,11 @@ import com.riksa.admin.dto.ContentModerationResponse;
 import com.riksa.common.audit.AuditLogService;
 import com.riksa.social.entity.Comment;
 import com.riksa.social.entity.Post;
+import com.riksa.social.entity.PostMedia;
+import com.riksa.social.entity.PostMediaId;
 import com.riksa.social.enums.ContentStatus;
 import com.riksa.social.repository.CommentRepository;
+import com.riksa.social.repository.PostMediaRepository;
 import com.riksa.social.repository.PostRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
@@ -19,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,12 +35,50 @@ import static org.mockito.Mockito.*;
 class SocialModerationServiceTest {
 
     @Mock private PostRepository postRepository;
+    @Mock private PostMediaRepository postMediaRepository;
     @Mock private CommentRepository commentRepository;
     @Mock private AuditLogService auditLogService;
 
     @InjectMocks private SocialModerationService moderationService;
 
     private final UUID moderatorId = UUID.randomUUID();
+
+    @Test
+    void removePostMediaDetachesEveryMediaRowAndAuditsTheReason() {
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setMediaUrl("https://media.example.test/first.png");
+        List<PostMedia> media = java.util.List.of(
+                new PostMedia(new PostMediaId(postId, (short) 0), post.getMediaUrl(), 100, 100),
+                new PostMedia(new PostMediaId(postId, (short) 1), "https://media.example.test/second.png", 200, 200));
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(postMediaRepository.findAllByPostIds(java.util.List.of(postId))).thenReturn(media);
+        when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        moderationService.removePostMedia(moderatorId, postId, "copyright report");
+
+        assertThat(post.getMediaUrl()).isNull();
+        verify(postMediaRepository).deleteByPostId(postId);
+        verify(auditLogService).record(eq(moderatorId), eq("POST_MEDIA_REMOVE"), eq("POST"), eq(postId),
+                eq(Map.of("reason", "copyright report", "removedMediaCount", 2)));
+    }
+
+    @Test
+    void removeCommentMediaClearsUrlAndAuditsTheReason() {
+        UUID commentId = UUID.randomUUID();
+        Comment comment = new Comment();
+        comment.setId(commentId);
+        comment.setMediaUrl("https://media.example.test/comment.png");
+        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        moderationService.removeCommentMedia(moderatorId, commentId, "privacy request");
+
+        assertThat(comment.getMediaUrl()).isNull();
+        verify(auditLogService).record(eq(moderatorId), eq("COMMENT_MEDIA_REMOVE"), eq("COMMENT"), eq(commentId),
+                eq(Map.of("reason", "privacy request", "hadMedia", true)));
+    }
 
     @Test
     void hidePost_validRequest_setsFieldsAndAudits() {

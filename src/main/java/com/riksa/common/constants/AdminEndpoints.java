@@ -50,4 +50,12 @@ public final class AdminEndpoints {
     public static final String LESSON_BULK = "/bulk";
     public static final String LESSON_UPLOAD = "/upload";
     public static final String LESSON_UPLOAD_BULK = "/upload/bulk";
+
+    // ── Roadmap and media moderation ──
+    public static final String ROADMAP_UNITS = "/roadmap-units";
+    public static final String ROADMAP_UNIT_BY_ID = "/{id}";
+    public static final String ROADMAP_UNIT_REORDER = "/reorder";
+    public static final String LESSON_REORDER = "/reorder";
+    public static final String POST_MEDIA = "/{id}/media";
+    public static final String COMMENT_MEDIA = "/{id}/media";
 }

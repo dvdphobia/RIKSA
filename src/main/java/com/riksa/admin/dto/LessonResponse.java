@@ -16,7 +16,9 @@ public class LessonResponse {
     private String difficulty;
     private int baseXp;
     private int position;
+    private int estimatedMinutes;
     private UUID categoryId;
+    private UUID roadmapUnitId;
     private String reflectionPrompt;
     private List<ExerciseResponse> exercises;
     private OffsetDateTime createdAt;
