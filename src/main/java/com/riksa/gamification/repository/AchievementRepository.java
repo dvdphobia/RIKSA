@@ -12,4 +12,12 @@ import java.util.UUID;
 public interface AchievementRepository extends JpaRepository<Achievement, UUID> {
 
     List<Achievement> findByCriteriaType(AchievementCriteriaType criteriaType);
+
+    List<Achievement> findByCriteriaTypeAndActiveTrue(AchievementCriteriaType criteriaType);
+
+    List<Achievement> findAllByActiveTrueOrderByCreatedAtAsc();
+
+    boolean existsByName(String name);
+
+    boolean existsByNameAndIdNot(String name, UUID id);
 }

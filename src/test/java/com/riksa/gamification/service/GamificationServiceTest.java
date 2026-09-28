@@ -237,7 +237,7 @@ class GamificationServiceTest {
         ug.setTotalXp(100);
         ug.setCurrentStreak(3);
 
-        when(achievementRepository.findAll()).thenReturn(List.of(a1, a2));
+        when(achievementRepository.findAllByActiveTrueOrderByCreatedAtAsc()).thenReturn(List.of(a1, a2));
         when(userAchievementRepository.findByUserId(userId)).thenReturn(List.of(ua1));
         when(userGamificationRepository.findByUserId(userId)).thenReturn(Optional.of(ug));
         when(lessonCompletionRepository.countByUserId(userId)).thenReturn(1L);

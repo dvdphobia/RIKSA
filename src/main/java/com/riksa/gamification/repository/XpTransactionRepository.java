@@ -20,6 +20,47 @@ public interface XpTransactionRepository extends JpaRepository<XpTransaction, UU
     Optional<XpTransaction> findByUserIdAndSourceTypeAndSourceId(
             UUID userId, String sourceType, UUID sourceId);
 
+    @Query("""
+        SELECT COALESCE(SUM(t.amount), 0)
+        FROM XpTransaction t
+        WHERE t.userId = :userId AND t.sourceType = :sourceType
+          AND t.createdAt >= :from AND t.createdAt < :until
+    """)
+    long sumAmountByUserAndSourceTypeInWindow(@Param("userId") UUID userId,
+                                               @Param("sourceType") String sourceType,
+                                               @Param("from") OffsetDateTime from,
+                                               @Param("until") OffsetDateTime until);
+
+    @Query("""
+        SELECT t.userId AS userId,
+               SUM(t.amount) AS xpGained,
+               COUNT(t) AS transactionCount,
+               SUM(CASE WHEN t.sourceType = 'LESSON_COMPLETION' THEN 1 ELSE 0 END) AS lessonCompletions,
+               MIN(t.createdAt) AS firstAt,
+               MAX(t.createdAt) AS lastAt
+        FROM XpTransaction t
+        WHERE t.createdAt >= :since
+          AND t.createdAt <= :until
+          AND t.sourceType <> 'ADMIN_ADJUST'
+          AND t.amount > 0
+        GROUP BY t.userId
+        HAVING SUM(t.amount) >= :minXp
+        ORDER BY SUM(t.amount) DESC, t.userId ASC
+    """)
+    List<XpAuditAggregate> findXpAuditAggregates(@Param("since") OffsetDateTime since,
+                                                  @Param("until") OffsetDateTime until,
+                                                  @Param("minXp") long minXp,
+                                                  Pageable pageable);
+
+    interface XpAuditAggregate {
+        UUID getUserId();
+        long getXpGained();
+        long getTransactionCount();
+        long getLessonCompletions();
+        OffsetDateTime getFirstAt();
+        OffsetDateTime getLastAt();
+    }
+
     Page<XpTransaction> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
     @Query("""

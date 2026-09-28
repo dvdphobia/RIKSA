@@ -183,7 +183,7 @@ public class GamificationService {
     @Cacheable(cacheNames = CacheNames.GAMIFICATION_ACHIEVEMENTS, key = "#userId.toString()",
             condition = "@redisCacheFeatureSwitch.enabled()")
     public List<AchievementResponse> getAchievements(UUID userId) {
-        List<Achievement> all = achievementRepository.findAll();
+        List<Achievement> all = achievementRepository.findAllByActiveTrueOrderByCreatedAtAsc();
         List<UserAchievement> earned = userAchievementRepository.findByUserId(userId);
         Set<UUID> earnedIds = earned.stream()
                 .map(UserAchievement::getAchievementId)

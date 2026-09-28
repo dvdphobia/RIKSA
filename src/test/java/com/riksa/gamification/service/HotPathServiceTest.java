@@ -8,6 +8,8 @@ import com.riksa.gamification.entity.*;
 import com.riksa.gamification.event.XpGainedEvent;
 import com.riksa.gamification.event.StreakUpdatedEvent;
 import com.riksa.gamification.event.RankChangedEvent;
+import com.riksa.admin.dto.settings.XpRulesSettings;
+import com.riksa.admin.service.SettingsService;
 import com.riksa.gamification.repository.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +34,8 @@ class XpLedgerServiceTest {
 
     @Mock private UserGamificationRepository userGamificationRepository;
     @Mock private XpTransactionRepository xpTransactionRepository;
+    @Mock private XpBoostRepository xpBoostRepository;
+    @Mock private SettingsService settingsService;
     @Mock private EventPublisher eventPublisher;
 
     @InjectMocks private XpLedgerService xpLedgerService;
@@ -46,6 +50,7 @@ class XpLedgerServiceTest {
         ug.setTotalXp(100);
 
         when(userGamificationRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(ug));
+        when(settingsService.getXpRules()).thenReturn(new XpRulesSettings(0));
 
         long newTotal = xpLedgerService.awardXp(userId, 50, "LESSON_COMPLETION", lessonId);
 
@@ -285,7 +290,7 @@ class AchievementServiceTest {
         xpHunter.setCriteriaType(AchievementCriteriaType.EARN_XP);
         xpHunter.setCriteriaValue(1000L);
 
-        when(achievementRepository.findByCriteriaType(AchievementCriteriaType.EARN_XP))
+        when(achievementRepository.findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.EARN_XP))
                 .thenReturn(List.of(xpHunter));
         when(userAchievementRepository.existsByUserIdAndAchievementId(userId, xpHunter.getId()))
                 .thenReturn(false);
@@ -307,7 +312,7 @@ class AchievementServiceTest {
         xpHunter.setCriteriaType(AchievementCriteriaType.EARN_XP);
         xpHunter.setCriteriaValue(1000L);
 
-        when(achievementRepository.findByCriteriaType(AchievementCriteriaType.EARN_XP))
+        when(achievementRepository.findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.EARN_XP))
                 .thenReturn(List.of(xpHunter));
         when(userAchievementRepository.existsByUserIdAndAchievementId(userId, achId))
                 .thenReturn(true); // Already earned
@@ -330,7 +335,7 @@ class AchievementServiceTest {
         xpHunter.setCriteriaType(AchievementCriteriaType.EARN_XP);
         xpHunter.setCriteriaValue(1000L);
 
-        when(achievementRepository.findByCriteriaType(AchievementCriteriaType.EARN_XP))
+        when(achievementRepository.findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.EARN_XP))
                 .thenReturn(List.of(xpHunter));
         when(userAchievementRepository.existsByUserIdAndAchievementId(userId, achId))
                 .thenReturn(false);

@@ -58,7 +58,7 @@ public class AchievementService {
     @Transactional
     public void checkXpAchievements(UUID userId, long totalXp) {
         List<Achievement> xpAchievements = achievementRepository
-                .findByCriteriaType(AchievementCriteriaType.EARN_XP);
+                .findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.EARN_XP);
 
         for (Achievement a : xpAchievements) {
             if (alreadyEarned(userId, a.getId())) continue;
@@ -76,7 +76,7 @@ public class AchievementService {
     public void checkCourseCompletionAchievements(UUID userId, int coursesCompleted) {
         // COMPLETE_N_COURSES — threshold-based
         List<Achievement> courseAchievements = achievementRepository
-                .findByCriteriaType(AchievementCriteriaType.COMPLETE_N_COURSES);
+                .findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.COMPLETE_N_COURSES);
 
         for (Achievement a : courseAchievements) {
             if (alreadyEarned(userId, a.getId())) continue;
@@ -87,7 +87,7 @@ public class AchievementService {
 
         // COMPLETE_COURSE — any single lesson completion (criteriaValue ignored)
         List<Achievement> singleCourseAchievements = achievementRepository
-                .findByCriteriaType(AchievementCriteriaType.COMPLETE_COURSE);
+                .findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.COMPLETE_COURSE);
 
         for (Achievement a : singleCourseAchievements) {
             if (alreadyEarned(userId, a.getId())) continue;
@@ -109,7 +109,7 @@ public class AchievementService {
     @Transactional
     public void checkEveryCategoryAchievements(UUID userId) {
         List<Achievement> achievements = achievementRepository
-                .findByCriteriaType(AchievementCriteriaType.COMPLETE_COURSE_IN_EVERY_CATEGORY);
+                .findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.COMPLETE_COURSE_IN_EVERY_CATEGORY);
 
         if (achievements.isEmpty()) return;
 
@@ -129,7 +129,7 @@ public class AchievementService {
     @Transactional
     public void checkAllInCategoryAchievements(UUID userId) {
         List<Achievement> achievements = achievementRepository
-                .findByCriteriaType(AchievementCriteriaType.COMPLETE_ALL_IN_CATEGORY);
+                .findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.COMPLETE_ALL_IN_CATEGORY);
 
         for (Achievement a : achievements) {
             if (alreadyEarned(userId, a.getId())) continue;
@@ -147,7 +147,7 @@ public class AchievementService {
     @Transactional
     public void checkAllInEveryCategoryAchievements(UUID userId) {
         List<Achievement> achievements = achievementRepository
-                .findByCriteriaType(AchievementCriteriaType.COMPLETE_ALL_IN_EVERY_CATEGORY);
+                .findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.COMPLETE_ALL_IN_EVERY_CATEGORY);
 
         if (achievements.isEmpty()) return;
 
@@ -167,7 +167,7 @@ public class AchievementService {
     @Transactional
     public void checkDifficultyAchievements(UUID userId, String difficulty) {
         List<Achievement> diffAchievements = achievementRepository
-                .findByCriteriaType(AchievementCriteriaType.COMPLETE_COURSE_WITH_DIFFICULTY);
+                .findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.COMPLETE_COURSE_WITH_DIFFICULTY);
 
         boolean isAdvanced = "HARD".equals(difficulty) || "DIFFICULT".equals(difficulty);
 
@@ -188,7 +188,7 @@ public class AchievementService {
     @Transactional
     public void checkStreakAchievements(UUID userId, long currentStreak) {
         List<Achievement> streakAchievements = achievementRepository
-                .findByCriteriaType(AchievementCriteriaType.MAINTAIN_STREAK);
+                .findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.MAINTAIN_STREAK);
 
         for (Achievement a : streakAchievements) {
             if (alreadyEarned(userId, a.getId())) continue;
@@ -205,7 +205,7 @@ public class AchievementService {
     @Transactional
     public void checkRankAchievements(UUID userId, String newRank) {
         List<Achievement> rankAchievements = achievementRepository
-                .findByCriteriaType(AchievementCriteriaType.REACH_RANK);
+                .findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.REACH_RANK);
 
         // Map rank name to ordinal (BRONZE=0, SILVER=1, GOLD=2, PLATINUM=3, DIAMOND=4, LEGEND=5)
         int rankOrdinal;
@@ -231,7 +231,7 @@ public class AchievementService {
     @Transactional
     public void checkPostAchievements(UUID userId, int postCount) {
         List<Achievement> postAchievements = achievementRepository
-                .findByCriteriaType(AchievementCriteriaType.CREATE_POST);
+                .findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.CREATE_POST);
 
         for (Achievement a : postAchievements) {
             if (alreadyEarned(userId, a.getId())) continue;
@@ -244,7 +244,7 @@ public class AchievementService {
     @Transactional
     public void checkReactionAchievements(UUID userId, int totalReactions) {
         List<Achievement> reactionAchievements = achievementRepository
-                .findByCriteriaType(AchievementCriteriaType.RECEIVE_REACTION);
+                .findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.RECEIVE_REACTION);
 
         for (Achievement a : reactionAchievements) {
             if (alreadyEarned(userId, a.getId())) continue;
@@ -261,7 +261,7 @@ public class AchievementService {
     @Transactional
     public void checkBlogPostAchievements(UUID userId, int approvedBlogCount) {
         List<Achievement> blogAchievements = achievementRepository
-                .findByCriteriaType(AchievementCriteriaType.WRITE_BLOG_POST);
+                .findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.WRITE_BLOG_POST);
 
         for (Achievement a : blogAchievements) {
             if (alreadyEarned(userId, a.getId())) continue;
@@ -274,7 +274,7 @@ public class AchievementService {
     @Transactional
     public void checkBlogLikeAchievements(UUID userId, int totalBlogLikes) {
         List<Achievement> blogLikeAchievements = achievementRepository
-                .findByCriteriaType(AchievementCriteriaType.RECEIVE_BLOG_LIKE);
+                .findByCriteriaTypeAndActiveTrue(AchievementCriteriaType.RECEIVE_BLOG_LIKE);
 
         for (Achievement a : blogLikeAchievements) {
             if (alreadyEarned(userId, a.getId())) continue;

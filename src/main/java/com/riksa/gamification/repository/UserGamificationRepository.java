@@ -17,6 +17,12 @@ import java.util.UUID;
 @Repository
 public interface UserGamificationRepository extends JpaRepository<UserGamification, UUID> {
 
+    long countByTotalXpGreaterThanEqual(long minimumXp);
+
+    long countByTotalXpGreaterThanEqualAndTotalXpLessThan(long minimumXp, long upperExclusiveXp);
+
+    List<UserGamification> findAllByUserIdIn(java.util.Collection<UUID> userIds);
+
     Optional<UserGamification> findByUserId(UUID userId);
 
     List<UserGamification> findAllByOrderByTotalXpDesc(Pageable pageable);

@@ -52,6 +52,9 @@ public class Achievement {
     @Column(name = "xp_reward", nullable = false)
     private int xpReward = 0;
 
+    @Column(nullable = false)
+    private boolean active = true;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 }

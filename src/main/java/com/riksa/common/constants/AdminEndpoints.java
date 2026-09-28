@@ -58,4 +58,13 @@ public final class AdminEndpoints {
     public static final String LESSON_REORDER = "/reorder";
     public static final String POST_MEDIA = "/{id}/media";
     public static final String COMMENT_MEDIA = "/{id}/media";
+
+    // ── Gamification administration and platform settings ──
+    public static final String ADMIN_GAMIFICATION = "/gamification";
+    public static final String ADMIN_ACHIEVEMENTS = "/achievements";
+    public static final String ADMIN_RANK_TIERS = "/rank-tiers";
+    public static final String ADMIN_STREAK_MILESTONES = "/streak-milestones";
+    public static final String ADMIN_XP_BOOSTS = "/xp-boosts";
+    public static final String ADMIN_XP_AUDIT = "/xp-audit";
+    public static final String ADMIN_SETTINGS = "/settings";
 }
