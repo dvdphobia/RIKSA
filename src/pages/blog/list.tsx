@@ -1,4 +1,3 @@
-import { useTable } from "@refinedev/react-table";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
@@ -6,6 +5,7 @@ import { toast } from "sonner";
 import { apiFetch, ApiError } from "../../lib/api";
 import type { BlogPost, BlogStatus } from "../../lib/types";
 import { formatDate, PageHeader, StatusBadge } from "../../components/shared";
+import { useServerTable } from "../../lib/use-server-table";
 import { DataTable } from "../../components/table/data-table";
 import { Button } from "../../components/ui/button";
 import {
@@ -129,15 +129,11 @@ export const BlogList = () => {
     [moderate],
   );
 
-  const table = useTable<BlogPost>({
+  const table = useServerTable<BlogPost>({
+    resource: "blog",
     columns,
-    refineCoreProps: {
-      resource: "blog",
-      pagination: { pageSize: 20 },
-      filters: {
-        permanent: [{ field: "status", operator: "eq", value: status }],
-      },
-    },
+    pageSize: 20,
+    filters: { status },
   });
 
   return (

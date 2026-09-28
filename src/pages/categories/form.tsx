@@ -1,6 +1,9 @@
-import { type HttpError, useNavigation } from "@refinedev/core";
-import { useForm } from "@refinedev/react-hook-form";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
+import { apiFetch } from "../../lib/api";
 import type { Category } from "../../lib/types";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -16,38 +19,62 @@ interface CategoryForm {
 }
 
 export const CategoryForm = ({ mode }: { mode: "create" | "edit" }) => {
-  const { list } = useNavigation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { id } = useParams();
+  const isEdit = mode === "edit";
+  const toList = () => navigate("/categories");
   const {
-    refineCore: { onFinish },
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<CategoryForm, HttpError, CategoryForm>({
-    refineCoreProps: {
-      resource: "categories",
-      action: mode,
-      onMutationSuccess: () => {
-        toast.success(mode === "create" ? "Category created" : "Category saved");
-        list("categories");
-      },
-      onMutationError: (e) =>
-        toast.error(e.message || "Save failed"),
+    reset,
+    formState: { errors },
+  } = useForm<CategoryForm>();
+
+  const record = useQuery({
+    queryKey: ["categories", "one", id],
+    queryFn: () => apiFetch<Category>(`/admin/categories/${id}`),
+    enabled: isEdit && !!id,
+  });
+
+  useEffect(() => {
+    if (record.data) {
+      reset({
+        name: record.data.name,
+        slug: record.data.slug,
+        description: record.data.description ?? "",
+        iconUrl: record.data.iconUrl ?? "",
+      });
+    }
+  }, [record.data, reset]);
+
+  const save = useMutation({
+    mutationFn: (body: CategoryForm) =>
+      apiFetch<Category>(isEdit ? `/admin/categories/${id}` : "/admin/categories", {
+        method: isEdit ? "PUT" : "POST",
+        body,
+      }),
+    onSuccess: () => {
+      toast.success(isEdit ? "Category saved" : "Category created");
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      toList();
     },
+    onError: (e) => toast.error(e.message || "Save failed"),
   });
 
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-6 flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={() => list("categories")}>
+        <Button variant="ghost" size="icon" onClick={toList}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-2xl font-semibold">
-          {mode === "create" ? "New category" : "Edit category"}
+          {isEdit ? "Edit category" : "New category"}
         </h1>
       </div>
       <form
         onSubmit={handleSubmit((values) =>
-          onFinish({
+          save.mutate({
             name: values.name,
             slug: values.slug,
             description: values.description ?? "",
@@ -81,8 +108,8 @@ export const CategoryForm = ({ mode }: { mode: "create" | "edit" }) => {
           <Label>Icon URL</Label>
           <Input {...register("iconUrl")} />
         </div>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Saving..." : "Save"}
+        <Button type="submit" disabled={save.isPending}>
+          {save.isPending ? "Saving..." : "Save"}
         </Button>
       </form>
     </div>

@@ -4,6 +4,9 @@ export const API_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ??
   "http://localhost:8080/api/v1";
 
+/** Dispatched on window when the session can't be refreshed. */
+export const AUTH_EXPIRED_EVENT = "riksa:auth-expired";
+
 const ACCESS_KEY = "riksa_admin_access_token";
 const REFRESH_KEY = "riksa_admin_refresh_token";
 const USER_KEY = "riksa_admin_user";
@@ -106,6 +109,10 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     });
     const refreshed = await refreshPromise;
     if (refreshed) res = await doFetch();
+    if (res.status === 401 && tokenStore.getAccess()) {
+      tokenStore.clear();
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+    }
   }
   if (res.status === 204) return undefined as T;
   if (!res.ok) throw await parseError(res);

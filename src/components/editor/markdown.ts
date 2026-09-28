@@ -109,7 +109,9 @@ export const htmlToMarkdown = (html: string): string =>
 
 /** An empty TipTap document still serialises to a paragraph. */
 export const isEmptyHtml = (html: string): boolean =>
-  !html || html.replace(/<[^>]*>/g, "").replace(/&nbsp;|\s/g, "") === "";
+  !html ||
+  (!/<(?:img|hr|table)\b/i.test(html) &&
+    html.replace(/<[^>]*>/g, "").replace(/&nbsp;|\s/g, "") === "");
 
 export interface LessonSection {
   index: number;
@@ -134,7 +136,9 @@ export const lessonSections = (markdown: string): LessonSection[] => {
       : [];
   }
   return matches.map((match, i) => {
-    const start = match.index ?? 0;
+    // The learner app includes introductory content before the first section
+    // heading in section one, so the admin preview must do the same.
+    const start = i === 0 ? 0 : (match.index ?? 0);
     const end = i + 1 < matches.length ? (matches[i + 1].index ?? source.length) : source.length;
     return {
       index: i + 1,

@@ -1,12 +1,12 @@
-import { useDelete, useList, useNavigation } from "@refinedev/core";
-import { useTable } from "@refinedev/react-table";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { apiFetch } from "../../lib/api";
 import type { Category, Lesson } from "../../lib/types";
 import { formatDate, PageHeader, StatusBadge } from "../../components/shared";
+import { useServerTable } from "../../lib/use-server-table";
 import { DataTable } from "../../components/table/data-table";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -35,8 +35,7 @@ interface BulkResult {
 }
 
 export const LessonList = () => {
-  const { create, edit } = useNavigation();
-  const { mutate: deleteLesson } = useDelete();
+  const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<Lesson | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkJson, setBulkJson] = useState("");
@@ -45,8 +44,11 @@ export const LessonList = () => {
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const { query: categoriesQuery } = useList<Category>({ resource: "categories" });
-  const categories = categoriesQuery.data?.data ?? [];
+  const categoriesQuery = useQuery({
+    queryKey: ["categories", "all"],
+    queryFn: () => apiFetch<Category[]>("/admin/categories"),
+  });
+  const categories = categoriesQuery.data ?? [];
 
   const columns = useMemo<ColumnDef<Lesson>[]>(
     () => [
@@ -64,6 +66,16 @@ export const LessonList = () => {
             )}
           </div>
         ),
+      },
+      {
+        id: "published",
+        header: "Status",
+        cell: ({ row }) =>
+          row.original.published === false ? (
+            <StatusBadge value="DRAFT" />
+          ) : (
+            <span className="text-sm text-muted-foreground">Published</span>
+          ),
       },
       {
         id: "difficulty",
@@ -91,7 +103,7 @@ export const LessonList = () => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => edit("lessons", row.original.id)}
+              onClick={() => navigate(`/lessons/edit/${row.original.id}`)}
             >
               <Pencil className="h-4 w-4" />
             </Button>
@@ -106,25 +118,28 @@ export const LessonList = () => {
         ),
       },
     ],
-    [edit],
+    [navigate],
   );
 
-  const table = useTable<Lesson>({
+  const table = useServerTable<Lesson>({
+    resource: "lessons",
     columns,
-    refineCoreProps: {
-      resource: "lessons",
-      pagination: { pageSize: 20 },
-      filters: {
-        permanent: [
-          { field: "query", operator: "contains", value: search || undefined },
-          { field: "difficulty", operator: "eq", value: difficulty },
-          { field: "categoryId", operator: "eq", value: categoryId },
-        ],
-      },
-    },
+    pageSize: 20,
+    filters: { query: search, difficulty, categoryId },
   });
 
-  const refetch = () => table.refineCore.tableQuery.refetch();
+  const refetch = () => table.query.refetch();
+
+  const deleteLesson = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/admin/lessons/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success("Lesson deleted");
+      setDeleteTarget(null);
+      refetch();
+    },
+    onError: (e) => toast.error(e.message || "Delete failed"),
+  });
 
   const bulkImport = useMutation({
     mutationFn: (items: unknown) =>
@@ -202,7 +217,7 @@ export const LessonList = () => {
             <Button variant="outline" onClick={() => setBulkOpen(true)}>
               Bulk JSON
             </Button>
-            <Button onClick={() => create("lessons")}>
+            <Button onClick={() => navigate("/lessons/create")}>
               <Plus className="mr-1 h-4 w-4" /> New lesson
             </Button>
           </>
@@ -269,20 +284,8 @@ export const LessonList = () => {
             </Button>
             <Button
               variant="destructive"
-              onClick={() =>
-                deleteTarget &&
-                deleteLesson(
-                  { resource: "lessons", id: deleteTarget.id },
-                  {
-                    onSuccess: () => {
-                      toast.success("Lesson deleted");
-                      setDeleteTarget(null);
-                      refetch();
-                    },
-                    onError: (e) => toast.error(e.message || "Delete failed"),
-                  },
-                )
-              }
+              disabled={deleteLesson.isPending}
+              onClick={() => deleteTarget && deleteLesson.mutate(deleteTarget.id)}
             >
               Delete permanently
             </Button>

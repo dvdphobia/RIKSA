@@ -1,7 +1,7 @@
-import { useTable } from "@refinedev/react-table";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
+import { Link } from "react-router";
 import { toast } from "sonner";
 import { apiFetch, ApiError } from "../../lib/api";
 import type { AdminUser, Role } from "../../lib/types";
@@ -11,6 +11,7 @@ import {
   PageHeader,
   StatusBadge,
 } from "../../components/shared";
+import { useServerTable } from "../../lib/use-server-table";
 import { DataTable } from "../../components/table/data-table";
 import { Button } from "../../components/ui/button";
 import {
@@ -57,7 +58,12 @@ export const UserList = () => {
         header: "User",
         cell: ({ row }) => (
           <div>
-            <p className="font-medium">{row.original.username}</p>
+            <Link
+              to={`/users/${row.original.id}`}
+              className="font-medium hover:underline"
+            >
+              {row.original.username}
+            </Link>
             <p className="text-xs text-muted-foreground">
               {row.original.displayName ?? "—"} ·{" "}
               {row.original.email ?? "no email"}
@@ -112,19 +118,11 @@ export const UserList = () => {
     [],
   );
 
-  const table = useTable<AdminUser>({
+  const table = useServerTable<AdminUser>({
+    resource: "users",
     columns,
-    refineCoreProps: {
-      resource: "users",
-      pagination: { pageSize: 20 },
-      filters: {
-        permanent: [
-          { field: "query", operator: "contains", value: search || undefined },
-          { field: "role", operator: "eq", value: role },
-          { field: "suspended", operator: "eq", value: suspended },
-        ],
-      },
-    },
+    pageSize: 20,
+    filters: { query: search, role, suspended },
   });
 
   const invalidate = () =>
@@ -177,6 +175,9 @@ export const UserList = () => {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link to={`/users/${user.id}`}>View details</Link>
+          </DropdownMenuItem>
           {user.role !== "ADMIN" && (
             <DropdownMenuItem
               onClick={() =>

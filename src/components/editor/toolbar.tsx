@@ -1,8 +1,11 @@
 import { useEditorState, type Editor } from "@tiptap/react";
+import { type ChangeEvent, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   Bold,
   Code,
   Code2,
+  Heading1,
   Heading2,
   Heading3,
   Image as ImageIcon,
@@ -19,8 +22,10 @@ import {
   Table as TableIcon,
   Undo2,
   Unlink,
+  Upload,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { apiFetch } from "../../lib/api";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
@@ -66,11 +71,15 @@ const ToolButton = ({
 );
 
 export const EditorToolbar = ({ editor }: { editor: Editor }) => {
+  const imageInput = useRef<HTMLInputElement>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
   // `useEditor` does not re-render on every transaction in Tiptap v3, so the
   // button states have to be subscribed to explicitly or they freeze.
   const state = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
+      heading1: e.isActive("heading", { level: 1 }),
       heading2: e.isActive("heading", { level: 2 }),
       heading3: e.isActive("heading", { level: 3 }),
       paragraph: e.isActive("paragraph"),
@@ -111,8 +120,55 @@ export const EditorToolbar = ({ editor }: { editor: Editor }) => {
     editor.chain().focus().setImage({ src: src.trim(), alt }).run();
   };
 
+  const uploadImage = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    // Selecting the same file twice must still fire another change event.
+    input.value = "";
+    if (!file) return;
+
+    const maxBytes = 2 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      toast.error("Photo must be 2 MB or smaller");
+      return;
+    }
+
+    const fallbackAlt = file.name.replace(/\.[^.]+$/, "");
+    const alt = window.prompt(
+      "Describe this photo for learners (leave blank if decorative)",
+      fallbackAlt,
+    );
+    if (alt === null) return;
+
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const uploaded = await apiFetch<{ id: string; url: string }>("/media", {
+        method: "POST",
+        formData,
+      });
+      editor
+        .chain()
+        .focus()
+        .setImage({ src: uploaded.url, alt: alt.trim() })
+        .run();
+      toast.success("Photo added to the lesson");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Photo upload failed");
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   return (
     <div className="flex flex-wrap items-center gap-0.5 border-b bg-muted/40 p-1.5">
+      <ToolButton
+        icon={Heading1}
+        label="Large heading"
+        active={state.heading1}
+        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+      />
       <ToolButton
         icon={Heading2}
         label="New section"
@@ -213,7 +269,25 @@ export const EditorToolbar = ({ editor }: { editor: Editor }) => {
         disabled={!state.link}
         onClick={() => editor.chain().focus().unsetLink().run()}
       />
-      <ToolButton icon={ImageIcon} label="Insert image" onClick={addImage} />
+      <ToolButton
+        icon={Upload}
+        label={isUploadingImage ? "Uploading photo..." : "Upload photo"}
+        wide
+        disabled={isUploadingImage}
+        onClick={() => imageInput.current?.click()}
+      />
+      <input
+        ref={imageInput}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp"
+        className="hidden"
+        onChange={uploadImage}
+      />
+      <ToolButton
+        icon={ImageIcon}
+        label="Image from link"
+        onClick={addImage}
+      />
       <ToolButton
         icon={TableIcon}
         label="Insert table"

@@ -1,8 +1,8 @@
-import { useTable } from "@refinedev/react-table";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import type { AuditLog } from "../../lib/types";
 import { formatDate, PageHeader } from "../../components/shared";
+import { useServerTable } from "../../lib/use-server-table";
 import { DataTable } from "../../components/table/data-table";
 import { Badge } from "../../components/ui/badge";
 import { Input } from "../../components/ui/input";
@@ -82,20 +82,11 @@ export const AuditLogList = () => {
     [],
   );
 
-  const table = useTable<AuditLog>({
+  const table = useServerTable<AuditLog>({
+    resource: "audit-logs",
     columns,
-    refineCoreProps: {
-      resource: "audit-logs",
-      pagination: { pageSize: 20 },
-      filters: {
-        permanent: [
-          { field: "targetType", operator: "eq", value: targetType },
-          { field: "action", operator: "eq", value: action },
-          { field: "actorId", operator: "eq", value: actorId || undefined },
-          { field: "targetId", operator: "eq", value: targetId || undefined },
-        ],
-      },
-    },
+    pageSize: 20,
+    filters: { targetType, action, actorId, targetId },
   });
 
   return (

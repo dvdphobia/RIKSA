@@ -1,10 +1,12 @@
-import { useDelete, useNavigation } from "@refinedev/core";
-import { useTable } from "@refinedev/react-table";
+import { useMutation } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
+import { apiFetch } from "../../lib/api";
 import type { Category } from "../../lib/types";
 import { formatDate, PageHeader } from "../../components/shared";
+import { useServerTable } from "../../lib/use-server-table";
 import { DataTable } from "../../components/table/data-table";
 import { Button } from "../../components/ui/button";
 import {
@@ -18,8 +20,7 @@ import {
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
 export const CategoryList = () => {
-  const { create, edit } = useNavigation();
-  const { mutate: deleteCategory } = useDelete();
+  const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
 
   const columns = useMemo<ColumnDef<Category>[]>(
@@ -58,7 +59,7 @@ export const CategoryList = () => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => edit("categories", row.original.id)}
+              onClick={() => navigate(`/categories/edit/${row.original.id}`)}
             >
               <Pencil className="h-4 w-4" />
             </Button>
@@ -73,12 +74,24 @@ export const CategoryList = () => {
         ),
       },
     ],
-    [edit],
+    [navigate],
   );
 
-  const table = useTable<Category>({
+  const table = useServerTable<Category>({
+    resource: "categories",
     columns,
-    refineCoreProps: { resource: "categories" },
+    pageSize: 50,
+  });
+
+  const deleteCategory = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/admin/categories/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success("Category deleted");
+      setDeleteTarget(null);
+      table.query.refetch();
+    },
+    onError: (e) => toast.error(e.message || "Delete failed"),
   });
 
   return (
@@ -87,7 +100,7 @@ export const CategoryList = () => {
         title="Categories"
         description="Lesson categories"
         actions={
-          <Button onClick={() => create("categories")}>
+          <Button onClick={() => navigate("/categories/create")}>
             <Plus className="mr-1 h-4 w-4" /> New category
           </Button>
         }
@@ -114,21 +127,8 @@ export const CategoryList = () => {
             </Button>
             <Button
               variant="destructive"
-              onClick={() =>
-                deleteTarget &&
-                deleteCategory(
-                  { resource: "categories", id: deleteTarget.id },
-                  {
-                    onSuccess: () => {
-                      toast.success("Category deleted");
-                      setDeleteTarget(null);
-                      table.refineCore.tableQuery.refetch();
-                    },
-                    onError: (e) =>
-                      toast.error(e.message || "Delete failed"),
-                  },
-                )
-              }
+              disabled={deleteCategory.isPending}
+              onClick={() => deleteTarget && deleteCategory.mutate(deleteTarget.id)}
             >
               Delete
             </Button>

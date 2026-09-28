@@ -1,6 +1,7 @@
-import { type HttpError, useLogin } from "@refinedev/core";
-import { useForm } from "@refinedev/react-hook-form";
 import { AlertCircle } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { Navigate, useLocation, useNavigate } from "react-router";
+import { useAuth } from "../../lib/auth";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -12,23 +13,32 @@ interface LoginForm {
 }
 
 export const Login = () => {
-  const { mutate, isPending } = useLogin<LoginForm>();
+  const { user, login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from =
+    (location.state as { from?: { pathname: string } } | null)?.from
+      ?.pathname ?? "/";
   const {
     register,
     handleSubmit,
     setError,
-    formState: { errors },
-  } = useForm<LoginForm, HttpError, LoginForm>({
+    formState: { errors, isSubmitting: isPending },
+  } = useForm<LoginForm>({
     defaultValues: { username: "", password: "" },
   });
 
-  const onSubmit = (values: LoginForm) => {
-    mutate(values, {
-      onError: (err) =>
-        setError("root", {
-          message: err.message || "Login failed",
-        }),
-    });
+  if (user) return <Navigate to={from} replace />;
+
+  const onSubmit = async (values: LoginForm) => {
+    try {
+      await login(values.username, values.password);
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError("root", {
+        message: err instanceof Error ? err.message : "Login failed",
+      });
+    }
   };
 
   return (

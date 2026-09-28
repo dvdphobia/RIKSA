@@ -1,16 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { apiFetch } from "../../lib/api";
+import { StreakChart, XpEarnedChart } from "./charts";
 import type {
   ExerciseStats,
   GamificationStats,
@@ -76,19 +67,7 @@ export const Dashboard = () => {
     queryFn: () => apiFetch<SecurityStats>("/admin/stats/security"),
   });
 
-  const xpByDay = (() => {
-    const byDate = new Map<string, Record<string, number | string>>();
-    for (const row of gamification.data?.xpByDay ?? []) {
-      const entry = byDate.get(row.date) ?? { date: row.date.slice(5) };
-      entry[row.sourceType] = row.totalXp;
-      byDate.set(row.date, entry);
-    }
-    return [...byDate.values()];
-  })();
 
-  const sourceTypes = [
-    ...new Set((gamification.data?.xpByDay ?? []).map((r) => r.sourceType)),
-  ];
 
   return (
     <div>
@@ -141,48 +120,8 @@ export const Dashboard = () => {
       )}
 
       <div className="mb-6 grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>XP earned (30 days)</CardTitle>
-            <CardDescription>By source type</CardDescription>
-          </CardHeader>
-          <CardContent className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={xpByDay}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" fontSize={11} />
-                <YAxis fontSize={11} />
-                <Tooltip />
-                <Legend />
-                {sourceTypes.map((type, i) => (
-                  <Bar
-                    key={type}
-                    dataKey={type}
-                    stackId="xp"
-                    fill={["#2563eb", "#16a34a", "#f59e0b", "#9333ea"][i % 4]}
-                  />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Streak histogram</CardTitle>
-            <CardDescription>Users by current streak length</CardDescription>
-          </CardHeader>
-          <CardContent className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={gamification.data?.streakHistogram ?? []}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="bucket" fontSize={11} />
-                <YAxis fontSize={11} />
-                <Tooltip />
-                <Bar dataKey="userCount" fill="#2563eb" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <XpEarnedChart data={gamification.data} loading={gamification.isLoading} />
+        <StreakChart data={gamification.data} loading={gamification.isLoading} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

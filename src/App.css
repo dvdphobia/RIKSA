@@ -4,6 +4,7 @@
  
 @layer base {
   :root {
+    --chart-accent: #2563eb;
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
@@ -36,6 +37,7 @@
   }
  
   .dark {
+    --chart-accent: #3b82f6;
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
  

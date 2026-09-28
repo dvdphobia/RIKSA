@@ -20,6 +20,16 @@ const STATUS_VARIANTS: Record<
   ADMIN: "destructive",
   MODERATOR: "secondary",
   USER: "outline",
+  DRAFT: "outline",
+  SCHEDULED: "outline",
+  ACTIVE: "default",
+  LIVE: "default",
+  ENDED: "secondary",
+  SUSPENDED: "destructive",
+  COMMON: "secondary",
+  RARE: "default",
+  EPIC: "default",
+  LEGENDARY: "destructive",
 };
 
 export const StatusBadge = ({ value }: { value: string }) => (
@@ -51,3 +61,22 @@ export const formatDate = (value: string | null | undefined) =>
 
 export const isSuspended = (suspendedUntil: string | null) =>
   !!suspendedUntil && new Date(suspendedUntil).getTime() > Date.now();
+
+export const errorMessage = (e: unknown, fallback = "Something went wrong") =>
+  e instanceof Error && e.message ? e.message : fallback;
+
+/** ISO string → value for <input type="datetime-local"> in the viewer's timezone. */
+export const toLocalInput = (iso: string | null | undefined) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/** <input type="datetime-local"> value → ISO string (or null when empty). */
+export const fromLocalInput = (value: string) =>
+  value ? new Date(value).toISOString() : null;
+
+export const EmptyState = ({ children }: { children: ReactNode }) => (
+  <p className="py-12 text-center text-sm text-muted-foreground">{children}</p>
+);
