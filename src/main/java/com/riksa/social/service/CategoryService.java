@@ -18,6 +18,9 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final UserCategoryMembershipRepository membershipRepository;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private CommunityModerationService communityModeration;
+
     public List<Category> listCategories() {
         return categoryRepository.findAllByOrderByNameAsc();
     }
@@ -26,6 +29,9 @@ public class CategoryService {
     public Category joinCategory(UUID userId, UUID categoryId) {
         if (membershipRepository.existsByUserIdAndCategoryId(userId, categoryId)) {
             throw new IllegalStateException("Already a member of this category");
+        }
+        if (communityModeration != null) {
+            communityModeration.requireNotBanned(userId, categoryId);
         }
         UserCategoryMembership membership = new UserCategoryMembership();
         membership.setUserId(userId);

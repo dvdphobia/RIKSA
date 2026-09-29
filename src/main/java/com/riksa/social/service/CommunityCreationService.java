@@ -107,6 +107,7 @@ public class CommunityCreationService {
         UserCategoryMembership membership = new UserCategoryMembership();
         membership.setUserId(user.getId());
         membership.setCategoryId(saved.getId());
+        membership.setRole(com.riksa.social.enums.CommunityRole.OWNER);
         membershipRepository.save(membership);
 
         return saved;

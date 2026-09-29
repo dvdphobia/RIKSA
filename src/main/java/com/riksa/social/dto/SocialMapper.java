@@ -31,7 +31,9 @@ public class SocialMapper {
                 memberCount,
                 joined,
                 category.isOfficial(),
-                viewerId != null && viewerId.equals(category.getCreatedBy())
+                viewerId != null && viewerId.equals(category.getCreatedBy()),
+                category.getPostPermission() == null ? "MEMBERS" : category.getPostPermission().name(),
+                category.getPinnedPostId()
         );
     }
 

@@ -11,5 +11,7 @@ public record CategoryResponse(
         int memberCount,
         boolean joined,
         boolean official,
-        boolean ownedByMe
+        boolean ownedByMe,
+        String postPermission,
+        UUID pinnedPostId
 ) {}

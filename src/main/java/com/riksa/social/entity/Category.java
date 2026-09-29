@@ -1,6 +1,7 @@
 package com.riksa.social.entity;
 
 import jakarta.persistence.*;
+import com.riksa.social.enums.PostPermission;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -36,6 +37,15 @@ public class Category {
     /** The member who founded a user community; null for official ones. */
     @Column(name = "created_by")
     private UUID createdBy;
+
+    /** Who may start posts here; replies stay open to every member. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "post_permission", nullable = false, length = 16)
+    private PostPermission postPermission = PostPermission.MEMBERS;
+
+    /** A post the owner or a moderator keeps at the top of the feed. */
+    @Column(name = "pinned_post_id")
+    private UUID pinnedPostId;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

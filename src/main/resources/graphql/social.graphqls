@@ -18,6 +18,32 @@ type Category {
   official:    Boolean!
   # True when the signed-in viewer founded this community.
   ownedByMe:   Boolean!
+  # The viewer's role here; null when they are not a member.
+  myRole:      CommunityRole
+  postPermission: PostPermission!
+  pinnedPostId: UUID
+  rules:       [CommunityRule!]!
+}
+
+enum CommunityRole { OWNER MODERATOR MEMBER }
+# MEMBERS: any member may post. MODERATORS: only the owner and moderators.
+enum PostPermission { MEMBERS MODERATORS }
+
+type CommunityRule {
+  title: String!
+  body:  String
+}
+
+type CommunityMember {
+  user:     User!
+  role:     CommunityRole!
+  joinedAt: DateTime
+}
+
+type CommunityBan {
+  user:      User!
+  reason:    String
+  createdAt: DateTime
 }
 
 type User {
@@ -102,6 +128,22 @@ input CreateCommunityInput {
   iconUrl:     String
 }
 
+# Owner only. Null leaves a field unchanged; a rules list replaces every rule.
+input UpdateCommunityInput {
+  id:             UUID!
+  name:           String
+  description:    String
+  iconUrl:        String
+  clearIcon:      Boolean
+  postPermission: PostPermission
+  rules:          [CommunityRuleInput!]
+}
+
+input CommunityRuleInput {
+  title: String!
+  body:  String
+}
+
 input CreatePostInput {
   # Optional, 0–200 characters; omitted titles are stored as an empty string.
   title:      String
@@ -161,6 +203,11 @@ type Query {
   feed(categoryId: UUID, authorId: UUID, cursor: UUID, limit: Int = 20): FeedPage!
   post(id: UUID!): Post
   categories: [Category!]!
+  community(id: UUID!): Category
+  # Owner first, then moderators, then members by join date.
+  communityMembers(categoryId: UUID!, query: String, limit: Int = 50): [CommunityMember!]!
+  # Owner and moderators only.
+  communityBans(categoryId: UUID!): [CommunityBan!]!
   comments(postId: UUID!, cursor: UUID, limit: Int = 20): CommentPage!
 }
 
@@ -182,4 +229,14 @@ type Mutation {
   joinCategory(categoryId: UUID!): Category!
   leaveCategory(categoryId: UUID!): Category!
   createCommunity(input: CreateCommunityInput!): Category!
+
+  # Community management
+  updateCommunity(input: UpdateCommunityInput!): Category!
+  # Owner only; role is MODERATOR or MEMBER.
+  setCommunityMemberRole(categoryId: UUID!, userId: UUID!, role: CommunityRole!): CommunityMember!
+  # Owner and moderators; ban also keeps them from joining again.
+  removeCommunityMember(categoryId: UUID!, userId: UUID!, ban: Boolean = false, reason: String): Boolean!
+  unbanCommunityMember(categoryId: UUID!, userId: UUID!): Boolean!
+  # Owner and moderators; a null postId unpins.
+  pinCommunityPost(categoryId: UUID!, postId: UUID): Category!
 }

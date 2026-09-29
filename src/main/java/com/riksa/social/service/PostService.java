@@ -56,11 +56,17 @@ public class PostService {
     private final ContentModerationService contentModerationService;
     private final AuthorSlidingWindowRateLimiter editRateLimiter;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private CommunityModerationService communityModeration;
+
     @Transactional
     public Post createPost(UUID authorId, String title, String content, String mediaUrl,
                            List<PostMediaInput> media, UUID categoryId) {
         if (!membershipRepository.existsByUserIdAndCategoryId(authorId, categoryId)) {
             throw new IllegalStateException("You must join this category before posting");
+        }
+        if (communityModeration != null) {
+            communityModeration.requireCanPost(authorId, categoryId);
         }
 
         String normalizedTitle = title == null ? "" : title;
@@ -139,7 +145,10 @@ public class PostService {
         if (post.getKind() == com.riksa.social.enums.PostKind.MILESTONE) {
             throw new IllegalStateException("Milestone posts cannot be edited or deleted");
         }
-        if (!post.getAuthorId().equals(authorId)) {
+        // Community owners and moderators may remove any post in their community.
+        if (!post.getAuthorId().equals(authorId)
+                && (communityModeration == null
+                    || !communityModeration.canModerate(authorId, post.getCategoryId()))) {
             throw new IllegalStateException("You can only delete your own posts");
         }
 

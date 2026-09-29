@@ -56,6 +56,9 @@ public class CommentService {
     @Autowired(required = false)
     private NotificationService notificationService;
 
+    @Autowired(required = false)
+    private CommunityModerationService communityModeration;
+
     /**
      * A comment may be text, an image, or both — but not neither.
      */
@@ -70,6 +73,9 @@ public class CommentService {
                 .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
         if (post.getStatus() == ContentStatus.HIDDEN) {
             throw new IllegalArgumentException("Post not found: " + postId);
+        }
+        if (communityModeration != null) {
+            communityModeration.requireNotBanned(authorId, post.getCategoryId());
         }
         ModerationResult moderation = screenComment(authorId, normalizedContent, null, null);
 
@@ -134,7 +140,7 @@ public class CommentService {
     public void deleteComment(UUID authorId, UUID commentId) {
         Comment comment = getComment(commentId);
 
-        if (!comment.getAuthorId().equals(authorId)) {
+        if (!comment.getAuthorId().equals(authorId) && !moderatesPostOf(authorId, comment)) {
             throw new IllegalStateException("You can only delete your own comments");
         }
 
@@ -166,6 +172,14 @@ public class CommentService {
             eventPublisher.publishEvent(RealtimeEvent.toEveryone(
                     this, RealtimeTypes.POST_CHANGED, Map.of("postId", postId)));
         }
+    }
+
+    /** Community owners and moderators may remove any comment in their community. */
+    private boolean moderatesPostOf(UUID userId, Comment comment) {
+        if (communityModeration == null) return false;
+        return postRepository.findById(comment.getPostId())
+                .map(post -> communityModeration.canModerate(userId, post.getCategoryId()))
+                .orElse(false);
     }
 
     public Comment getComment(UUID commentId) {
