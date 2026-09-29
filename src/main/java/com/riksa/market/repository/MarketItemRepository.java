@@ -3,15 +3,28 @@ package com.riksa.market.repository;
 import com.riksa.market.entity.MarketItem;
 import com.riksa.market.entity.MarketRarity;
 import com.riksa.market.entity.MarketSlot;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface MarketItemRepository extends JpaRepository<MarketItem, UUID> {
+
+    /** Shared row lock: purchases and chest grants hold it while they add inventory. */
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select item from MarketItem item where item.id = :id")
+    Optional<MarketItem> findByIdForShare(@Param("id") UUID id);
+
+    /** Exclusive row lock: admin edits and deletes wait for in-flight purchases. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select item from MarketItem item where item.id = :id")
+    Optional<MarketItem> findByIdForUpdate(@Param("id") UUID id);
 
     boolean existsByAssetKey(String assetKey);
 

@@ -88,7 +88,9 @@ public class MarketService {
         previous = inventoryRepository.findByIdUserIdAndIdempotencyKey(userId, idempotencyKey);
         if (previous.isPresent()) return replayPurchase(userId, previous.get());
 
-        MarketItem item = itemRepository.findById(itemId).orElse(null);
+        // Share-lock the item so an admin delete can't remove it (and cascade this
+        // inventory row away) between the availability check and the insert.
+        MarketItem item = itemRepository.findByIdForShare(itemId).orElse(null);
         OffsetDateTime now = now();
         if (!isAvailable(item, now)) {
             throw new MarketException(HttpStatus.GONE, "NOT_AVAILABLE", "This item is not available");
@@ -136,7 +138,10 @@ public class MarketService {
         List<MarketItem> unowned = commons.stream().filter(item -> !owned.contains(item.getId())).toList();
         if (unowned.isEmpty()) return Optional.empty();
 
-        MarketItem reward = unowned.get(ThreadLocalRandom.current().nextInt(unowned.size()));
+        MarketItem picked = unowned.get(ThreadLocalRandom.current().nextInt(unowned.size()));
+        // Same share lock as purchase; skip the reward if an admin just removed the item.
+        MarketItem reward = itemRepository.findByIdForShare(picked.getId()).orElse(null);
+        if (reward == null || !reward.isActive()) return Optional.empty();
         BuddyInventory inventory = new BuddyInventory();
         inventory.setId(new BuddyInventoryId(userId, reward.getId()));
         inventory.setAcquiredAt(now());

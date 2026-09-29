@@ -133,11 +133,11 @@ class MarketItemAdminServiceTest {
         update.setAvailableUntil(OffsetDateTime.parse("2026-11-01T00:00:00Z"));
         update.setSortOrder(7);
         update.setActive(false);
-        when(itemRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(itemRepository.findByIdForUpdate(id)).thenReturn(Optional.of(existing));
         when(itemRepository.existsByAssetKeyAndIdNot("eye_glass", id)).thenReturn(false);
         when(itemRepository.saveAndFlush(any(MarketItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(inventoryRepository.countByIdItemId(id)).thenReturn(4L);
-        when(equippedRepository.countByItemId(id)).thenReturn(2L);
+        when(inventoryRepository.countByIdItemId(id)).thenReturn(0L);
+        when(equippedRepository.countByItemId(id)).thenReturn(0L);
 
         var response = service.update(actorId, id, update);
 
@@ -153,16 +153,33 @@ class MarketItemAdminServiceTest {
         assertThat(response.availableUntil()).isEqualTo(update.getAvailableUntil());
         assertThat(response.sortOrder()).isEqualTo(7);
         assertThat(response.active()).isFalse();
-        assertThat(response.ownedCount()).isEqualTo(4L);
-        assertThat(response.equippedCount()).isEqualTo(2L);
+        assertThat(response.ownedCount()).isZero();
+        assertThat(response.equippedCount()).isZero();
         verify(auditLogService).record(eq(actorId), eq("MARKET_ITEM_UPDATE"), eq("MARKET_ITEM"), eq(id), any(Map.class));
+    }
+
+    @Test
+    void updateRefusesToMoveAnOwnedItemToAnotherSlot() {
+        UUID id = UUID.randomUUID();
+        MarketItem existing = existingItem(id);
+        AdminMarketItemRequest update = request();
+        update.setSlot(existing.getSlot() == MarketSlot.HAT ? MarketSlot.EYEWEAR : MarketSlot.HAT);
+        update.setAssetKey(existing.getAssetKey());
+        when(itemRepository.findByIdForUpdate(id)).thenReturn(Optional.of(existing));
+        lenient().when(itemRepository.existsByAssetKeyAndIdNot(any(), eq(id))).thenReturn(false);
+        when(inventoryRepository.countByIdItemId(id)).thenReturn(3L);
+
+        assertThatThrownBy(() -> service.update(actorId, id, update))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("slot");
+        verify(itemRepository, never()).saveAndFlush(any(MarketItem.class));
     }
 
     @Test
     void deleteDeactivatesOwnedItemAndReturnsIt() {
         UUID id = UUID.randomUUID();
         MarketItem item = existingItem(id);
-        when(itemRepository.findById(id)).thenReturn(Optional.of(item));
+        when(itemRepository.findByIdForUpdate(id)).thenReturn(Optional.of(item));
         when(inventoryRepository.countByIdItemId(id)).thenReturn(3L);
         when(equippedRepository.countByItemId(id)).thenReturn(1L);
         when(itemRepository.saveAndFlush(item)).thenReturn(item);
@@ -182,7 +199,7 @@ class MarketItemAdminServiceTest {
     void deleteHardDeletesUnownedItemAndAudits() {
         UUID id = UUID.randomUUID();
         MarketItem item = existingItem(id);
-        when(itemRepository.findById(id)).thenReturn(Optional.of(item));
+        when(itemRepository.findByIdForUpdate(id)).thenReturn(Optional.of(item));
         when(inventoryRepository.countByIdItemId(id)).thenReturn(0L);
 
         MarketItemAdminService.DeleteResult result = service.delete(actorId, id);

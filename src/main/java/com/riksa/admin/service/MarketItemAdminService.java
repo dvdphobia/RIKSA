@@ -51,9 +51,14 @@ public class MarketItemAdminService {
 
     @Transactional
     public AdminMarketItem update(UUID actorId, UUID id, AdminMarketItemRequest request) {
-        MarketItem item = itemRepository.findById(id)
+        MarketItem item = itemRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Market item not found: " + id));
         validateReferences(request, id);
+        if (request.getSlot() != item.getSlot() && inventoryRepository.countByIdItemId(id) > 0) {
+            // Equipped rows store their slot in the key, so moving an owned item would
+            // leave it worn in its old slot.
+            throw new IllegalStateException("Can't change the slot of an item that users already own");
+        }
         Map<String, Object> before = snapshot(item);
         apply(item, request);
         item = save(item);
@@ -67,7 +72,7 @@ public class MarketItemAdminService {
 
     @Transactional
     public DeleteResult delete(UUID actorId, UUID id) {
-        MarketItem item = itemRepository.findById(id)
+        MarketItem item = itemRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Market item not found: " + id));
         long ownedCount = inventoryRepository.countByIdItemId(id);
         if (ownedCount > 0) {

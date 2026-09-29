@@ -73,6 +73,7 @@ class MarketServiceTest {
         lenient().when(userGamificationRepository.findByIdForUpdate(USER_ID)).thenReturn(Optional.of(gamification));
         lenient().when(userGamificationRepository.findByUserId(USER_ID)).thenReturn(Optional.of(gamification));
         lenient().when(itemRepository.findById(ITEM_ID)).thenReturn(Optional.of(item));
+        lenient().when(itemRepository.findByIdForShare(ITEM_ID)).thenReturn(Optional.of(item));
         lenient().when(inventoryRepository.existsByIdUserIdAndIdItemId(USER_ID, ITEM_ID)).thenReturn(false);
         lenient().when(inventoryRepository.saveAndFlush(any(BuddyInventory.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -171,6 +172,7 @@ class MarketServiceTest {
                 .thenReturn(List.of(commonHat, commonGlasses));
         when(inventoryRepository.findByIdUserId(USER_ID))
                 .thenReturn(List.of(inventory(commonHat.getId(), null, InventorySource.PURCHASE, 250)));
+        when(itemRepository.findByIdForShare(commonGlasses.getId())).thenReturn(Optional.of(commonGlasses));
 
         var reward = service.grantChestItem(USER_ID);
 
@@ -180,6 +182,18 @@ class MarketServiceTest {
         verify(inventoryRepository).saveAndFlush(inventoryCaptor.capture());
         assertThat(inventoryCaptor.getValue().getSource()).isEqualTo(InventorySource.CHEST);
         assertThat(inventoryCaptor.getValue().getPricePaid()).isZero();
+    }
+
+    @Test
+    void chestSkipsTheRewardIfTheItemWasRemovedMeanwhile() {
+        MarketItem commonHat = item(MarketSlot.HAT, 250);
+        commonHat.setId(UUID.randomUUID());
+        when(itemRepository.findAvailableByRarity(MarketRarity.COMMON, NOW)).thenReturn(List.of(commonHat));
+        when(inventoryRepository.findByIdUserId(USER_ID)).thenReturn(List.of());
+        when(itemRepository.findByIdForShare(commonHat.getId())).thenReturn(Optional.empty());
+
+        assertThat(service.grantChestItem(USER_ID)).isEmpty();
+        verify(inventoryRepository, never()).saveAndFlush(any(BuddyInventory.class));
     }
 
     @Test
