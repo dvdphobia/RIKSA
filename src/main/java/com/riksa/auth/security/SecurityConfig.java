@@ -63,6 +63,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
                         .requestMatchers("/avatars/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/legal/**").permitAll()
                         // Post images are embedded in posts any reader can see.
                         // Uploading still requires a signed-in user.
                         .requestMatchers(HttpMethod.GET, MediaEndpoints.BASE + "/**").permitAll()

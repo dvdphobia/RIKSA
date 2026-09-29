@@ -11,6 +11,8 @@ public final class RealtimeTypes {
     public static final String POST_DELETED = "post.deleted";
     /** The recipient's daily or weekly quest progress moved. */
     public static final String QUESTS_CHANGED = "quests.changed";
+    /** The recipient has a new notification: {@code {id, unreadCount}}. */
+    public static final String NOTIFICATION_CREATED = "notification.created";
 
     private RealtimeTypes() {
     }

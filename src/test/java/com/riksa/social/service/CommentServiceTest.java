@@ -1,5 +1,7 @@
 package com.riksa.social.service;
 
+import com.riksa.notification.service.NotificationService;
+import com.riksa.notification.entity.NotificationType;
 import com.riksa.auth.repository.UserRepository;
 import com.riksa.moderation.ContentBlockedException;
 import com.riksa.moderation.ContentModerationService;
@@ -439,5 +441,65 @@ class CommentServiceTest {
 
         assertThat(result.getContent()).isNull();
         assertThat(result.getMediaUrl()).isEqualTo(url);
+    }
+
+    @Test
+    void createComment_notifiesThePostAuthorAndTheRepliedToCommenterOnce() {
+        NotificationService notifications = org.mockito.Mockito.mock(NotificationService.class);
+        ReflectionTestUtils.setField(commentService, "notificationService", notifications);
+        UUID postAuthor = UUID.randomUUID();
+        UUID parentAuthor = UUID.randomUUID();
+        UUID replier = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setAuthorId(postAuthor);
+        Comment parent = new Comment();
+        parent.setId(UUID.randomUUID());
+        parent.setAuthorId(parentAuthor);
+        parent.setPostId(postId);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> {
+            Comment c = inv.getArgument(0);
+            c.setId(UUID.randomUUID());
+            return c;
+        });
+        when(commentRepository.findById(parent.getId())).thenReturn(Optional.of(parent));
+
+        Comment reply = commentService.createComment(replier, postId, "Good point", null, parent.getId());
+
+        org.mockito.Mockito.verify(notifications).notify(postAuthor, replier, NotificationType.POST_COMMENT,
+                "COMMENT", reply.getId(), postId, "Good point");
+        org.mockito.Mockito.verify(notifications).notify(parentAuthor, replier, NotificationType.COMMENT_REPLY,
+                "COMMENT", reply.getId(), postId, "Good point");
+    }
+
+    @Test
+    void createComment_replyingOnYourOwnPostThreadDoesNotNotifyThePostAuthorTwice() {
+        NotificationService notifications = org.mockito.Mockito.mock(NotificationService.class);
+        ReflectionTestUtils.setField(commentService, "notificationService", notifications);
+        UUID postAuthor = UUID.randomUUID();
+        UUID replier = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setAuthorId(postAuthor);
+        Comment parent = new Comment();
+        parent.setId(UUID.randomUUID());
+        parent.setAuthorId(postAuthor);
+        parent.setPostId(postId);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(commentRepository.save(any(Comment.class))).thenAnswer(inv -> {
+            Comment c = inv.getArgument(0);
+            c.setId(UUID.randomUUID());
+            return c;
+        });
+        when(commentRepository.findById(parent.getId())).thenReturn(Optional.of(parent));
+
+        commentService.createComment(replier, postId, "Thanks!", null, parent.getId());
+
+        org.mockito.Mockito.verify(notifications).notify(any(), any(), any(), any(), any(), any(), any());
     }
 }

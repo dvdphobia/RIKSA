@@ -1,5 +1,7 @@
 package com.riksa.social.service;
 
+import com.riksa.notification.entity.NotificationType;
+import com.riksa.notification.service.NotificationService;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.repository.UserRepository;
 import com.riksa.moderation.ContentModerationService;
@@ -51,6 +53,9 @@ public class CommentService {
     @Autowired(required = false)
     private ApplicationEventPublisher eventPublisher;
 
+    @Autowired(required = false)
+    private NotificationService notificationService;
+
     /**
      * A comment may be text, an image, or both — but not neither.
      */
@@ -85,6 +90,7 @@ public class CommentService {
         if (eventPublisher != null && post.getAuthorId() != null && !post.getAuthorId().equals(authorId)) {
             eventPublisher.publishEvent(new SocialActionEvent(this, authorId));
         }
+        notifyComment(authorId, post, saved);
 
         return saved;
     }
@@ -139,6 +145,20 @@ public class CommentService {
             postRepository.save(post);
         });
         announceChange(comment.getPostId());
+    }
+
+    /** The post's author hears about every comment; a reply also tells the parent's author. */
+    private void notifyComment(UUID authorId, Post post, Comment comment) {
+        if (notificationService == null) return;
+        String preview = comment.getContent();
+        notificationService.notify(post.getAuthorId(), authorId, NotificationType.POST_COMMENT,
+                "COMMENT", comment.getId(), post.getId(), preview);
+        if (comment.getParentId() != null) {
+            commentRepository.findById(comment.getParentId())
+                    .filter(parent -> !parent.getAuthorId().equals(post.getAuthorId()))
+                    .ifPresent(parent -> notificationService.notify(parent.getAuthorId(), authorId,
+                            NotificationType.COMMENT_REPLY, "COMMENT", comment.getId(), post.getId(), preview));
+        }
     }
 
     private void announceChange(UUID postId) {

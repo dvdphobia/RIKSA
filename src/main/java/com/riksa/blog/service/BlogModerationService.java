@@ -1,5 +1,8 @@
 package com.riksa.blog.service;
 
+import com.riksa.notification.entity.NotificationType;
+import com.riksa.notification.service.NotificationService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.riksa.blog.entity.BlogPost;
 import com.riksa.blog.enums.BlogStatus;
 import com.riksa.blog.event.BlogApprovedEvent;
@@ -22,6 +25,10 @@ import java.util.UUID;
 public class BlogModerationService {
     private final BlogPostRepository blogPostRepository;
     private final EventPublisher eventPublisher;
+
+    /** Optional so hand-built services in tests keep working. */
+    @Autowired(required = false)
+    private NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public Page<BlogPost> list(BlogStatus status, int page, int size) {
@@ -59,6 +66,10 @@ public class BlogModerationService {
         if (firstApproval) {
             eventPublisher.publish(new BlogApprovedEvent(this, post.getId(), post.getAuthorId(), moderatorId));
             eventPublisher.publish(new BlogPostApprovedEvent(this, post.getId(), post.getAuthorId()));
+            if (moderatorId != null && notificationService != null) {
+                notificationService.notify(post.getAuthorId(), null, NotificationType.BLOG_APPROVED,
+                        "BLOG", post.getId(), null, post.getTitle());
+            }
         }
         return post;
     }
@@ -74,6 +85,10 @@ public class BlogModerationService {
         post = blogPostRepository.save(post);
 
         eventPublisher.publish(new BlogRejectedEvent(this, postId, post.getAuthorId(), moderatorId, reason));
+        if (notificationService != null) {
+            notificationService.notify(post.getAuthorId(), null, NotificationType.BLOG_REJECTED,
+                    "BLOG", postId, null, reason != null && !reason.isBlank() ? reason : post.getTitle());
+        }
         return post;
     }
 

@@ -1,5 +1,8 @@
 package com.riksa.social.service;
 
+import com.riksa.notification.entity.NotificationType;
+import com.riksa.notification.service.NotificationService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.riksa.realtime.RealtimeEvent;
 import com.riksa.realtime.RealtimeTypes;
 import java.util.Map;
@@ -30,6 +33,10 @@ public class ReactionService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final ApplicationEventPublisher eventPublisher;
+
+    /** Optional so hand-built services in tests keep working. */
+    @Autowired(required = false)
+    private NotificationService notificationService;
 
     @Transactional
     public Post react(UUID userId, UUID postId, UUID commentId, ReactionType type) {
@@ -68,6 +75,7 @@ public class ReactionService {
             }
             if (actionPostId != null) {
                 Post post = getPost(actionPostId);
+                notifyReaction(userId, post, postId, commentId);
                 if (postId != null) {
                     eventPublisher.publishEvent(new ReactionReceivedEvent(this, postId, post.getAuthorId()));
                 }
@@ -93,6 +101,23 @@ public class ReactionService {
         reactionRepository.findByUserIdAndPostIdAndCommentId(userId, postId, commentId)
                 .ifPresent(reactionRepository::delete);
         return adjustPostCounter(postId, -1);
+    }
+
+    /** A new reaction tells the owner of the post or comment. Changes and removals don't. */
+    private void notifyReaction(UUID userId, Post post, UUID postId, UUID commentId) {
+        if (notificationService == null) return;
+        if (postId != null) {
+            notificationService.notify(post.getAuthorId(), userId, NotificationType.POST_REACTION,
+                    "POST", post.getId(), post.getId(), postTeaser(post));
+        } else {
+            commentRepository.findById(commentId).ifPresent(comment -> notificationService.notify(
+                    comment.getAuthorId(), userId, NotificationType.COMMENT_REACTION,
+                    "COMMENT", comment.getId(), post.getId(), comment.getContent()));
+        }
+    }
+
+    private static String postTeaser(Post post) {
+        return post.getTitle() != null && !post.getTitle().isBlank() ? post.getTitle() : post.getContent();
     }
 
     /** Delivered only if the transaction commits, so every return path is covered. */

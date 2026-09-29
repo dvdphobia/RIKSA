@@ -1,5 +1,8 @@
 package com.riksa.blog.service;
 
+import com.riksa.notification.entity.NotificationType;
+import com.riksa.notification.service.NotificationService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.riksa.blog.entity.BlogLike;
 import com.riksa.blog.entity.BlogPost;
 import com.riksa.blog.entity.BlogView;
@@ -23,6 +26,10 @@ public class BlogEngagementService {
     private final BlogViewRepository blogViewRepository;
     private final BlogLikeRepository blogLikeRepository;
     private final ApplicationEventPublisher eventPublisher;
+
+    /** Optional so hand-built services in tests keep working. */
+    @Autowired(required = false)
+    private NotificationService notificationService;
 
     @Transactional
     public BlogPost trackView(UUID blogPostId, UUID userId) {
@@ -55,6 +62,10 @@ public class BlogEngagementService {
 
             // Notify achievement system that the blog author received a like
             eventPublisher.publishEvent(new BlogPostLikedEvent(this, blogPostId, post.getAuthorId(), userId));
+            if (notificationService != null) {
+                notificationService.notify(post.getAuthorId(), userId, NotificationType.BLOG_LIKE,
+                        "BLOG", blogPostId, null, post.getTitle());
+            }
         }
 
         return blogPostRepository.save(post);
