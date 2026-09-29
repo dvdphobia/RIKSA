@@ -24,6 +24,7 @@ export const ReasonDialog = ({
   destructive = false,
   pending = false,
   canConfirm = true,
+  reasonRequired = true,
   reasonPlaceholder = "Why? This is saved in the audit log.",
   children,
   onConfirm,
@@ -36,6 +37,7 @@ export const ReasonDialog = ({
   destructive?: boolean;
   pending?: boolean;
   canConfirm?: boolean;
+  reasonRequired?: boolean;
   reasonPlaceholder?: string;
   children?: ReactNode;
   onConfirm: (reason: string) => void;
@@ -56,7 +58,7 @@ export const ReasonDialog = ({
         <div className="space-y-4">
           {children}
           <div className="space-y-2">
-            <Label>Reason *</Label>
+            <Label>Reason{reasonRequired ? " *" : " (optional)"}</Label>
             <Textarea
               rows={2}
               value={reason}
@@ -71,7 +73,7 @@ export const ReasonDialog = ({
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
-            disabled={!reason.trim() || !canConfirm || pending}
+            disabled={(reasonRequired && !reason.trim()) || !canConfirm || pending}
             onClick={() => onConfirm(reason.trim())}
           >
             {pending ? "Saving..." : confirmLabel}

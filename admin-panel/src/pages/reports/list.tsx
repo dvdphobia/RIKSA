@@ -9,16 +9,11 @@ import type {
   ReportStatus,
   ReportTargetType,
 } from "../../lib/types";
-import { Link } from "react-router";
-import { useIsAdmin } from "../../lib/auth";
 import {
   formatDate,
-  fromLocalInput,
   PageHeader,
   StatusBadge,
 } from "../../components/shared";
-import { Input } from "../../components/ui/input";
-import { Textarea } from "../../components/ui/textarea";
 import { Button } from "../../components/ui/button";
 import {
   Dialog,
@@ -47,12 +42,10 @@ export const ReportList = () => {
   const [resolveTarget, setResolveTarget] = useState<Report | null>(null);
   const [resolveStatus, setResolveStatus] = useState<ReportStatus>("RESOLVED");
   const [action, setAction] = useState<ReportAction>("NONE");
-  const [suspendUntil, setSuspendUntil] = useState("");
-  const [suspendReason, setSuspendReason] = useState("");
-  const isAdmin = useIsAdmin();
-  const suspends = action === "SUSPEND" || action === "HIDE_AND_SUSPEND";
   const canHide =
-    resolveTarget?.targetType === "POST" || resolveTarget?.targetType === "COMMENT";
+    resolveTarget?.targetType === "POST" ||
+    resolveTarget?.targetType === "COMMENT" ||
+    resolveTarget?.targetType === "RESOURCE";
 
   const query = useInfiniteQuery({
     queryKey: ["reports", status, targetType],
@@ -61,7 +54,7 @@ export const ReportList = () => {
         params: { status, targetType, cursor: pageParam, limit: PAGE_SIZE },
       }),
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => (last.hasNextPage ? last.endCursor : undefined),
+    getNextPageParam: (last) => (last.hasNextPage ? last.endCursor ?? undefined : undefined),
   });
 
   const reports = query.data?.pages.flatMap((p) => p.edges) ?? [];
@@ -71,8 +64,6 @@ export const ReportList = () => {
       id: string;
       status: ReportStatus;
       action: ReportAction;
-      suspendUntil?: string | null;
-      suspendReason?: string;
     }) =>
       apiFetch(`/admin/reports/${id}`, { method: "PATCH", body }),
     onSuccess: () => {
@@ -88,8 +79,6 @@ export const ReportList = () => {
     setResolveTarget(report);
     setResolveStatus("RESOLVED");
     setAction("NONE");
-    setSuspendUntil("");
-    setSuspendReason("");
   };
 
   return (
@@ -123,7 +112,7 @@ export const ReportList = () => {
             <SelectItem value="POST">POST</SelectItem>
             <SelectItem value="COMMENT">COMMENT</SelectItem>
             <SelectItem value="BLOG">BLOG</SelectItem>
-            <SelectItem value="USER">USER</SelectItem>
+            <SelectItem value="RESOURCE">RESOURCE</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -143,13 +132,7 @@ export const ReportList = () => {
                 <StatusBadge value={r.reason} />
                 <span className="text-sm text-muted-foreground">
                   {r.targetType} ·{" "}
-                  {r.targetType === "USER" && isAdmin ? (
-                    <Link className="underline" to={`/users/${r.targetId}`}>
-                      view user
-                    </Link>
-                  ) : (
-                    `${r.targetId.slice(0, 8)}...`
-                  )}
+                  {r.targetId.slice(0, 8)}...
                 </span>
               </div>
               {r.details && <p className="text-sm">{r.details}</p>}
@@ -227,12 +210,6 @@ export const ReportList = () => {
                   <SelectItem value="HIDE" disabled={!canHide}>
                     HIDE — hide the reported content
                   </SelectItem>
-                  <SelectItem value="SUSPEND">
-                    SUSPEND — suspend the {resolveTarget?.targetType === "USER" ? "user" : "author"}
-                  </SelectItem>
-                  <SelectItem value="HIDE_AND_SUSPEND" disabled={!canHide}>
-                    HIDE + SUSPEND — both in one step
-                  </SelectItem>
                 </SelectContent>
               </Select>
               {resolveTarget?.targetType === "BLOG" && (
@@ -241,46 +218,19 @@ export const ReportList = () => {
                 </p>
               )}
             </div>
-            {suspends && (
-              <>
-                <div className="space-y-2">
-                  <Label>Suspended until *</Label>
-                  <Input
-                    type="datetime-local"
-                    value={suspendUntil}
-                    onChange={(e) => setSuspendUntil(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Suspension reason</Label>
-                  <Textarea
-                    rows={2}
-                    placeholder={`Defaults to "Reported for ${resolveTarget?.reason}"`}
-                    value={suspendReason}
-                    onChange={(e) => setSuspendReason(e.target.value)}
-                  />
-                </div>
-              </>
-            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResolveTarget(null)}>
               Cancel
             </Button>
             <Button
-              disabled={resolve.isPending || (suspends && !suspendUntil)}
+              disabled={resolve.isPending}
               onClick={() =>
                 resolveTarget &&
                 resolve.mutate({
                   id: resolveTarget.id,
                   status: resolveStatus,
                   action,
-                  ...(suspends
-                    ? {
-                        suspendUntil: fromLocalInput(suspendUntil),
-                        suspendReason: suspendReason.trim() || undefined,
-                      }
-                    : {}),
                 })
               }
             >

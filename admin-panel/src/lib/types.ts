@@ -3,8 +3,8 @@ export type DifficultyLevel = "EASY" | "MEDIUM" | "HARD" | "DIFFICULT";
 export type ContentStatus = "VISIBLE" | "HIDDEN";
 export type BlogStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type ReportStatus = "OPEN" | "RESOLVED" | "DISMISSED";
-export type ReportAction = "NONE" | "HIDE" | "SUSPEND" | "HIDE_AND_SUSPEND";
-export type ReportTargetType = "POST" | "COMMENT" | "BLOG" | "USER";
+export type ReportAction = "NONE" | "HIDE";
+export type ReportTargetType = "POST" | "COMMENT" | "BLOG" | "RESOURCE";
 export type ExerciseType = "TEXT" | "MULTIPLE_CHOICE" | "TRUE_FALSE";
 export type ReportReason =
   | "SPAM"
@@ -27,11 +27,11 @@ export interface SpringPage<T> {
 export interface CursorPage<T> {
   edges: T[];
   hasNextPage: boolean;
-  endCursor?: string;
+  endCursor?: string | null;
 }
 
-export interface BlogPage {
-  content: BlogPost[];
+export interface BlogPage<T = BlogPost> {
+  content: T[];
   page: number;
   size: number;
   totalElements: number;
@@ -49,7 +49,7 @@ export interface AdminUser {
   username: string;
   displayName: string | null;
   email: string | null;
-  emailVerified: boolean;
+  emailVerified: boolean | null;
   avatarUrl: string | null;
   role: Role;
   suspendedUntil: string | null;
@@ -82,7 +82,6 @@ export interface Lesson {
   position: number;
   roadmapUnitId: string | null;
   estimatedMinutes: number;
-  published: boolean;
   exercises: Exercise[];
   createdAt: string;
   updatedAt: string;
@@ -125,6 +124,67 @@ export interface BlogPost {
   liked: boolean;
   createdAt: string;
   updatedAt: string;
+  moderationScore: number | null;
+  moderationReasons: string | null;
+}
+
+export type AdminMarketSlot = "HAT" | "EYEWEAR";
+export type AdminMarketRarity = "COMMON" | "RARE" | "EPIC";
+
+export interface AdminMarketItem {
+  id: string;
+  slot: AdminMarketSlot;
+  name: string;
+  nameKm: string;
+  price: number;
+  rarity: AdminMarketRarity;
+  assetKey: string;
+  speciesMask: string | null;
+  minTier: string | null;
+  availableFrom: string | null;
+  availableUntil: string | null;
+  sortOrder: number;
+  active: boolean;
+  ownedCount: number;
+  equippedCount: number;
+}
+
+export interface AdminMarketItemRequest {
+  slot: AdminMarketSlot;
+  name: string;
+  nameKm: string;
+  price: number;
+  rarity: AdminMarketRarity;
+  assetKey: string;
+  speciesMask?: string | null;
+  minTier?: string | null;
+  availableFrom?: string | null;
+  availableUntil?: string | null;
+  sortOrder: number;
+  active: boolean;
+}
+
+export type AdminResourceKind = "LINK" | "PDF" | "VIDEO";
+
+export interface AdminLessonResource {
+  id: string;
+  lessonId: string;
+  lessonTitle: string;
+  authorId: string;
+  authorUsername: string;
+  title: string;
+  url: string;
+  kind: AdminResourceKind;
+  hidden: boolean;
+  hiddenAt: string | null;
+  hiddenBy: string | null;
+  saveCount: number;
+  createdAt: string;
+}
+
+export interface AdminLessonResourceStatusRequest {
+  hidden: boolean;
+  reason?: string;
 }
 
 export interface PostModeration {
@@ -158,7 +218,7 @@ export interface AuditLog {
   actorId: string;
   action: string;
   targetType: string;
-  targetId: string;
+  targetId: string | null;
   details: Record<string, unknown> | null;
   createdAt: string;
 }
@@ -379,6 +439,13 @@ export interface AppSettings {
   };
   "ai.chat": { enabled: boolean; dailyMessageLimit: number; systemPrompt: string };
   "moderation.bannedWords": { words: string[] };
+}
+
+export interface MediaUploadResponse {
+  id: string;
+  url: string;
+  width: number | null;
+  height: number | null;
 }
 
 export interface Announcement {

@@ -20,7 +20,6 @@ const STATUS_VARIANTS: Record<
   ADMIN: "destructive",
   MODERATOR: "secondary",
   USER: "outline",
-  DRAFT: "outline",
   SCHEDULED: "outline",
   ACTIVE: "default",
   LIVE: "default",

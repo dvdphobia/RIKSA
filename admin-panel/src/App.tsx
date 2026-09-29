@@ -17,6 +17,8 @@ import { LessonCreate, LessonEdit } from "./pages/lessons/form";
 import { LessonList } from "./pages/lessons/list";
 import { Login } from "./pages/login";
 import { ModerationList } from "./pages/moderation/list";
+import { MarketItemList } from "./pages/market/list";
+import { ResourceList } from "./pages/resources/list";
 import { ReportList } from "./pages/reports/list";
 import { UserDetail } from "./pages/users/detail";
 import { UserList } from "./pages/users/list";
@@ -60,6 +62,15 @@ function App() {
                 <Route path="create" element={<LessonCreate />} />
                 <Route path="edit/:id" element={<LessonEdit />} />
               </Route>
+              <Route path="/resources" element={<ResourceList />} />
+              <Route
+                path="/market"
+                element={
+                  <RequireAuth adminOnly>
+                    <MarketItemList />
+                  </RequireAuth>
+                }
+              />
               <Route path="/categories">
                 <Route index element={<CategoryList />} />
                 <Route path="create" element={<CategoryCreate />} />

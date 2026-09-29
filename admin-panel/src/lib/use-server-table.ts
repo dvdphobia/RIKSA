@@ -2,12 +2,13 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   type ColumnDef,
   getCoreRowModel,
+  getPaginationRowModel,
   type PaginationState,
   useReactTable,
 } from "@tanstack/react-table";
 import { useEffect, useState } from "react";
 import { apiFetch } from "./api";
-import type { SpringPage } from "./types";
+import type { BlogPage, SpringPage } from "./types";
 
 type Params = Record<string, string | number | boolean | undefined | null>;
 
@@ -19,6 +20,8 @@ interface ServerTableOptions<T> {
   columns: ColumnDef<T>[];
   filters?: Params;
   pageSize?: number;
+  /** Set false for endpoints that return a complete array rather than a page. */
+  paginated?: boolean;
 }
 
 /**
@@ -31,6 +34,7 @@ export function useServerTable<T>({
   columns,
   filters = {},
   pageSize = 10,
+  paginated = true,
 }: ServerTableOptions<T>) {
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -44,18 +48,20 @@ export function useServerTable<T>({
   }, [filterKey]);
 
   const query = useQuery({
-    queryKey: [resource, "list", path, filters, pagination],
+    queryKey: [resource, "list", path, filters, pagination, paginated],
     queryFn: async () => {
-      const data = await apiFetch<SpringPage<T> | T[]>(path, {
-        params: {
-          ...filters,
-          page: pagination.pageIndex,
-          size: pagination.pageSize,
-        },
+      const data = await apiFetch<SpringPage<T> | BlogPage<T> | T[]>(path, {
+        params: paginated
+          ? {
+              ...filters,
+              page: pagination.pageIndex,
+              size: pagination.pageSize,
+            }
+          : filters,
       });
       return Array.isArray(data)
-        ? { rows: data, total: data.length }
-        : { rows: data.content, total: data.totalElements };
+        ? { rows: data, total: data.length, serverPaginated: false }
+        : { rows: data.content, total: data.totalElements, serverPaginated: true };
     },
     placeholderData: keepPreviousData,
   });
@@ -65,7 +71,8 @@ export function useServerTable<T>({
     data: query.data?.rows ?? [],
     columns,
     getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
+    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: query.data?.serverPaginated ?? true,
     pageCount: Math.max(1, Math.ceil(total / pagination.pageSize)),
     state: { pagination },
     onPaginationChange: setPagination,

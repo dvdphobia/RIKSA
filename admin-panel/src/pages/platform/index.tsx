@@ -66,15 +66,19 @@ export const Platform = () => (
   <div>
     <PageHeader
       title="Platform"
-      description="App status, announcements, AI tutor and content filter"
+      description="XP rules, app flags, announcements, AI chat and content moderation"
     />
-    <Tabs defaultValue="app">
+    <Tabs defaultValue="xp">
       <TabsList>
+        <TabsTrigger value="xp">XP rules</TabsTrigger>
         <TabsTrigger value="app">App</TabsTrigger>
         <TabsTrigger value="announcements">Announcements</TabsTrigger>
         <TabsTrigger value="ai">AI tutor</TabsTrigger>
         <TabsTrigger value="words">Banned words</TabsTrigger>
       </TabsList>
+      <TabsContent value="xp">
+        <XpRules />
+      </TabsContent>
       <TabsContent value="app">
         <AppFlags />
       </TabsContent>
@@ -134,6 +138,44 @@ const SaveButtons = ({
     </Button>
   </>
 );
+
+const XpRules = () => {
+  const { loading, draft, setDraft, save, dirty, reset } = useSetting("xp.rules");
+  if (loading || !draft) return <Skeleton className="h-48 w-full" />;
+  return (
+    <Section
+      title="XP rules"
+      description="Set the per-user daily cap for lesson XP."
+      footer={
+        <SaveButtons
+          dirty={dirty}
+          pending={save.isPending}
+          onReset={reset}
+          onSave={() => save.mutate(draft)}
+        />
+      }
+    >
+      <div className="space-y-1">
+        <Label>Daily lesson XP cap per user</Label>
+        <Input
+          type="number"
+          min={0}
+          step={1}
+          className="w-48"
+          value={draft.dailyLessonXpCap}
+          onChange={(event) =>
+            setDraft({
+              dailyLessonXpCap: Math.max(0, Math.floor(Number(event.target.value))),
+            })
+          }
+        />
+        <p className="text-xs text-muted-foreground">
+          0 = no daily cap. Lesson XP is applied after boosts, using Cambodia time.
+        </p>
+      </div>
+    </Section>
+  );
+};
 
 // ── App flags ──
 
@@ -407,7 +449,7 @@ const AiChat = () => {
                 setDraft({ ...draft, dailyMessageLimit: Math.max(0, Math.floor(Number(e.target.value))) })
               }
             />
-            <p className="text-xs text-muted-foreground">0 = unlimited. Resets at midnight Cambodia time.</p>
+            <p className="text-xs text-muted-foreground">0 means unlimited messages. The daily limit resets at midnight Cambodia time.</p>
           </div>
           <div className="space-y-1">
             <Label>System prompt</Label>

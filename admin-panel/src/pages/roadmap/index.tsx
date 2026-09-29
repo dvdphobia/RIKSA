@@ -344,7 +344,6 @@ const LessonOrder = ({ categoryId }: { categoryId: string }) => {
                   {l.roadmapUnitId ? unitName.get(l.roadmapUnitId) ?? "Unit" : "No unit"}
                 </p>
               </div>
-              {l.published === false && <StatusBadge value="DRAFT" />}
             </div>
           )}
         />

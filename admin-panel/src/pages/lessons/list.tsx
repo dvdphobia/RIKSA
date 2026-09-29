@@ -35,6 +35,16 @@ interface BulkResult {
   errors: string[];
 }
 
+const stripPublished = (input: unknown) =>
+  Array.isArray(input)
+    ? input.map((lesson) => {
+        if (!lesson || typeof lesson !== "object" || Array.isArray(lesson)) return lesson;
+        const request = { ...(lesson as Record<string, unknown>) };
+        delete request.published;
+        return request;
+      })
+    : input;
+
 export const LessonList = () => {
   const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<Lesson | null>(null);
@@ -68,16 +78,6 @@ export const LessonList = () => {
             )}
           </div>
         ),
-      },
-      {
-        id: "published",
-        header: "Status",
-        cell: ({ row }) =>
-          row.original.published === false ? (
-            <StatusBadge value="DRAFT" />
-          ) : (
-            <span className="text-sm text-muted-foreground">Published</span>
-          ),
       },
       {
         id: "difficulty",
@@ -158,7 +158,7 @@ export const LessonList = () => {
     mutationFn: (items: unknown) =>
       apiFetch<BulkResult>("/admin/lessons/bulk", {
         method: "POST",
-        body: items,
+        body: stripPublished(items),
       }),
     onSuccess: (data) => {
       toast.success(

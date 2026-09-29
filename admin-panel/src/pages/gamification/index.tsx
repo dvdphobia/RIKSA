@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 import { apiFetch } from "../../lib/api";
@@ -9,7 +9,6 @@ import {
   type AchievementConfig,
   type AchievementCriteriaType,
   type AchievementRarity,
-  type AppSettings,
   type Category,
   type RankTierConfig,
   type StreakMilestoneConfig,
@@ -88,7 +87,7 @@ export const Gamification = () => (
         <TabsTrigger value="achievements">Achievements</TabsTrigger>
         <TabsTrigger value="ranks">Rank tiers</TabsTrigger>
         <TabsTrigger value="streaks">Streak milestones</TabsTrigger>
-        <TabsTrigger value="xp">XP rules & boosts</TabsTrigger>
+        <TabsTrigger value="xp">XP boosts</TabsTrigger>
         <TabsTrigger value="audit">XP audit</TabsTrigger>
       </TabsList>
       <TabsContent value="achievements">
@@ -101,7 +100,6 @@ export const Gamification = () => (
         <StreakMilestones />
       </TabsContent>
       <TabsContent value="xp">
-        <XpRules />
         <Boosts />
       </TabsContent>
       <TabsContent value="audit">
@@ -162,7 +160,18 @@ const Achievements = () => {
     mutationFn: (a: AchievementConfig) =>
       apiFetch(`/admin/gamification/achievements/${a.id}`, {
         method: "PUT",
-        body: { ...a, active: !a.active },
+        body: {
+          name: a.name,
+          description: a.description,
+          criteriaType: a.criteriaType,
+          criteriaValue: a.criteriaValue,
+          requiresAdvanced: a.requiresAdvanced,
+          iconUrl: a.iconUrl,
+          categoryId: a.categoryId,
+          rarity: a.rarity,
+          xpReward: a.xpReward,
+          active: !a.active,
+        },
       }),
     onSuccess: () => invalidate(qc, "achievements"),
     onError: (e) => toast.error(errorMessage(e)),
@@ -669,57 +678,6 @@ const StreakMilestones = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-};
-
-// ── XP rules (settings) ──
-
-const XpRules = () => {
-  const qc = useQueryClient();
-  const settings = useQuery({
-    queryKey: ["settings"],
-    queryFn: () => apiFetch<AppSettings>("/admin/settings"),
-  });
-  const [cap, setCap] = useState(0);
-  const current = settings.data?.["xp.rules"].dailyLessonXpCap ?? 0;
-  useEffect(() => setCap(current), [current]);
-
-  const save = useMutation({
-    mutationFn: () =>
-      apiFetch("/admin/settings/xp.rules", { method: "PUT", body: { dailyLessonXpCap: cap } }),
-    onSuccess: () => {
-      toast.success("XP rules saved");
-      qc.invalidateQueries({ queryKey: ["settings"] });
-    },
-    onError: (e) => toast.error(errorMessage(e)),
-  });
-
-  return (
-    <div className="mb-6 rounded-md border bg-card p-4">
-      <h3 className="font-medium">XP rules</h3>
-      <p className="mb-3 text-sm text-muted-foreground">
-        Lesson XP comes from each lesson's base XP. Posts, comments and likes
-        don't award XP today. Achievement rewards are set per badge.
-      </p>
-      <div className="flex items-end gap-3">
-        <div className="space-y-1">
-          <Label>Daily lesson XP cap per user</Label>
-          <Input
-            type="number"
-            min={0}
-            className="w-40"
-            value={cap}
-            onChange={(e) => setCap(Math.max(0, Math.floor(Number(e.target.value))))}
-          />
-        </div>
-        <Button disabled={cap === current || save.isPending} onClick={() => save.mutate()}>
-          Save
-        </Button>
-        <p className="pb-2 text-xs text-muted-foreground">
-          0 = no cap. Applied after boosts; Cambodia time.
-        </p>
-      </div>
     </div>
   );
 };

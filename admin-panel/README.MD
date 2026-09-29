@@ -1,52 +1,44 @@
-# Riksa Admin
+# Riksa Admin Panel
 
-Web admin panel for the Riksa Learning Platform, built with [Refine](https://refine.dev) (React) + shadcn/ui + Tailwind.
+The admin panel is the React web interface for managing Riksa content, moderation, users, gamification, market items, and platform settings. It lives in this monorepo and calls the Spring API under `/api/v1`.
 
-Implements every endpoint documented in [`riksa_app/ADMIN_API.md`](../riksa_app/ADMIN_API.md).
+## Run locally
 
-## Stack
-
-- Refine v5 (headless) + React Router v7
-- shadcn/ui + Tailwind CSS
-- TanStack Table / React Query
-- Recharts (dashboard charts)
-
-## Setup
+From `admin-panel/`:
 
 ```bash
-npm install
-npm run dev        # http://localhost:5173
+npm ci
+npm run dev
+npm run build
 ```
 
-## Configuration
+Vite serves the development panel at `http://localhost:5173`. Set `VITE_API_URL` to the API base URL; the default is `http://localhost:8080/api/v1`. See [`admin-panel/.env.example`](.env.example) for the environment variable example.
 
-`.env`:
+Sign-in requires a backend account with role `ADMIN` or `MODERATOR`. Regular `USER` accounts cannot access the panel.
 
-```
-VITE_API_URL=http://localhost:8080/api/v1
-```
+## Pages and access
 
-Login requires an account with role `ADMIN` or `MODERATOR`. `USER` accounts are rejected.
+All pages below are available to both administrators and moderators unless marked **ADMIN only**. The backend also enforces these roles.
 
-## Modules
-
-| Route | Module | Access |
+| Route | Page | Access |
 |---|---|---|
-| `/` | Dashboard (stats, charts, hardest exercises) | MODERATOR+ |
-| `/users` | Search, promote, suspend/unsuspend | ADMIN only |
-| `/lessons` | CRUD, bulk JSON import, markdown upload | MODERATOR+ |
-| `/categories` | CRUD | MODERATOR+ |
-| `/reports` | Report queue (cursor pagination), resolve/dismiss | MODERATOR+ |
-| `/blog` | Approve / reject queue | MODERATOR+ |
-| `/moderation` | Hide / restore posts & comments | MODERATOR+ |
-| `/audit-logs` | Filterable audit trail | ADMIN only |
+| `/` | Dashboard and operational stats | ADMIN, MODERATOR |
+| `/users` | User search and account controls | ADMIN only |
+| `/lessons` | Lessons, exercises, bulk import, and markdown upload | ADMIN, MODERATOR |
+| `/categories` | Lesson categories | ADMIN, MODERATOR |
+| `/roadmap` | Roadmap units and lesson ordering | ADMIN, MODERATOR |
+| `/resources` | Lesson resource review and moderation | ADMIN, MODERATOR |
+| `/reports` | Report queue and resolution | ADMIN, MODERATOR |
+| `/blog` | Blog moderation queue | ADMIN, MODERATOR |
+| `/moderation` | Post and comment moderation | ADMIN, MODERATOR |
+| `/gamification` | Achievements, ranks, streaks, and XP boosts | ADMIN only |
+| `/leaderboard` | Leaderboard snapshots | ADMIN only |
+| `/market` | Market item catalog | ADMIN only |
+| `/platform` | XP rules, app flags, announcements, AI chat, and banned words | ADMIN only |
+| `/audit-logs` | Filterable admin audit trail | ADMIN only |
 
-Users and Audit logs are hidden from the sidebar for `MODERATOR` accounts (enforced by the access-control provider and the backend).
+## Implementation notes
 
-## Notes
-
-- Auth: JWT bearer with automatic single-flight refresh on `401` (`src/lib/api.ts`).
-- Pagination: Refine's 1-based pages are mapped to Spring's 0-based `page` param in `src/providers/data-provider.ts`; reports use cursor pagination via an infinite query.
-- Lesson answer keys are never returned by the API — the edit form keeps existing exercises unless "Replace exercises" is used.
-- Lesson bodies are written in a visual editor (Tiptap) and stored as markdown, because the mobile app renders them with `flutter_markdown_plus`. `src/components/editor/markdown.ts` owns the HTML↔markdown round trip and mirrors the app's section parsing: **every `## ` heading starts a new lesson screen** (`_markdownSections` in `lesson_experience_screen.dart`), which is why the toolbar calls H2 "New section". Existing markdown is left untouched byte-for-byte until an author actually edits the body.
-- The editor is lazy-loaded (`React.lazy`) so ProseMirror stays out of the main bundle.
+- API requests use bearer JWTs and automatic refresh on `401` responses.
+- Server tables use Spring pagination; reports use cursor pagination.
+- Lesson bodies are edited as markdown for the mobile app renderer. Existing markdown is preserved until the body is edited.

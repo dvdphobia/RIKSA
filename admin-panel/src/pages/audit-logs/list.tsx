@@ -15,18 +15,72 @@ import {
 } from "../../components/ui/select";
 
 const ACTIONS = [
+  "AI_CHAT_TRANSCRIPT_VIEW",
+  "ACHIEVEMENT_CREATE",
+  "ACHIEVEMENT_DELETE",
+  "ACHIEVEMENT_UPDATE",
+  "APP_SETTING_UPDATE",
+  "COMMENT_HIDE",
+  "COMMENT_MEDIA_REMOVE",
+  "COMMENT_RESTORE",
+  "LEADERBOARD_REFRESH",
+  "LESSON_CREATE",
+  "LESSON_DELETE",
+  "LESSON_REORDER",
+  "LESSON_UPDATE",
+  "MARKET_ITEM_CREATE",
+  "MARKET_ITEM_DEACTIVATE",
+  "MARKET_ITEM_DELETE",
+  "MARKET_ITEM_UPDATE",
+  "POST_HIDE",
+  "POST_MEDIA_REMOVE",
+  "POST_RESTORE",
+  "RANK_TIER_UPDATE",
+  "REPORT_DISMISSED",
+  "REPORT_RESOLVED",
+  "RESOURCE_DELETE",
+  "RESOURCE_HIDE",
+  "RESOURCE_UNHIDE",
+  "ROADMAP_UNIT_CREATE",
+  "ROADMAP_UNIT_DELETE",
+  "ROADMAP_UNIT_REORDER",
+  "ROADMAP_UNIT_UPDATE",
+  "STREAK_MILESTONE_CREATE",
+  "STREAK_MILESTONE_DELETE",
+  "STREAK_MILESTONE_UPDATE",
+  "USER_ACHIEVEMENT_GRANT",
+  "USER_ACHIEVEMENT_REVOKE",
+  "USER_LEADERBOARD_EXCLUSION",
   "USER_ROLE_CHANGE",
+  "USER_STREAK_ADJUST",
   "USER_SUSPEND",
   "USER_UNSUSPEND",
-  "REPORT_RESOLVED",
-  "REPORT_DISMISSED",
-  "POST_HIDE",
-  "POST_RESTORE",
-  "COMMENT_HIDE",
-  "COMMENT_RESTORE",
+  "USER_UNLOCK",
+  "USER_XP_ADJUST",
+  "XP_BOOST_CANCEL",
+  "XP_BOOST_CREATE",
 ];
 
-const TARGET_TYPES = ["USER", "REPORT", "POST", "COMMENT", "BLOG"];
+const TARGET_TYPES = [
+  "ACHIEVEMENT",
+  "APP_SETTING",
+  "CATEGORY",
+  "CHAT_SESSION",
+  "COMMENT",
+  "LEADERBOARD",
+  "LESSON",
+  "LESSON_RESOURCE",
+  "MARKET_ITEM",
+  "POST",
+  "RANK_TIER",
+  "REPORT",
+  "ROADMAP_UNIT",
+  "STREAK_MILESTONE",
+  "USER",
+  "XP_BOOST",
+];
+const isUuid = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
 export const AuditLogList = () => {
   const [targetType, setTargetType] = useState<string | undefined>();
@@ -56,8 +110,8 @@ export const AuditLogList = () => {
         cell: ({ row }) => (
           <span className="text-sm">
             {row.original.targetType}{" "}
-            <code className="text-xs text-muted-foreground">
-              {row.original.targetId.slice(0, 8)}...
+              <code className="text-xs text-muted-foreground">
+              {row.original.targetId ? `${row.original.targetId.slice(0, 8)}...` : "—"}
             </code>
           </span>
         ),
@@ -86,7 +140,12 @@ export const AuditLogList = () => {
     resource: "audit-logs",
     columns,
     pageSize: 20,
-    filters: { targetType, action, actorId, targetId },
+    filters: {
+      targetType,
+      action,
+      actorId: isUuid(actorId) ? actorId : undefined,
+      targetId: isUuid(targetId) ? targetId : undefined,
+    },
   });
 
   return (
@@ -138,6 +197,9 @@ export const AuditLogList = () => {
           onChange={(e) => setTargetId(e.target.value)}
         />
       </div>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Actor and target filters apply after you enter a complete UUID.
+      </p>
       <div className="rounded-md border bg-card">
         <DataTable tableProps={table} />
       </div>

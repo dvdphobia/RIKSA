@@ -70,7 +70,6 @@ interface LessonFormValues {
   categoryId?: string;
   roadmapUnitId?: string;
   reflectionPrompt?: string;
-  published: boolean;
   exercises: ExerciseForm[];
 }
 
@@ -161,7 +160,6 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
       difficulty: "EASY",
       baseXp: 10,
       estimatedMinutes: 8,
-      published: false,
       exercises: [emptyExercise()],
     },
   });
@@ -187,7 +185,6 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
       categoryId: l.categoryId ?? undefined,
       roadmapUnitId: l.roadmapUnitId ?? undefined,
       reflectionPrompt: l.reflectionPrompt ?? "",
-      published: l.published ?? true,
       exercises: l.exercises.length
         ? [...l.exercises]
             .sort((a, b) => (a.sectionIndex ?? 1) - (b.sectionIndex ?? 1))
@@ -224,7 +221,6 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
 
   const { fields, append, remove } = useFieldArray({ control, name: "exercises" });
   const difficulty = watch("difficulty");
-  const published = watch("published");
 
   const submit = (values: LessonFormValues) => {
     const sendExercises = !isEdit || exercisesChanged;
@@ -246,7 +242,6 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
       categoryId: values.categoryId || null,
       roadmapUnitId: values.categoryId ? values.roadmapUnitId || null : null,
       reflectionPrompt: values.reflectionPrompt || null,
-      published: values.published,
     };
     if (sendExercises) payload.exercises = values.exercises.map(toPayload);
     save.mutate(payload);
@@ -382,21 +377,6 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
                 {...register("reflectionPrompt")}
               />
             </div>
-            <label className="flex items-start gap-3 rounded-md border p-3">
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4"
-                {...register("published")}
-              />
-              <span>
-                <span className="block text-sm font-medium">
-                  {published ? "Published" : "Draft"}
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  Drafts are hidden from learners until you publish them.
-                </span>
-              </span>
-            </label>
           </div>
 
           <div className="space-y-4 rounded-md border bg-card p-6">

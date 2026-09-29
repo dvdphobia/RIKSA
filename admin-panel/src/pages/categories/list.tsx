@@ -81,6 +81,7 @@ export const CategoryList = () => {
     resource: "categories",
     columns,
     pageSize: 50,
+    paginated: false,
   });
 
   const deleteCategory = useMutation({

@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { apiFetch } from "../../lib/api";
+import type { MediaUploadResponse } from "../../lib/types";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
@@ -144,7 +145,7 @@ export const EditorToolbar = ({ editor }: { editor: Editor }) => {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const uploaded = await apiFetch<{ id: string; url: string }>("/media", {
+      const uploaded = await apiFetch<MediaUploadResponse>("/media", {
         method: "POST",
         formData,
       });
