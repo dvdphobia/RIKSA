@@ -24,7 +24,9 @@ import java.util.UUID;
  * difficulty: EASY
  * baseXp: 10
  * position: 1
+ * estimatedMinutes: 12
  * categoryId: 550e8400-e29b-41d4-a716-446655440000
+ * roadmapUnitId: 2a200000-0000-0000-0000-000000000007
  * reflectionPrompt: What surprised you?
  * exercises:
  *   - question: What is a variable?
@@ -77,7 +79,11 @@ public class LessonMarkdownParser {
         req.setDifficulty(parseDifficulty(meta.get("difficulty"), DifficultyLevel.EASY));
         req.setBaseXp(asInt(meta.get("baseXp"), 10));
         req.setPosition(meta.containsKey("position") ? asInt(meta.get("position"), 1) : null);
-        req.setCategoryId(parseCategoryId(meta.get("categoryId")));
+        req.setEstimatedMinutes(meta.containsKey("estimatedMinutes")
+                ? asInt(meta.get("estimatedMinutes"), 8) : null);
+        req.setCategoryId(parseUuid(meta.get("categoryId"), "categoryId"));
+        // Without its unit a lesson never shows on the app's roadmap.
+        req.setRoadmapUnitId(parseUuid(meta.get("roadmapUnitId"), "roadmapUnitId"));
         req.setReflectionPrompt(asString(meta.get("reflectionPrompt")));
         req.setExercises(parseExercises(meta.get("exercises")));
         return req;
@@ -151,14 +157,14 @@ public class LessonMarkdownParser {
         return values.stream().map(this::asString).filter(java.util.Objects::nonNull).toList();
     }
 
-    private UUID parseCategoryId(Object raw) {
+    private UUID parseUuid(Object raw, String field) {
         if (raw == null) return null;
         String value = raw.toString().trim();
         if (value.isEmpty()) return null;
         try {
             return UUID.fromString(value);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid categoryId '" + value + "', expected a UUID");
+            throw new IllegalArgumentException("Invalid " + field + " '" + value + "', expected a UUID");
         }
     }
 

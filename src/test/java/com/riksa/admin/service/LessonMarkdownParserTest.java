@@ -182,6 +182,62 @@ class LessonMarkdownParserTest {
     }
 
     @Test
+    void parse_roadmapUnitAndMinutes_areRead() {
+        UUID unitId = UUID.randomUUID();
+        String md = """
+                ---
+                title: Enzymes
+                estimatedMinutes: 14
+                roadmapUnitId: %s
+                exercises:
+                  - question: Q?
+                    answerKey: A
+                ---
+                body
+                """.formatted(unitId);
+
+        LessonCreateRequest req = parser.parse(md);
+
+        assertThat(req.getRoadmapUnitId()).isEqualTo(unitId);
+        assertThat(req.getEstimatedMinutes()).isEqualTo(14);
+    }
+
+    @Test
+    void parse_withoutRoadmapUnitOrMinutes_leavesThemUnset() {
+        String md = """
+                ---
+                title: Loose
+                exercises:
+                  - question: Q?
+                    answerKey: A
+                ---
+                body
+                """;
+
+        LessonCreateRequest req = parser.parse(md);
+
+        assertThat(req.getRoadmapUnitId()).isNull();
+        assertThat(req.getEstimatedMinutes()).isNull();
+    }
+
+    @Test
+    void parse_invalidRoadmapUnitId_throws() {
+        String md = """
+                ---
+                title: Bad Unit
+                roadmapUnitId: unit-4
+                exercises:
+                  - question: Q?
+                    answerKey: A
+                ---
+                body
+                """;
+        assertThatThrownBy(() -> parser.parse(md))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("roadmapUnitId");
+    }
+
+    @Test
     void parse_invalidYaml_throws() {
         assertThatThrownBy(() -> parser.parse("---\ntitle: [unclosed\n---\nbody"))
                 .isInstanceOf(IllegalArgumentException.class)
