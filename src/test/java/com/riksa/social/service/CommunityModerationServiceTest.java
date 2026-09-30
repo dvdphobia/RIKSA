@@ -159,4 +159,35 @@ class CommunityModerationServiceTest {
                 List.of(new CommunityModerationService.RuleInput("  ", "body"))))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void ownerSetsAndClearsTheBannerColour() {
+        when(categoryRepository.saveAndFlush(category)).thenReturn(category);
+
+        service.updateCommunity(owner, category.getId(), null, null, null, false, null, null,
+                null, false, "#7c5cff");
+        assertThat(category.getBannerColor()).isEqualTo("#7C5CFF");
+
+        service.updateCommunity(owner, category.getId(), null, null, null, false, null, null,
+                null, false, "");
+        assertThat(category.getBannerColor()).isNull();
+
+        assertThatThrownBy(() -> service.updateCommunity(owner, category.getId(), null, null, null, false,
+                null, null, null, false, "red; background:url(x)"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void bannerPhotosMustUseHttps() {
+        when(mediaUrlValidator.normalize("http://cdn.example/b.png")).thenReturn("http://cdn.example/b.png");
+        when(mediaUrlValidator.normalize("https://cdn.example/b.png")).thenReturn("https://cdn.example/b.png");
+        when(categoryRepository.saveAndFlush(category)).thenReturn(category);
+
+        assertThatThrownBy(() -> service.updateCommunity(owner, category.getId(), null, null, null, false,
+                null, null, "http://cdn.example/b.png", false, null))
+                .isInstanceOf(IllegalArgumentException.class);
+        service.updateCommunity(owner, category.getId(), null, null, null, false, null, null,
+                "https://cdn.example/b.png", false, null);
+        assertThat(category.getBannerUrl()).isEqualTo("https://cdn.example/b.png");
+    }
 }

@@ -11,5 +11,8 @@ public record UpdateCommunityInput(
         String iconUrl,
         Boolean clearIcon,
         String postPermission,
+        String bannerUrl,
+        Boolean clearBanner,
+        String bannerColor,
         List<CommunityRuleInput> rules
 ) {}

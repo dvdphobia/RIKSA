@@ -108,7 +108,8 @@ public class CommunityController {
                 requireUser(), input.id(), input.name(), input.description(), input.iconUrl(),
                 Boolean.TRUE.equals(input.clearIcon()),
                 input.postPermission() == null ? null : PostPermission.valueOf(input.postPermission()),
-                rules);
+                rules,
+                input.bannerUrl(), Boolean.TRUE.equals(input.clearBanner()), input.bannerColor());
         return toResponse(category);
     }
 

@@ -33,7 +33,9 @@ public class SocialMapper {
                 category.isOfficial(),
                 viewerId != null && viewerId.equals(category.getCreatedBy()),
                 category.getPostPermission() == null ? "MEMBERS" : category.getPostPermission().name(),
-                category.getPinnedPostId()
+                category.getPinnedPostId(),
+                category.getBannerUrl(),
+                category.getBannerColor()
         );
     }
 

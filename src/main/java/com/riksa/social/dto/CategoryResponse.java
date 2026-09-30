@@ -13,5 +13,7 @@ public record CategoryResponse(
         boolean official,
         boolean ownedByMe,
         String postPermission,
-        UUID pinnedPostId
+        UUID pinnedPostId,
+        String bannerUrl,
+        String bannerColor
 ) {}

@@ -40,6 +40,8 @@ public class CommunityModerationService {
     static final int RULE_BODY_MAX = 500;
     static final int REASON_MAX = 200;
     static final int MEMBER_PAGE_MAX = 100;
+    private static final java.util.regex.Pattern BANNER_COLOR =
+            java.util.regex.Pattern.compile("#[0-9A-Fa-f]{6}");
 
     private final CategoryRepository categoryRepository;
     private final UserCategoryMembershipRepository membershipRepository;
@@ -123,6 +125,19 @@ public class CommunityModerationService {
     public Category updateCommunity(UUID actorId, UUID categoryId, String rawName, String rawDescription,
                                     String iconUrl, boolean clearIcon, PostPermission postPermission,
                                     List<RuleInput> rules) {
+        return updateCommunity(actorId, categoryId, rawName, rawDescription, iconUrl, clearIcon,
+                postPermission, rules, null, false, null);
+    }
+
+    /**
+     * Also sets the banner: a photo, a #RRGGBB colour, or neither. An empty
+     * colour clears it; {@code clearBanner} removes the photo.
+     */
+    @Transactional
+    public Category updateCommunity(UUID actorId, UUID categoryId, String rawName, String rawDescription,
+                                    String iconUrl, boolean clearIcon, PostPermission postPermission,
+                                    List<RuleInput> rules, String bannerUrl, boolean clearBanner,
+                                    String bannerColor) {
         Category category = getCommunity(categoryId);
         requireOwner(actorId, category);
 
@@ -139,14 +154,25 @@ public class CommunityModerationService {
         if (clearIcon) {
             category.setIconUrl(null);
         } else if (iconUrl != null) {
-            String url = mediaUrlValidator.normalize(iconUrl);
-            if (url != null && !url.regionMatches(true, 0, "https://", 0, 8)) {
-                throw new IllegalArgumentException("Community icon must use https");
-            }
-            category.setIconUrl(url);
+            category.setIconUrl(httpsMedia(iconUrl, "Community icon"));
         }
         if (postPermission != null) {
             category.setPostPermission(postPermission);
+        }
+        if (clearBanner) {
+            category.setBannerUrl(null);
+        } else if (bannerUrl != null) {
+            category.setBannerUrl(httpsMedia(bannerUrl, "Community banner"));
+        }
+        if (bannerColor != null) {
+            String color = bannerColor.strip();
+            if (color.isEmpty()) {
+                category.setBannerColor(null);
+            } else if (BANNER_COLOR.matcher(color).matches()) {
+                category.setBannerColor(color.toUpperCase(Locale.ROOT));
+            } else {
+                throw new IllegalArgumentException("Banner colour must look like #7C5CFF");
+            }
         }
         if (rules != null) {
             replaceRules(categoryId, rules);
@@ -250,6 +276,14 @@ public class CommunityModerationService {
         }
         category.setPinnedPostId(postId);
         return categoryRepository.save(category);
+    }
+
+    private String httpsMedia(String raw, String what) {
+        String url = mediaUrlValidator.normalize(raw);
+        if (url != null && !url.regionMatches(true, 0, "https://", 0, 8)) {
+            throw new IllegalArgumentException(what + " must use https");
+        }
+        return url;
     }
 
     // ── Guards ────────────────────────────────────────────

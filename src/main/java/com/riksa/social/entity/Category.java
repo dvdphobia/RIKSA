@@ -47,6 +47,13 @@ public class Category {
     @Column(name = "pinned_post_id")
     private UUID pinnedPostId;
 
+    @Column(name = "banner_url", columnDefinition = "TEXT")
+    private String bannerUrl;
+
+    /** A #RRGGBB colour; null keeps the subject colour. */
+    @Column(name = "banner_color", length = 7)
+    private String bannerColor;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;

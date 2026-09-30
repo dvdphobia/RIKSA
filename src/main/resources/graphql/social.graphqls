@@ -22,6 +22,9 @@ type Category {
   myRole:      CommunityRole
   postPermission: PostPermission!
   pinnedPostId: UUID
+  # A banner photo the owner uploaded, and/or a #RRGGBB banner colour.
+  bannerUrl:   String
+  bannerColor: String
   rules:       [CommunityRule!]!
 }
 
@@ -136,6 +139,10 @@ input UpdateCommunityInput {
   iconUrl:        String
   clearIcon:      Boolean
   postPermission: PostPermission
+  bannerUrl:      String
+  clearBanner:    Boolean
+  # #RRGGBB, or "" to go back to the subject colour.
+  bannerColor:    String
   rules:          [CommunityRuleInput!]
 }
 
