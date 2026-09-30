@@ -4,6 +4,11 @@ name: Deploy
 on:
   push:
     branches: [ dev ]
+    # The admin panel has its own deploy; changing only it leaves the API up.
+    paths-ignore:
+      - 'admin-panel/**'
+      - 'scripts/deploy-admin-server.sh'
+      - '.github/workflows/deploy-admin.yml'
   workflow_dispatch:
 
 # Never run two deploys at once; a newer push waits for the running one.

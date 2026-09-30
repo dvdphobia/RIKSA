@@ -1,0 +1,95 @@
+name: Deploy admin panel
+
+# Every push to dev that changes the admin panel is built, then published to
+# the RIKSA server. See docs/deploy.md.
+on:
+  push:
+    branches: [ dev ]
+    paths:
+      - 'admin-panel/**'
+      - 'scripts/deploy-admin-server.sh'
+      - '.github/workflows/deploy-admin.yml'
+  workflow_dispatch:
+
+# Shares the backend deploy's queue: the first admin deploy restarts the API.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  ADMIN_HOST: ${{ vars.ADMIN_HOST || 'admin.94-237-78-191.sslip.io' }}
+  ADMIN_API_URL: ${{ vars.ADMIN_API_URL || 'https://94-237-78-191.sslip.io/api/v1' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin-panel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: admin-panel/package-lock.json
+
+      - run: npm ci
+
+      - name: Build against the live API
+        env:
+          VITE_API_URL: ${{ env.ADMIN_API_URL }}
+        run: npm run build
+
+      - name: Package the build
+        run: tar -czf ../riksa-admin.tgz -C dist .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: riksa-admin
+          path: riksa-admin.tgz
+          retention-days: 7
+
+  deploy:
+    needs: build
+    # Same switch as the backend deploy: set the repository variable
+    # AUTO_DEPLOY=true once the secrets exist.
+    if: vars.AUTO_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: riksa-admin
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$DEPLOY_SSH_KEY" ] || [ -z "$DEPLOY_KNOWN_HOSTS" ]; then
+            echo "::error::Set the DEPLOY_SSH_KEY and DEPLOY_KNOWN_HOSTS secrets (see docs/deploy.md)."
+            exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Publish
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST || '94.237.78.191' }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER || 'root' }}
+        run: |
+          SSH_OPTS=(-i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes)
+          scp "${SSH_OPTS[@]}" riksa-admin.tgz "$DEPLOY_USER@$DEPLOY_HOST:/tmp/riksa-admin.tgz"
+          ssh "${SSH_OPTS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "ADMIN_HOST='$ADMIN_HOST' BUNDLE=/tmp/riksa-admin.tgz bash -s" \
+            < scripts/deploy-admin-server.sh
