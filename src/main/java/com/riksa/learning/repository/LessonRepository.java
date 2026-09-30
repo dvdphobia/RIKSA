@@ -95,4 +95,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
         ORDER BY ru.position ASC, l.position ASC
     """)
     List<Lesson> findRoadmapLessons(@Param("roadmapUnitIds") List<UUID> roadmapUnitIds);
+
+    /** Lessons of a subject that no roadmap unit has claimed yet. */
+    List<Lesson> findByCategoryIdAndRoadmapUnitIsNullOrderByPositionAsc(UUID categoryId);
 }

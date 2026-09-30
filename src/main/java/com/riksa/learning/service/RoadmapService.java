@@ -34,7 +34,11 @@ public class RoadmapService {
         }
 
         List<UUID> unitIds = units.stream().map(RoadmapUnit::getId).toList();
-        List<Lesson> lessons = lessonRepository.findRoadmapLessons(unitIds);
+        // A lesson saved without a unit would otherwise never reach the app. It
+        // continues the last unit, in position order, until an admin files it.
+        UUID lastUnitId = units.getLast().getId();
+        List<Lesson> lessons = new ArrayList<>(lessonRepository.findRoadmapLessons(unitIds));
+        lessons.addAll(lessonRepository.findByCategoryIdAndRoadmapUnitIsNullOrderByPositionAsc(categoryId));
         List<UUID> lessonIds = lessons.stream().map(Lesson::getId).toList();
         List<Exercise> exercises = lessonIds.isEmpty() ? List.of() : exerciseRepository.findByLessonIdIn(lessonIds);
         Map<UUID, List<Exercise>> exercisesByLesson = exercises.stream()
@@ -58,7 +62,9 @@ public class RoadmapService {
                 .map(RoadmapUnitSkip::getRoadmapUnitId)
                 .collect(Collectors.toSet());
         Map<UUID, List<Lesson>> lessonsByUnit = lessons.stream()
-                .collect(Collectors.groupingBy(lesson -> lesson.getRoadmapUnit().getId(), LinkedHashMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(
+                        lesson -> lesson.getRoadmapUnit() == null ? lastUnitId : lesson.getRoadmapUnit().getId(),
+                        LinkedHashMap::new, Collectors.toList()));
 
         List<RoadmapUnitResponse> unitResponses = new ArrayList<>();
         UUID currentLessonId = null;

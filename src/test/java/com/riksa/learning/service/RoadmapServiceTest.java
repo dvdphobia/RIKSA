@@ -1,6 +1,7 @@
 package com.riksa.learning.service;
 
 import com.riksa.common.enums.DifficultyLevel;
+import com.riksa.learning.dto.RoadmapLessonResponse;
 import com.riksa.learning.entity.*;
 import com.riksa.learning.repository.*;
 import com.riksa.social.entity.Category;
@@ -101,6 +102,40 @@ class RoadmapServiceTest {
         assertThat(roadmap.units().getFirst().status()).isEqualTo("COMPLETED");
         assertThat(roadmap.units().getFirst().completedLessons()).isEqualTo(5);
         assertThat(roadmap.progress()).isEqualTo(1.0);
+    }
+
+    @Test
+    void lessonsWithoutAUnitContinueTheLastUnitInsteadOfDisappearing() {
+        UUID userId = UUID.randomUUID();
+        Category category = new Category();
+        category.setId(UUID.randomUUID());
+        category.setName("Biology");
+        RoadmapUnit cells = unit(category, 1, "Cells");
+        RoadmapUnit genetics = unit(category, 2, "Genetics");
+        Lesson cell = lesson(cells, 1, "Cell structure");
+        Lesson dna = lesson(genetics, 1, "DNA");
+        Lesson uploaded = lesson(genetics, 104, "Protein synthesis");
+        uploaded.setRoadmapUnit(null);
+
+        when(unitRepository.findByCategoryIdOrderByPositionAsc(category.getId()))
+                .thenReturn(List.of(cells, genetics));
+        when(lessonRepository.findRoadmapLessons(List.of(cells.getId(), genetics.getId())))
+                .thenReturn(List.of(cell, dna));
+        when(lessonRepository.findByCategoryIdAndRoadmapUnitIsNullOrderByPositionAsc(category.getId()))
+                .thenReturn(List.of(uploaded));
+        when(exerciseRepository.findByLessonIdIn(anyList())).thenReturn(List.of());
+        when(completionRepository.findByUserIdAndLessonIdIn(eq(userId), anyList())).thenReturn(List.of());
+        when(progressRepository.findByUserIdAndLessonIdIn(eq(userId), anyList())).thenReturn(List.of());
+        when(attemptRepository.countCorrectByUserIdAndLessonIds(eq(userId), anyList())).thenReturn(List.of());
+        when(skipRepository.findByUserIdAndRoadmapUnitIdIn(eq(userId), anyList())).thenReturn(List.of());
+
+        var roadmap = service().getRoadmap(userId, category.getId());
+
+        assertThat(roadmap.totalLessons()).isEqualTo(3);
+        assertThat(roadmap.units().get(1).lessons())
+                .extracting(RoadmapLessonResponse::title)
+                .containsExactly("DNA", "Protein synthesis");
+        assertThat(roadmap.units().get(1).totalLessons()).isEqualTo(2);
     }
 
     private RoadmapService service() {
