@@ -68,6 +68,9 @@ public class GamificationService {
     // ── repos for achievement progress computation ──
     private final LessonCompletionRepository lessonCompletionRepository;
     private final LessonRepository lessonRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private XpDetailResolver xpDetailResolver;
     private final CategoryRepository categoryRepository;
     private final PostRepository postRepository;
     private final ReactionRepository reactionRepository;
@@ -151,9 +154,20 @@ public class GamificationService {
                 : xpTransactionRepository.findByUserIdAfterCursor(
                         userId, cursorCreatedAt, cursorId, PageRequest.of(0, limit + 1));
 
-        List<XpTransactionResponse> edges = rows.stream()
-                .limit(limit)
-                .map(this::toXpResponse)
+        List<XpTransaction> page = rows.stream().limit(limit).toList();
+        Map<UUID, XpDetailResolver.Detail> details = xpDetailResolver == null
+                ? Map.of()
+                : xpDetailResolver.resolve(page, userId);
+        List<XpTransactionResponse> edges = page.stream()
+                .map(tx -> {
+                    XpTransactionResponse r = toXpResponse(tx);
+                    XpDetailResolver.Detail detail = details.get(tx.getId());
+                    if (detail != null) {
+                        r.setDetail(detail.text());
+                        r.setDetailKm(detail.textKm());
+                    }
+                    return r;
+                })
                 .toList();
 
         boolean hasNext = rows.size() > limit;

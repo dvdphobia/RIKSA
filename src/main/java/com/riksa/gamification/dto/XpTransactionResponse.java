@@ -17,4 +17,7 @@ public class XpTransactionResponse {
     private UUID sourceId;
     private long runningBalance;
     private OffsetDateTime createdAt;
+    /** What the XP was for, e.g. a lesson title; null when there is nothing more to say. */
+    private String detail;
+    private String detailKm;
 }
