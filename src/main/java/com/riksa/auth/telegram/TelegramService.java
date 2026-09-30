@@ -44,9 +44,14 @@ public class TelegramService {
 
     /** Replaces a bot message and removes its buttons. Best-effort: the state change already happened. */
     public void editMessage(String chatId, Long messageId, String text) {
+        editMessage(chatId, messageId, text, null);
+    }
+
+    /** Replaces a bot message, showing [keyboard] under it instead of the old buttons. */
+    public void editMessage(String chatId, Long messageId, String text, InlineKeyboard keyboard) {
         if (!telegramConfig.isEnabled() || messageId == null) return;
         try {
-            post("editMessageText", new EditMessageRequest(chatId, messageId, text, "HTML", true));
+            post("editMessageText", new EditMessageRequest(chatId, messageId, text, "HTML", true, keyboard));
         } catch (Exception e) {
             log.warn("Failed to edit Telegram message in chatId {} ({})", chatId, e.getClass().getSimpleName());
         }
@@ -165,8 +170,10 @@ public class TelegramService {
         public static final ReplyKeyboardRemove INSTANCE = new ReplyKeyboardRemove(true);
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private record EditMessageRequest(
-            String chat_id, Long message_id, String text, String parse_mode, boolean disable_web_page_preview) {}
+            String chat_id, Long message_id, String text, String parse_mode, boolean disable_web_page_preview,
+            InlineKeyboard reply_markup) {}
 
     private record AnswerCallbackRequest(String callback_query_id, String text) {}
 

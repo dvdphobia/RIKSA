@@ -370,8 +370,14 @@ public class TelegramAuthFlowService {
         challenge.setStatus(confirm ? TelegramAuthChallengeStatus.CONFIRMED : TelegramAuthChallengeStatus.DENIED);
         saveChallenge(challenge);
         telegramService.answerCallback(query.id(), confirm ? "Confirmed ✅" : "Cancelled");
+        // One tap takes the user back to the app, which is waiting to finish sign-in.
+        String returnUrl = telegramConfig.getReturnUrl();
         telegramService.editMessage(chatId, messageId,
-                confirm ? TelegramBotMessages.confirmed() : TelegramBotMessages.denied());
+                confirm ? TelegramBotMessages.confirmed() : TelegramBotMessages.denied(),
+                confirm && returnUrl != null && returnUrl.startsWith("https://")
+                        ? TelegramService.InlineKeyboard.row(
+                                TelegramService.InlineButton.link("📲 Back to Riksa", returnUrl))
+                        : null);
     }
 
     private void sendLoginCode(TelegramUpdate.TelegramMessage message) {

@@ -23,7 +23,8 @@ final class TelegramBotMessages {
     }
 
     static String confirmed() {
-        return "✅ <b>Confirmed!</b>\n\nGo back to the Riksa app. You'll be signed in automatically.";
+        return "✅ <b>Confirmed!</b>\n\nTap <b>Back to Riksa</b> below, or return to the app yourself. "
+                + "You'll be signed in automatically.";
     }
 
     static String denied() {

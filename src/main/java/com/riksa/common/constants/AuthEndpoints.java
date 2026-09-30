@@ -23,6 +23,7 @@ public final class AuthEndpoints {
     public static final String TELEGRAM_COMPLETE = "/telegram/complete";
     public static final String TELEGRAM_LINK = "/telegram/link";
     public static final String TELEGRAM_WEBHOOK = "/telegram/webhook";
+    public static final String TELEGRAM_RETURN = "/telegram/return";
     public static final String OTP_SEND = "/otp/send";
     public static final String OTP_VERIFY = "/otp/verify";
     public static final String ME = "/me";

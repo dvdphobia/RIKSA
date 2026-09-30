@@ -174,7 +174,7 @@ class TelegramAuthFlowServiceTest {
         assertThat(service.status(start.requestToken()).status()).isEqualTo(TelegramAuthResult.Status.PENDING);
 
         service.handleUpdate(callback(TELEGRAM_ID, "tga:ok:" + nonce));
-        verify(telegramService).editMessage(eq("777"), eq(42L), contains("Confirmed"));
+        verify(telegramService).editMessage(eq("777"), eq(42L), contains("Confirmed"), any());
         assertThat(challenges.get(0).getStatus()).isEqualTo(TelegramAuthChallengeStatus.CONFIRMED);
     }
 

@@ -49,6 +49,19 @@ public class TelegramConfig {
     @Value("${telegram.app-url:}")
     private String appUrl;
 
+    /**
+     * Https page that sends the user from Telegram back into the app after they
+     * confirm. Defaults to the API's own return page next to the webhook.
+     */
+    @Value("${telegram.return-url:}")
+    private String returnUrl;
+
+    public String getReturnUrl() {
+        if (returnUrl != null && !returnUrl.isBlank()) return returnUrl;
+        if (webhookUrl == null || !webhookUrl.endsWith("/webhook")) return null;
+        return webhookUrl.substring(0, webhookUrl.length() - "/webhook".length()) + "/return";
+    }
+
     @PostConstruct
     public void logConfig() {
         log.info("Telegram config - enabled: {}, botUsername configured: {}, botToken configured: {}, webhook configured: {}, polling: {}",
