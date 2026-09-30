@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RIKSA — Screen Detail</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+    background: #fff;
+    color: #000;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: #000; text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { text-decoration: none; background: #000; color: #fff; }
+
+  header {
+    padding: 48px 32px 32px;
+    border-bottom: 1px solid #000;
+  }
+  header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+  header p {
+    font-size: 14px;
+    color: #555;
+    margin-top: 6px;
+  }
+
+  main {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 40px 32px 80px;
+  }
+
+  .intro {
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 48px;
+  }
+  .intro p { margin-bottom: 8px; }
+  .intro ul { list-style: none; margin-top: 12px; }
+  .intro li { padding: 3px 0; padding-left: 16px; position: relative; }
+  .intro li::before { content: '—'; position: absolute; left: 0; color: #888; }
+
+  .links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1px;
+    background: #000;
+    border: 1px solid #000;
+    margin-bottom: 56px;
+  }
+  .links a {
+    background: #fff;
+    padding: 16px 18px;
+    text-decoration: none;
+    color: #000;
+    transition: background 0.1s;
+  }
+  .links a:hover { background: #f0f0f0; color: #000; }
+  .links a .label { font-size: 14px; font-weight: 600; display: block; }
+  .links a .sub { font-size: 12px; color: #666; margin-top: 2px; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin: 48px 0 16px;
+    color: #000;
+    border-bottom: 1px solid #000;
+    padding-bottom: 8px;
+  }
+
+  .phase {
+    border: 1px solid #000;
+    margin-bottom: -1px;
+    padding: 24px;
+  }
+  .phase-head {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .phase-num {
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .phase-title {
+    font-size: 17px;
+    font-weight: 700;
+  }
+  .phase-count {
+    font-size: 12px;
+    color: #666;
+    margin-left: auto;
+  }
+  .phase-desc {
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 16px;
+  }
+  .phase-meta {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 16px;
+    font-family: 'SF Mono', Menlo, monospace;
+  }
+
+  .screen-list {
+    list-style: none;
+    margin-bottom: 16px;
+  }
+  .screen-list li {
+    font-size: 13px;
+    padding: 5px 0;
+    border-bottom: 1px dotted #ccc;
+    display: flex;
+    gap: 12px;
+  }
+  .screen-list li:last-child { border-bottom: none; }
+  .screen-list .id {
+    font-family: 'SF Mono', Menlo, monospace;
+    color: #000;
+    font-weight: 600;
+    min-width: 56px;
+  }
+  .screen-list .name { color: #000; }
+  .screen-list .els { color: #666; font-size: 12px; }
+
+  .phase-actions {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #000;
+    font-size: 13px;
+  }
+  .phase-actions a { font-weight: 600; }
+
+  footer {
+    text-align: center;
+    padding: 32px;
+    font-size: 12px;
+    color: #666;
+    border-top: 1px solid #000;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>RIKSA — Screen Detail & API Map</h1>
+  <p>Screen-to-API map for the Figma team. 42 screens across 6 phases, by user journey.</p>
+</header>
+
+<main>
+
+  <div class="intro">
+    <p>A navigation hub for designing every RIKSA screen against the real backend API.</p>
+    <ul>
+      <li><b>screenDesign.md</b> — full plan: every screen's elements + API contract, phase by phase.</li>
+      <li><b>PROJECT_CONTEXT_PROMPT.md</b> — design system, colors, typography, demo flow.</li>
+    </ul>
+  </div>
+
+  <div class="links">
+    <a href="screenDesign.md">
+      <span class="label">screenDesign.md</span>
+      <span class="sub">Full plan — 42 screens, 6 phases</span>
+    </a>
+    <a href="../docs/PROJECT_CONTEXT_PROMPT.md">
+      <span class="label">Design System</span>
+      <span class="sub">X.com + Cambodian identity</span>
+    </a>
+    <a href="weekPlan.html">
+      <span class="label">Week Plan</span>
+      <span class="sub">Mon–Fri schedule for 2 designers</span>
+    </a>
+    <a href="../docs/ADMIN_PANEL_GUIDE (2).md">
+      <span class="label">Admin Panel Guide</span>
+      <span class="sub">For Phase 6 design</span>
+    </a>
+  </div>
+
+  <div class="section-label">Phases — by user journey</div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">01</span>
+      <span class="phase-title">Onboarding &amp; Auth</span>
+      <span class="phase-count">12 screens</span>
+    </div>
+    <div class="phase-desc">First-time student enters the app, picks a province + topics, registers, and lands on Home. First 15 seconds of the demo.</div>
+    <div class="phase-meta">REST · /api/v1/auth · backend implemented</div>
+    <ul class="screen-list">
+      <li><span class="id">P1.S1</span><span class="name">Splash</span><span class="els">logo, tagline, get started, language toggle</span></li>
+      <li><span class="id">P1.S2</span><span class="name">Province selector</span><span class="els">6 province cards, selected state, continue</span></li>
+      <li><span class="id">P1.S3</span><span class="name">Topic selection</span><span class="els">3 topic cards multi-select, lesson counts</span></li>
+      <li><span class="id">P1.S4</span><span class="name">Register</span><span class="els">form, Google button, language toggle</span></li>
+      <li><span class="id">P1.S5</span><span class="name">Login</span><span class="els">email, password, forgot link, Google</span></li>
+      <li><span class="id">P1.S6</span><span class="name">Forgot password</span><span class="els">email input, send code</span></li>
+      <li><span class="id">P1.S7</span><span class="name">Reset password</span><span class="els">OTP input, new password, confirm</span></li>
+      <li><span class="id">P1.S8</span><span class="name">Verify email</span><span class="els">token input, verify, resend</span></li>
+      <li><span class="id">P1.S9</span><span class="name">Telegram OTP send</span><span class="els">phone input, send button</span></li>
+      <li><span class="id">P1.S10</span><span class="name">Telegram OTP verify</span><span class="els">6-digit input, countdown, verify</span></li>
+      <li><span class="id">P1.S11</span><span class="name">Google OAuth redirect</span><span class="els">loading spinner, auto-transition</span></li>
+      <li><span class="id">P1.S12</span><span class="name">Edit profile</span><span class="els">avatar, name, bio, gender, province, save</span></li>
+    </ul>
+    <div class="phase-actions">
+      <a href="screenDesign.md#phase-1--onboarding--auth">Open phase plan</a>
+      <a href="../src/main/java/com/riksa/auth/controller/AuthController.java">AuthController.java</a>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">02</span>
+      <span class="phase-title">Core Learning Loop</span>
+      <span class="phase-count">6 screens</span>
+    </div>
+    <div class="phase-desc">Read → Practice → Reflect loop: free-text exercises, anti-skim reading gates, teach-back reflection. Unique study style — not QCM. Earn XP, see streak/rank update.</div>
+    <div class="phase-meta">REST · /api/v1/learning (proposed) · endpoints pending</div>
+    <ul class="screen-list">
+      <li><span class="id">P2.S1</span><span class="name">Home / Dashboard</span><span class="els">tabs, gamification banner, today's challenge, quick actions, recent activity, bottom nav</span></li>
+      <li><span class="id">P2.S2</span><span class="name">Lesson catalog</span><span class="els">tabs, difficulty pills, continue card, lesson list</span></li>
+      <li><span class="id">P2.S3</span><span class="name">Lesson detail</span><span class="els">hero teaser, "what you'll do" 3-step preview, exercise list, start button</span></li>
+      <li><span class="id">P2.S4</span><span class="name">Read → Practice → Reflect loop</span><span class="els">3-stage stepper: Read (key-term taps, pace gate, highlight thesis) · Practice (free-text input + confidence + re-read on wrong) · Reflect (teach-back writing, min 20 chars)</span></li>
+      <li><span class="id">P2.S5</span><span class="name">Completion</span><span class="els">reflection quote card, "all exercises solved" status, XP badge, rank-up card, streak card, buttons</span></li>
+      <li><span class="id">P2.S6</span><span class="name">Resume / in-progress</span><span class="els">progress bar, resume button (card on Home + Learn)</span></li>
+    </ul>
+    <div class="phase-actions">
+      <a href="screenDesign.md#phase-2--core-learning-loop">Open phase plan</a>
+      <a href="../src/main/java/com/riksa/learning/repository/LessonRepository.java">LessonRepository.java</a>
+      <a href="../src/main/java/com/riksa/learning/entity/Exercise.java">Exercise.java</a>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">03</span>
+      <span class="phase-title">Gamification &amp; Compete</span>
+      <span class="phase-count">6 screens</span>
+    </div>
+    <div class="phase-desc">XP, streak, rank, achievements, provincial + national leaderboard. The social-proof segment.</div>
+    <div class="phase-meta">REST · /api/v1/gamification · /api/v1/leaderboard · read implemented / write pending</div>
+    <ul class="screen-list">
+      <li><span class="id">P3.S1</span><span class="name">Gamification profile</span><span class="els">header, avatar/rank card, 2x2 stats grid, tabs</span></li>
+      <li><span class="id">P3.S2</span><span class="name">XP history</span><span class="els">transaction rows, source, amount, balance</span></li>
+      <li><span class="id">P3.S3</span><span class="name">Achievements</span><span class="els">badge grid, earned vs locked</span></li>
+      <li><span class="id">P3.S4</span><span class="name">Rank history</span><span class="els">timeline of rank transitions</span></li>
+      <li><span class="id">P3.S5</span><span class="name">Leaderboard</span><span class="els">scope toggle, top-3 podium, ranked list, sticky banner</span></li>
+      <li><span class="id">P3.S6</span><span class="name">User profile</span><span class="els">banner, avatar, edit, stats bar, rank card, achievements, tabs, posts</span></li>
+    </ul>
+    <div class="phase-actions">
+      <a href="screenDesign.md#phase-3--gamification--compete">Open phase plan</a>
+      <a href="../src/main/java/com/riksa/gamification/controller/GamificationController.java">GamificationController.java</a>
+      <a href="../src/main/java/com/riksa/leaderboard/controller/LeaderboardController.java">LeaderboardController.java</a>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">04</span>
+      <span class="phase-title">Social &amp; Blog</span>
+      <span class="phase-count">9 screens</span>
+    </div>
+    <div class="phase-desc">Communities, posts, nested comments, reactions, shares, blog with moderation. The social-engagement segment.</div>
+    <div class="phase-meta">GraphQL · social.graphqls + REST · /api/v1/blog · implemented (2 GraphQL ops pending)</div>
+    <ul class="screen-list">
+      <li><span class="id">P4.S1</span><span class="name">Social feed</span><span class="els">tabs, compose box, post cards, FAB</span></li>
+      <li><span class="id">P4.S2</span><span class="name">Community categories</span><span class="els">category list, member counts, join/leave</span></li>
+      <li><span class="id">P4.S3</span><span class="name">Post detail + comments</span><span class="els">full post, nested comments, comment input</span></li>
+      <li><span class="id">P4.S4</span><span class="name">Compose post</span><span class="els">title, content, media, category picker, post</span></li>
+      <li><span class="id">P4.S5</span><span class="name">Profile tabs</span><span class="els">posts, replies, lessons, XP history</span></li>
+      <li><span class="id">P4.S6</span><span class="name">Blog list</span><span class="els">featured card, 2-col grid, tabs</span></li>
+      <li><span class="id">P4.S7</span><span class="name">Blog detail</span><span class="els">cover, title, author, content, like, view, related</span></li>
+      <li><span class="id">P4.S8</span><span class="name">Blog compose</span><span class="els">cover, title, about, content, category, submit</span></li>
+      <li><span class="id">P4.S9</span><span class="name">Blog: my posts</span><span class="els">status pills, list with status badges, rejection reason</span></li>
+    </ul>
+    <div class="phase-actions">
+      <a href="screenDesign.md#phase-4--social--blog">Open phase plan</a>
+      <a href="../src/main/resources/graphql/social.graphqls">social.graphqls</a>
+      <a href="../src/main/java/com/riksa/blog/controller/BlogController.java">BlogController.java</a>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">05</span>
+      <span class="phase-title">AI Tutor</span>
+      <span class="phase-count">3 screens</span>
+    </div>
+    <div class="phase-desc">Personalized Krama Tutor that knows the student's rank, streak, lessons, weak areas. The technical-wow segment.</div>
+    <div class="phase-meta">REST · /api/v1/chat (proposed) · schema only, no controllers yet</div>
+    <ul class="screen-list">
+      <li><span class="id">P5.S1</span><span class="name">Chat session list</span><span class="els">past sessions, mascot, empty state</span></li>
+      <li><span class="id">P5.S2</span><span class="name">Chat conversation</span><span class="els">owl header, context card, message bubbles, suggested prompts, input</span></li>
+      <li><span class="id">P5.S3</span><span class="name">Context card</span><span class="els">tag chips: rank, streak, lessons, weak area (inline in S2)</span></li>
+    </ul>
+    <div class="phase-actions">
+      <a href="screenDesign.md#phase-5--ai-tutor">Open phase plan</a>
+      <a href="../src/main/java/com/riksa/chatAi/">chatAi module</a>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">06</span>
+      <span class="phase-title">Admin Panel</span>
+      <span class="phase-count">6 screens</span>
+    </div>
+    <div class="phase-desc">Moderator/Admin manage lessons, categories, blog moderation, user roles. Not in student demo, but judges ask.</div>
+    <div class="phase-meta">REST · /api/v1/admin/* · implemented, role-gated</div>
+    <ul class="screen-list">
+      <li><span class="id">P6.S1</span><span class="name">Admin dashboard</span><span class="els">stat cards, queue previews, quick actions</span></li>
+      <li><span class="id">P6.S2</span><span class="name">Lesson management</span><span class="els">search, filters, lesson list, bulk import</span></li>
+      <li><span class="id">P6.S3</span><span class="name">Lesson editor</span><span class="els">metadata form, inline exercises, save</span></li>
+      <li><span class="id">P6.S4</span><span class="name">Category management</span><span class="els">list, edit/delete, new category form</span></li>
+      <li><span class="id">P6.S5</span><span class="name">Blog moderation queue</span><span class="els">status tabs, post cards, approve/reject, reason</span></li>
+      <li><span class="id">P6.S6</span><span class="name">User management</span><span class="els">search, user list, role change (ADMIN only)</span></li>
+    </ul>
+    <div class="phase-actions">
+      <a href="screenDesign.md#phase-6--admin-panel">Open phase plan</a>
+      <a href="../src/main/java/com/riksa/admin/controller/">admin controllers</a>
+      <a href="../docs/ADMIN_PANEL_GUIDE (2).md">Admin Panel Guide</a>
+    </div>
+  </div>
+
+  <div class="section-label">Cross-phase</div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">▶</span>
+      <span class="phase-title">Demo flow (3 minutes)</span>
+    </div>
+    <div class="phase-desc">Step-by-step judge demo with the screen and API call at each step.</div>
+    <div class="phase-actions">
+      <a href="screenDesign.md#cross-phase--demo-flow-3-minutes">Open demo flow</a>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">∑</span>
+      <span class="phase-title">Screen count summary</span>
+      <span class="phase-count">42 screens total</span>
+    </div>
+    <ul class="screen-list">
+      <li><span class="id">P1</span><span class="name">Onboarding &amp; Auth</span><span class="els">12 screens</span></li>
+      <li><span class="id">P2</span><span class="name">Core Learning Loop</span><span class="els">6 screens</span></li>
+      <li><span class="id">P3</span><span class="name">Gamification &amp; Compete</span><span class="els">6 screens</span></li>
+      <li><span class="id">P4</span><span class="name">Social &amp; Blog</span><span class="els">9 screens</span></li>
+      <li><span class="id">P5</span><span class="name">AI Tutor</span><span class="els">3 screens</span></li>
+      <li><span class="id">P6</span><span class="name">Admin Panel</span><span class="els">6 screens</span></li>
+    </ul>
+    <div class="phase-actions">
+      <a href="screenDesign.md#screen-count-summary">Open summary</a>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  RIKSA — Screen Detail navigation hub · <a href="screenDesign.md">Open screenDesign.md</a>
+</footer>
+
+</body>
+</html>

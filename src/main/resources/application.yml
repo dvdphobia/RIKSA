@@ -2,10 +2,13 @@ spring:
   application:
     name: riksa-api
 
+  config:
+    import: optional:file:.env[.properties]
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:riksa_db}
     username: ${DB_USER:riksa_user}
-    password: ${DB_PASSWORD:}
+    password: ${DB_PASSWORD:riksaUniquenessTeam}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -22,8 +25,44 @@ spring:
     locations: classpath:db/migration
     validate-on-migrate: true
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD:riksaRedis123}
+      database: ${REDIS_DATABASE:0}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:2s}
+      timeout: ${REDIS_TIMEOUT:2s}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
+
+  cache:
+    type: redis
+    redis:
+      key-prefix: "${REDIS_KEY_PREFIX:riksa:dev}:cache:"
+      use-key-prefix: true
+      cache-null-values: false
+      time-to-live: 30s
+
+  servlet:
+    multipart:
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:2MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:20MB}
+
 server:
   port: ${PORT:8080}
+
+media:
+  # Where uploaded post images are written. Local disk keeps the feature free of
+  # any third-party account; swap MediaStorageService for object storage before
+  # running on hosting with an ephemeral filesystem.
+  storage-dir: ${MEDIA_STORAGE_DIR:./uploads/media}
+  # Keep at or below spring.servlet.multipart.max-file-size.
+  max-bytes: ${MEDIA_MAX_BYTES:2097152}
+  # Blank derives the link from the incoming request, which is what an emulator
+  # or a phone on the LAN needs. Set it when the API sits behind a proxy or CDN.
+  public-base-url: ${MEDIA_PUBLIC_BASE_URL:}
 
 jwt:
   secret: ${JWT_SECRET:CHANGE-ME-IN-PRODUCTION-MUST-BE-256-BITS-OR-LONGER}
@@ -34,27 +73,75 @@ otp:
   expiration-minutes: ${OTP_EXPIRATION_MINUTES:5}
   max-attempts: ${OTP_MAX_ATTEMPTS:3}
   code-length: ${OTP_CODE_LENGTH:6}
+  hash-secret: ${OTP_HASH_SECRET:${JWT_SECRET:CHANGE-ME-IN-PRODUCTION-MUST-BE-256-BITS-OR-LONGER}}
 
 telegram:
   enabled: ${TELEGRAM_ENABLED:true}
   bot-token: ${TELEGRAM_BOT_TOKEN:}
   bot-username: ${TELEGRAM_BOT_USERNAME:}
+  api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
+  webhook-url: ${TELEGRAM_WEBHOOK_URL:}
+  webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
+  auth-request-expiration-minutes: ${TELEGRAM_AUTH_REQUEST_EXPIRATION_MINUTES:10}
+  login-code-expiration-minutes: ${TELEGRAM_LOGIN_CODE_EXPIRATION_MINUTES:5}
+  # Local development without public HTTPS: pull updates instead of using the webhook.
+  polling-enabled: ${TELEGRAM_POLLING_ENABLED:false}
+  # Optional https link shown as an "Open Riksa" button under the bot's code message.
+  app-url: ${TELEGRAM_APP_URL:}
 
 google:
   client:
     id: ${GOOGLE_CLIENT_ID:}
 
+openrouter:
+  api-key: ${OPENROUTER_API_KEY:}
+  model: ${OPENROUTER_MODEL:openrouter/auto}
+  base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1}
+
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  # Flutter web may choose a different local development port on each run.
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:*}
 
 rate-limit:
   auth:
     max-requests: ${RATE_LIMIT_AUTH_MAX:5}
     window-seconds: ${RATE_LIMIT_AUTH_WINDOW:60}
+  trust-forward-headers: ${RATE_LIMIT_TRUST_FORWARD_HEADERS:false}
+
+riksa:
+  redis:
+    prefix: ${REDIS_KEY_PREFIX:riksa:dev}
+    rate-limit-enabled: ${REDIS_RATE_LIMIT_ENABLED:true}
+    otp-enabled: ${REDIS_OTP_ENABLED:true}
+    cache-enabled: ${REDIS_CACHE_ENABLED:true}
+    leaderboard-enabled: ${REDIS_LEADERBOARD_ENABLED:true}
 
 login:
   max-failed-attempts: ${LOGIN_MAX_FAILED_ATTEMPTS:5}
   lockout-minutes: ${LOGIN_LOCKOUT_MINUTES:15}
+
+moderation:
+  block-score: 5
+  review-score: 2
+  new-account-age: 24h
+  allowed-link-hosts:
+    - youtube.com
+    - youtu.be
+    - wikipedia.org
+    - khanacademy.org
+    - github.com
+    - riksa.app
+    - moeys.gov.kh
+    - edu.kh
+    - coursera.org
+    - edx.org
+    - mit.edu
+    - stackoverflow.com
+    - geeksforgeeks.org
+    - w3schools.com
+    - desmos.com
+    - geogebra.org
+    - phet.colorado.edu
 
 management:
   endpoints:

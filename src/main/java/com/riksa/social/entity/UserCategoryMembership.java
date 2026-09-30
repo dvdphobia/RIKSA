@@ -1,6 +1,7 @@
 package com.riksa.social.entity;
 
 import jakarta.persistence.*;
+import com.riksa.social.enums.CommunityRole;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -24,6 +25,10 @@ public class UserCategoryMembership {
 
     @Column(name = "category_id", nullable = false)
     private UUID categoryId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private CommunityRole role = CommunityRole.MEMBER;
 
     @CreationTimestamp
     @Column(name = "joined_at", updatable = false)

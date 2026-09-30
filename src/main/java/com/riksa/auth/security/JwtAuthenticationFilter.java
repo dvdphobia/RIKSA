@@ -19,6 +19,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UserSecurityStateService userSecurityStateService;
 
     @Override
     protected void doFilterInternal(
@@ -37,17 +38,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (jwtService.isTokenValid(token)) {
             var userId = jwtService.getUserId(token);
-            var role = jwtService.getRole(token);
+            UserSecurityState state = userSecurityStateService.get(userId);
 
-            var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+            if (state.active()) {
+                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + state.role()));
 
-            var authentication = new UsernamePasswordAuthenticationToken(
-                    userId, null, authorities
-            );
+                var authentication = new UsernamePasswordAuthenticationToken(
+                        userId, null, authorities
+                );
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
         } else {
             response.setHeader("WWW-Authenticate", "Bearer error=\"invalid_token\"");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
         }
 
         filterChain.doFilter(request, response);

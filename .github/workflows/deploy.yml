@@ -1,0 +1,90 @@
+name: Deploy
+
+# Every push to dev is tested, then deployed to the RIKSA server.
+on:
+  push:
+    branches: [ dev ]
+    # The admin panel has its own deploy; changing only it leaves the API up.
+    paths-ignore:
+      - 'admin-panel/**'
+      - 'scripts/deploy-admin-server.sh'
+      - '.github/workflows/deploy-admin.yml'
+  workflow_dispatch:
+
+# Never run two deploys at once; a newer push waits for the running one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: riksa_test
+          POSTGRES_USER: riksa_user
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: riksa_test
+          DB_USER: riksa_user
+          DB_PASSWORD: test_password
+          JWT_SECRET: test-secret-key-that-is-at-least-256-bits-long-for-ci
+          CORS_ALLOWED_ORIGINS: http://localhost:3000
+        run: ./mvnw verify -B
+
+  deploy:
+    needs: test
+    # Off until the secrets exist: set the repository variable AUTO_DEPLOY=true.
+    if: vars.AUTO_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$DEPLOY_SSH_KEY" ] || [ -z "$DEPLOY_KNOWN_HOSTS" ]; then
+            echo "::error::Set the DEPLOY_SSH_KEY and DEPLOY_KNOWN_HOSTS secrets (see docs/deploy.md)."
+            exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Deploy
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST || '94.237.78.191' }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER || 'root' }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' < scripts/deploy-server.sh

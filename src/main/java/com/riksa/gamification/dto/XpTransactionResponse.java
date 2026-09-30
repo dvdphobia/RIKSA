@@ -12,9 +12,12 @@ import java.util.UUID;
 @NoArgsConstructor
 public class XpTransactionResponse {
     private UUID id;
-    private int amount;
+    private long amount;
     private String sourceType;
     private UUID sourceId;
-    private int runningBalance;
+    private long runningBalance;
     private OffsetDateTime createdAt;
+    /** What the XP was for, e.g. a lesson title; null when there is nothing more to say. */
+    private String detail;
+    private String detailKm;
 }

@@ -9,11 +9,17 @@ import com.riksa.auth.repository.UserRepository;
 import com.riksa.auth.security.JwtService;
 import com.riksa.auth.token.EmailVerificationTokenRepository;
 import com.riksa.auth.token.RefreshTokenRepository;
+import com.riksa.gamification.repository.UserGamificationRepository;
+import com.riksa.common.event.EventPublisher;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.OffsetDateTime;
@@ -35,6 +41,8 @@ class AuthServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtService jwtService;
     @Mock private OtpService otpService;
+    @Mock private EventPublisher eventPublisher;
+    @Mock private UserGamificationRepository userGamificationRepository;
 
     @InjectMocks private AuthService authService;
 
@@ -121,6 +129,71 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.login(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Account is temporarily locked. Try again later.");
+    }
+
+    @Test
+    void login_suspendedAccount_throwsAccessDenied() {
+        User user = new User();
+        user.setUsername("john");
+        user.setPassword("encoded-password");
+        user.setFailedLoginAttempts(0);
+        OffsetDateTime until = OffsetDateTime.now().plusDays(7);
+        user.setSuspendedUntil(until);
+
+        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+
+        LoginRequest request = new LoginRequest();
+        request.setUsername("john");
+        request.setPassword("Password1");
+
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Account suspended until");
+
+        verify(passwordEncoder, never()).matches(any(), any());
+    }
+
+    @Test
+    void login_expiredSuspension_succeeds() {
+        User user = new User();
+        user.setUsername("john");
+        user.setPassword("encoded-password");
+        user.setFailedLoginAttempts(0);
+        user.setSuspendedUntil(OffsetDateTime.now().minusDays(1));
+        user.setSuspensionReason("old spam");
+
+        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("Password1", "encoded-password")).thenReturn(true);
+        when(jwtService.generateAccessToken(any(), eq("john"), eq("USER"))).thenReturn("access");
+        when(jwtService.generateRefreshToken(any(), eq("john"), eq("USER"))).thenReturn("refresh");
+
+        LoginRequest request = new LoginRequest();
+        request.setUsername("john");
+        request.setPassword("Password1");
+
+        AuthResponse response = authService.login(request);
+
+        assertThat(response).isNotNull();
+    }
+
+    @Test
+    void refreshToken_suspendedUser_throwsAccessDenied() {
+        String token = "some.jwt.token";
+        User user = new User();
+        user.setSuspendedUntil(OffsetDateTime.now().plusDays(7));
+
+        com.riksa.auth.token.RefreshToken stored = new com.riksa.auth.token.RefreshToken();
+        stored.setUser(user);
+        stored.setExpiresAt(OffsetDateTime.now().plusDays(1));
+
+        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(refreshTokenRepository.findByTokenAndRevokedFalse(token)).thenReturn(Optional.of(stored));
+
+        assertThatThrownBy(() -> authService.refreshToken(token))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Account suspended until");
+
+        verify(jwtService, never()).generateAccessToken(any(), any(), any());
     }
 
     @Test
@@ -277,6 +350,54 @@ class AuthServiceTest {
         assertThat(profile).isNotNull();
         assertThat(profile.getUsername()).isEqualTo("john");
         assertThat(profile.getEmailVerified()).isTrue();
+    }
+
+    @Test
+    void updateProfile_withBundledAvatar_updatesAvatar() {
+        UUID userId = UUID.randomUUID();
+        User user = new User();
+        user.setId(userId);
+        user.setUsername("john");
+        user.setRole(Role.USER);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+
+        UserProfileResponse profile = authService.updateProfile(
+                userId, null, null, null, null, "/avatars/avatar-17.png", null);
+
+        assertThat(user.getAvatarUrl()).isEqualTo("/avatars/avatar-17.png");
+        assertThat(profile.getAvatarUrl()).isEqualTo("/avatars/avatar-17.png");
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void updateProfile_withNonBundledAvatar_rejectsRequest() {
+        UUID userId = UUID.randomUUID();
+
+        assertThatThrownBy(() -> authService.updateProfile(
+                userId, null, null, null, null, "https://example.com/avatar.png", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("avatarUrl must be one of the bundled preset avatars");
+
+        verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, never()).findById(any(UUID.class));
+    }
+
+    @Test
+    void updateProfileRequest_avatarUrlAcceptsOnlyBundledAvatarPaths() {
+        try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
+            Validator validator = factory.getValidator();
+            UpdateProfileRequest validRequest = new UpdateProfileRequest();
+            validRequest.setAvatarUrl("/avatars/avatar-30.png");
+            UpdateProfileRequest invalidRequest = new UpdateProfileRequest();
+            invalidRequest.setAvatarUrl("/avatars/avatar-31.png");
+
+            assertThat(validator.validate(validRequest)).isEmpty();
+            assertThat(validator.validate(invalidRequest))
+                    .extracting(violation -> violation.getPropertyPath().toString())
+                    .containsExactly("avatarUrl");
+        }
     }
 
     @Test

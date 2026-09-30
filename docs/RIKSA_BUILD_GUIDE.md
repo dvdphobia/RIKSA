@@ -1,5 +1,7 @@
 # RIKSA Backend Build Guide
 
+> **⚠️ DEPRECATED:** This document was the original build plan. It has been superseded by `docs/PROJECT_GUIDE.md` which is the current source of truth. Some details here (e.g., social as REST instead of GraphQL, Spring Boot 3.2 instead of 4.0.6) are outdated. Use PROJECT_GUIDE.md for current architecture and endpoint contracts.
+
 *Single source of truth for the 3 backend developers. Everything needed to build the RIKSA API: architecture, endpoint inventory, file structure, domain boundaries, and task breakdown.*
 
 ---
@@ -158,7 +160,7 @@ PUT  /api/v1/auth/me                 — Update profile  [AUTH]
 POST /api/v1/auth/forgot-password    — Forgot password  [PUBLIC]
 POST /api/v1/auth/reset-password     — Reset password  [PUBLIC]
 POST /api/v1/auth/verify-email       — Verify email  [PUBLIC]
-GET  /api/v1/users/{id}              — Public user profile + rank  [PUBLIC]
+GET  /api/v1/profiles/{userId}       — Public user profile + gamification  [PUBLIC]
 ```
 
 ### 5.3 Learning Endpoints (Student Only)

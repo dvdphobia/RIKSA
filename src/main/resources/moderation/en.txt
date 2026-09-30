@@ -1,0 +1,88 @@
+# English profanity, slurs, sexual abuse, and explicit sexual terms.
+# Words with real school meanings are not severe. Weight 1 when the school
+# meaning is common (chemistry "retard a reaction", geography "dyke", Latin
+# "cum laude", names like Dick): alone they publish. Weight 2 for abuse terms
+# that history lessons use (the Khmer Rouge): a blog post is held for review
+# instead of blocked, and a comment still posts.
+# Whole-token matching limits accidental matches inside ordinary words.
+damn	1
+goddamn	2
+hell	1
+crap	1
+shit	3
+shitty	3
+shitting	3
+bullshit	3
+fuck	3
+fucked	3
+fucker	3
+fucking	3
+motherfucker	3
+motherfucking	3
+asshole	3
+asswipe	3
+jackass	3
+bastard	3
+bitch	3
+bitching	3
+son of a bitch	3
+dick	1
+dickhead	3
+prick	3
+pussy	3
+cunt	3
+twat	3
+douchebag	3
+wanker	3
+arsehole	3
+bollocks	2
+bugger	2
+piss	2
+piss off	2
+tosser	3
+bellend	3
+cockhead	3
+shithead	3
+scumbag	3
+slut	3
+whore	3
+skank	3
+nigger	3
+nigga	3
+faggot	3
+fag	2
+dyke	1
+chink	3
+gook	3
+kike	3
+spic	3
+wetback	3
+raghead	3
+honky	3
+retard	1
+retarded	2
+rape	2
+rapist	2
+molest	2
+molester	2
+pedophile	2
+child porn	3
+porn	3
+pornography	2
+blowjob	3
+blow job	3
+handjob	3
+hand job	3
+cum	1
+cock	1
+tits	3
+boobs	2
+dildo	3
+vibrator	3
+gangbang	3
+orgy	3
+incest	2
+onlyfans	3
+free money	2
+click here to win	2
+crypto giveaway	2

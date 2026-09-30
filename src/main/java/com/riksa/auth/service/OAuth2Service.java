@@ -2,6 +2,7 @@ package com.riksa.auth.service;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.riksa.auth.dto.AuthResponse;
+import com.riksa.auth.avatar.AvatarCatalog;
 import com.riksa.auth.entity.Role;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.google.GoogleAuthRequest;
@@ -11,16 +12,19 @@ import com.riksa.auth.repository.UserRepository;
 import com.riksa.auth.security.JwtService;
 import com.riksa.auth.token.RefreshToken;
 import com.riksa.auth.token.RefreshTokenRepository;
+import com.riksa.gamification.entity.UserGamification;
+import com.riksa.gamification.repository.UserGamificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.OffsetDateTime;
-import java.util.Random;
 import java.util.UUID;
 
 @Service
@@ -34,14 +38,12 @@ public class OAuth2Service {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final GoogleOAuthService googleOAuthService;
+    private final UserGamificationRepository userGamificationRepository;
 
     @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
 
-    private static final String[] AVAILABLE_AVATARS = {
-            "avatar-1.png", "avatar-2.png", "avatar-3.png", "avatar-4.png", "avatar-5.png",
-            "avatar-6.png", "avatar-7.png", "avatar-8.png", "avatar-9.png", "avatar-10.png"
-    };
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Transactional
     public AuthResponse googleAuth(GoogleAuthRequest request) {
@@ -53,10 +55,16 @@ public class OAuth2Service {
 
         User user = userRepository.findByGoogleId(googleId).orElse(null);
 
-        if (user == null && email != null) {
+        if (user == null && (email == null || !Boolean.TRUE.equals(payload.getEmailVerified()))) {
+            throw new IllegalArgumentException("Google account must have a verified email address");
+        }
+
+        if (user == null) {
             user = userRepository.findByEmail(email).orElse(null);
             if (user != null) {
+                requireActive(user);
                 user.setGoogleId(googleId);
+                user.setEmailVerified(true);
                 if (picture != null) {
                     user.setAvatarUrl(picture);
                 }
@@ -68,6 +76,7 @@ public class OAuth2Service {
             user = new User();
             user.setGoogleId(googleId);
             user.setEmail(email);
+            user.setEmailVerified(true);
             user.setRole(Role.USER);
             user.setAvatarUrl(picture != null ? picture : generateRandomAvatar());
             user.setDisplayName(name != null ? name : "User" + UUID.randomUUID().toString().substring(0, 8));
@@ -95,9 +104,24 @@ public class OAuth2Service {
             }
 
             user = userRepository.save(user);
+
+            // Create gamification row for new Google OAuth users
+            if (!userGamificationRepository.existsByUserId(user.getId())) {
+                UserGamification gamification = new UserGamification();
+                gamification.setUserId(user.getId());
+                userGamificationRepository.save(gamification);
+            }
         }
 
+        requireActive(user);
+
         return buildAuthResponse(user);
+    }
+
+    private void requireActive(User user) {
+        if (user.isSuspended()) {
+            throw new AccessDeniedException("Account suspended until " + user.getSuspendedUntil());
+        }
     }
 
     private AuthResponse buildAuthResponse(User user) {
@@ -114,7 +138,7 @@ public class OAuth2Service {
     }
 
     private String generateRandomAvatar() {
-        Random random = new Random();
-        return AVAILABLE_AVATARS[random.nextInt(AVAILABLE_AVATARS.length)];
+        var availableAvatars = AvatarCatalog.availableAvatars();
+        return availableAvatars.get(SECURE_RANDOM.nextInt(availableAvatars.size()));
     }
 }

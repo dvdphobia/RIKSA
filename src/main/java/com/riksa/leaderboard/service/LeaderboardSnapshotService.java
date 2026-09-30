@@ -23,9 +23,10 @@ public class LeaderboardSnapshotService {
     private final JdbcTemplate jdbcTemplate;
 
     @Transactional
-    public void refreshSnapshots() {
+    public SnapshotCounts refreshSnapshots() {
         LocalDate today = LocalDate.now();
         log.info("Refreshing leaderboard snapshots for {}", today);
+        snapshotRepository.deleteBySnapshotDate(today);
 
         // COUNTRY scope
         List<LeaderboardSnapshot> countrySnapshots = jdbcTemplate.query("""
@@ -33,10 +34,18 @@ public class LeaderboardSnapshotService {
                 ug.user_id,
                 (ug.total_xp + (ug.current_streak * 5)) AS score,
                 RANK() OVER (ORDER BY (ug.total_xp + (ug.current_streak * 5)) DESC) AS rank,
-                rt.tier
+                rt.tier_name
             FROM user_gamification ug
-            JOIN rank_tiers rt ON rt.min_xp <= ug.total_xp
-            ORDER BY rt.min_xp DESC
+            JOIN users u ON u.id = ug.user_id
+            JOIN LATERAL (
+                SELECT tier_name
+                FROM rank_tiers
+                WHERE min_xp <= ug.total_xp
+                ORDER BY min_xp DESC
+                LIMIT 1
+            ) rt ON TRUE
+            WHERE u.leaderboard_excluded = FALSE
+              AND (u.suspended_until IS NULL OR u.suspended_until <= now())
         """, (rs, rowNum) -> {
             LeaderboardSnapshot s = new LeaderboardSnapshot();
             s.setUserId(UUID.fromString(rs.getString("user_id")));
@@ -44,7 +53,7 @@ public class LeaderboardSnapshotService {
             s.setRank(rs.getInt("rank"));
             s.setScope(ScopeType.COUNTRY);
             s.setScopeId("CAMBODIA");
-            s.setRankingTier(TierType.valueOf(rs.getString("tier")));
+            s.setRankingTier(TierType.valueOf(rs.getString("tier_name")));
             s.setSnapshotDate(today);
             return s;
         });
@@ -58,12 +67,20 @@ public class LeaderboardSnapshotService {
                 u.province_id,
                 (ug.total_xp + (ug.current_streak * 5)) AS score,
                 RANK() OVER (PARTITION BY u.province_id ORDER BY (ug.total_xp + (ug.current_streak * 5)) DESC) AS rank,
-                rt.tier
+                rt.tier_name
             FROM users u
             JOIN user_gamification ug ON ug.user_id = u.id
-            JOIN rank_tiers rt ON rt.min_xp <= ug.total_xp
+            JOIN LATERAL (
+                SELECT tier_name
+                FROM rank_tiers
+                WHERE min_xp <= ug.total_xp
+                ORDER BY min_xp DESC
+                LIMIT 1
+            ) rt ON TRUE
             WHERE u.province_id IS NOT NULL
-            ORDER BY u.province_id, rt.min_xp DESC
+              AND u.leaderboard_excluded = FALSE
+              AND (u.suspended_until IS NULL OR u.suspended_until <= now())
+            ORDER BY u.province_id, rank
         """, (rs, rowNum) -> {
             LeaderboardSnapshot s = new LeaderboardSnapshot();
             s.setUserId(UUID.fromString(rs.getString("user_id")));
@@ -71,7 +88,7 @@ public class LeaderboardSnapshotService {
             s.setRank(rs.getInt("rank"));
             s.setScope(ScopeType.PROVINCE);
             s.setScopeId(rs.getString("province_id"));
-            s.setRankingTier(TierType.valueOf(rs.getString("tier")));
+            s.setRankingTier(TierType.valueOf(rs.getString("tier_name")));
             s.setSnapshotDate(today);
             return s;
         });
@@ -79,5 +96,13 @@ public class LeaderboardSnapshotService {
         snapshotRepository.saveAll(provinceSnapshots);
         log.info("Leaderboard refresh done — {} country + {} province rows",
                 countrySnapshots.size(), provinceSnapshots.size());
+        return new SnapshotCounts(countrySnapshots.size(), provinceSnapshots.size());
     }
+
+    @Transactional(readOnly = true)
+    public List<LeaderboardSnapshot> loadSnapshots(LocalDate date) {
+        return snapshotRepository.findBySnapshotDate(date);
+    }
+
+    public record SnapshotCounts(int countryRows, int provinceRows) {}
 }

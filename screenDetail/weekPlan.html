@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RIKSA — Figma Week Plan</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+    background: #fff;
+    color: #000;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: #000; text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { text-decoration: none; background: #000; color: #fff; }
+  b { font-weight: 700; }
+
+  header {
+    padding: 48px 32px 32px;
+    border-bottom: 1px solid #000;
+  }
+  header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+  header p {
+    font-size: 14px;
+    color: #555;
+    margin-top: 6px;
+  }
+
+  main {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 40px 32px 80px;
+  }
+
+  .intro {
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 40px;
+  }
+  .intro p { margin-bottom: 8px; }
+  .intro .rule {
+    border: 1px solid #000;
+    padding: 12px 16px;
+    margin-top: 16px;
+    font-size: 13px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin: 48px 0 16px;
+    color: #000;
+    border-bottom: 1px solid #000;
+    padding-bottom: 8px;
+  }
+
+  /* split grid */
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: #000;
+    border: 1px solid #000;
+    margin-bottom: 8px;
+  }
+  @media (max-width: 640px) { .split { grid-template-columns: 1fr; } }
+  .split > div {
+    background: #fff;
+    padding: 18px 20px;
+  }
+  .split .who {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .split .owns {
+    font-size: 15px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+  .split .note {
+    font-size: 12px;
+    color: #666;
+    margin-top: 6px;
+  }
+
+  /* day blocks */
+  .day {
+    border: 1px solid #000;
+    margin-bottom: -1px;
+    padding: 24px;
+  }
+  .day-head {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+  .day-num {
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    font-family: 'SF Mono', Menlo, monospace;
+  }
+  .day-title {
+    font-size: 17px;
+    font-weight: 700;
+  }
+  .day-target {
+    font-size: 12px;
+    color: #666;
+    margin-left: auto;
+    font-family: 'SF Mono', Menlo, monospace;
+  }
+  .day-desc {
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 16px;
+  }
+
+  .task-group { margin-bottom: 14px; }
+  .task-group:last-child { margin-bottom: 0; }
+  .task-who {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #000;
+    margin-bottom: 2px;
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+  }
+  .task-who .count {
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: #666;
+    font-size: 12px;
+    margin-left: auto;
+  }
+  .task-list { list-style: none; }
+  .task-list li {
+    font-size: 13px;
+    padding: 5px 0;
+    border-bottom: 1px dotted #ccc;
+    display: flex;
+    gap: 12px;
+  }
+  .task-list li:last-child { border-bottom: none; }
+  .task-list .id {
+    font-family: 'SF Mono', Menlo, monospace;
+    font-weight: 600;
+    min-width: 56px;
+    flex-shrink: 0;
+  }
+  .task-list .name { color: #000; }
+  .task-list .els { color: #666; font-size: 12px; }
+
+  .tip {
+    font-size: 12px;
+    color: #333;
+    border-left: 3px solid #000;
+    padding: 8px 12px;
+    margin-top: 14px;
+    background: #f7f7f7;
+  }
+
+  /* scoreboard table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 12px;
+    border: 1px solid #000;
+  }
+  th {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  td.num { font-family: 'SF Mono', Menlo, monospace; font-weight: 600; white-space: nowrap; }
+
+  /* rhythm list */
+  .rhythm { list-style: none; font-size: 13px; }
+  .rhythm li { padding: 6px 0; padding-left: 16px; position: relative; border-bottom: 1px dotted #ccc; }
+  .rhythm li:last-child { border-bottom: none; }
+  .rhythm li::before { content: '—'; position: absolute; left: 0; color: #888; }
+
+  footer {
+    text-align: center;
+    padding: 32px;
+    font-size: 12px;
+    color: #666;
+    border-top: 1px solid #000;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>RIKSA — Figma Week Plan</h1>
+  <p>Mon Jul 27 → Fri Jul 31, 2026 · Phaleap + Sombath · ~6 focused hours/day · middle pace, no overtime</p>
+</header>
+
+<main>
+
+  <div class="intro">
+    <p><b>Already done:</b> Phase 1 — Onboarding &amp; Auth (12 screens). ✓ Not in this plan.</p>
+    <p><b>Scope for the week:</b> the remaining 24 student-app screens (P2–P5) + clickable demo-flow prototype.</p>
+    <p><b>Cut line:</b> Admin Panel (P6) is NOT in this week's target — grayscale wireframes only if Friday finishes early.</p>
+    <div class="rule">
+      Every screen's element list + API contract is in <a href="screenDesign.md">screenDesign.md</a>.
+      Never invent content — if something isn't in the spec, ask, don't guess.
+    </div>
+  </div>
+
+  <div class="section-label">The split — matched to skill</div>
+
+  <div class="split">
+    <div>
+      <div class="who">Sombath — stronger in design</div>
+      <div class="owns">The learning journey (showpiece)</div>
+      <div class="note">P2 Core Learning Loop (6) · P5 AI Tutor (3) — 9 screens, but the hardest &amp; most unique layouts. This is what wins the demo.</div>
+    </div>
+    <div>
+      <div class="who">Phaleap</div>
+      <div class="owns">The compete &amp; social journey</div>
+      <div class="note">P3 Gamification (6) · P4 Social &amp; Blog (9) — 15 screens, but full of repeated patterns: tab variants, list rows, form patterns.</div>
+    </div>
+  </div>
+
+  <div class="section-label">Assignment sheet — Sombath (9 screens)</div>
+
+  <div class="day">
+    <div class="task-group">
+      <div class="task-who">P2 — Core Learning Loop <span class="count">6 screens</span></div>
+      <ul class="task-list">
+        <li><span class="id">P2.S2</span><span class="name">Lesson catalog</span><span class="els">MON — kit test screen</span></li>
+        <li><span class="id">P2.S1</span><span class="name">Home / Dashboard</span><span class="els">TUE — banner, challenge, quick actions, bottom nav</span></li>
+        <li><span class="id">P2.S3</span><span class="name">Lesson detail</span><span class="els">TUE — hero, 3-step preview, exercise list</span></li>
+        <li><span class="id">P2.S4</span><span class="name">Read → Practice → Reflect</span><span class="els">WED — THE showpiece, 3 frames, whole day allowed</span></li>
+        <li><span class="id">P2.S5</span><span class="name">Completion</span><span class="els">THU — XP badge, rank-up, streak</span></li>
+        <li><span class="id">P2.S6</span><span class="name">Resume / in-progress</span><span class="els">THU — card on Home + Learn</span></li>
+      </ul>
+    </div>
+    <div class="task-group">
+      <div class="task-who">P5 — AI Tutor <span class="count">3 screens</span></div>
+      <ul class="task-list">
+        <li><span class="id">P5.S1</span><span class="name">Chat session list</span><span class="els">THU — mascot, empty state</span></li>
+        <li><span class="id">P5.S2</span><span class="name">Chat conversation</span><span class="els">THU — owl header, bubbles, suggested prompts</span></li>
+        <li><span class="id">P5.S3</span><span class="name">Context card</span><span class="els">THU — inline in S2, no extra frame</span></li>
+      </ul>
+    </div>
+    <div class="tip">Fewer screens on purpose — Sombath owns the designs no other team will have (P2.S4, Home, AI chat) plus leads Friday's prototype wiring.</div>
+  </div>
+
+  <div class="section-label">Assignment sheet — Phaleap (15 screens)</div>
+
+  <div class="day">
+    <div class="task-group">
+      <div class="task-who">P3 — Gamification &amp; Compete <span class="count">6 screens</span></div>
+      <ul class="task-list">
+        <li><span class="id">P3.S3</span><span class="name">Achievements</span><span class="els">MON — kit test screen (badge grid)</span></li>
+        <li><span class="id">P3.S1</span><span class="name">Gamification profile</span><span class="els">TUE — design the shell once</span></li>
+        <li><span class="id">P3.S2</span><span class="name">XP history</span><span class="els">TUE — tab variant of S1</span></li>
+        <li><span class="id">P3.S4</span><span class="name">Rank history</span><span class="els">TUE — tab variant of S1</span></li>
+        <li><span class="id">P3.S5</span><span class="name">Leaderboard</span><span class="els">WED — podium, ranked list, sticky banner</span></li>
+        <li><span class="id">P3.S6</span><span class="name">User profile</span><span class="els">WED — X-style banner, stats, tabs</span></li>
+      </ul>
+    </div>
+    <div class="task-group">
+      <div class="task-who">P4 — Social &amp; Blog <span class="count">9 screens</span></div>
+      <ul class="task-list">
+        <li><span class="id">P4.S1</span><span class="name">Social feed</span><span class="els">WED — compose box, post cards, FAB</span></li>
+        <li><span class="id">P4.S3</span><span class="name">Post detail + comments</span><span class="els">THU — nested comments</span></li>
+        <li><span class="id">P4.S2</span><span class="name">Community categories</span><span class="els">THU — list, join/leave</span></li>
+        <li><span class="id">P4.S4</span><span class="name">Compose post</span><span class="els">THU — form pattern</span></li>
+        <li><span class="id">P4.S5</span><span class="name">Profile tabs</span><span class="els">THU — posts, replies, lessons, XP</span></li>
+        <li><span class="id">P4.S6</span><span class="name">Blog list</span><span class="els">FRI — featured card, 2-col grid</span></li>
+        <li><span class="id">P4.S7</span><span class="name">Blog detail</span><span class="els">FRI — cover, content, related</span></li>
+        <li><span class="id">P4.S8</span><span class="name">Blog compose</span><span class="els">FRI — form pattern</span></li>
+        <li><span class="id">P4.S9</span><span class="name">Blog: my posts</span><span class="els">FRI — status pills + badges</span></li>
+      </ul>
+    </div>
+    <div class="tip">More screens, but the post card + form patterns repeat everywhere — after Wednesday's Social Feed, the blog screens are mostly assembly.</div>
+  </div>
+
+  <div class="section-label">Day by day</div>
+
+  <div class="day">
+    <div class="day-head">
+      <span class="day-num">MON</span>
+      <span class="day-title">Foundation day</span>
+      <span class="day-target">component kit + 2 screens</span>
+    </div>
+    <div class="day-desc">Screens are NOT the goal today. Turn the finished P1 screens into a proper reusable kit — extract their buttons, inputs, and headers into components, then add what P2–P5 need.</div>
+
+    <div class="task-group">
+      <div class="task-who">Together — morning</div>
+      <ul class="task-list">
+        <li><span class="id">AUDIT</span><span class="name">Componentize P1</span><span class="els">extract gold pill button, outline button, inputs, header, language toggle from the done auth screens into real Figma components</span></li>
+        <li><span class="id">COMP</span><span class="name">New components for P2–P5</span><span class="els">bottom nav, tab bar, lesson card, post card, XP badge, avatar, stat card, chat bubble</span></li>
+      </ul>
+    </div>
+    <div class="task-group">
+      <div class="task-who">Split — afternoon <span class="count">1 test screen each</span></div>
+      <ul class="task-list">
+        <li><span class="id">SOM</span><span class="name">P2.S2 Lesson catalog</span><span class="els">built from components only — proves lesson card + tabs</span></li>
+        <li><span class="id">PHA</span><span class="name">P3.S3 Achievements</span><span class="els">built from components only — proves cards + badges</span></li>
+      </ul>
+    </div>
+    <div class="tip">End-of-day review: fix the <b>components</b>, not the screens.</div>
+  </div>
+
+  <div class="day">
+    <div class="day-head">
+      <span class="day-num">TUE</span>
+      <span class="day-title">Momentum day</span>
+      <span class="day-target">cumulative: 7 screens</span>
+    </div>
+
+    <div class="task-group">
+      <div class="task-who">Sombath <span class="count">2 screens — both heavy</span></div>
+      <ul class="task-list">
+        <li><span class="id">P2.S1</span><span class="name">Home / Dashboard</span><span class="els">the most-seen screen in the app — worth a full morning</span></li>
+        <li><span class="id">P2.S3</span><span class="name">Lesson detail</span><span class="els">hero, "what you'll do" preview, exercise list</span></li>
+      </ul>
+    </div>
+    <div class="task-group">
+      <div class="task-who">Phaleap <span class="count">3 screens · 1 shell</span></div>
+      <ul class="task-list">
+        <li><span class="id">P3.S1</span><span class="name">Gamification profile</span><span class="els">design the shell once</span></li>
+        <li><span class="id">P3.S2</span><span class="name">XP history</span><span class="els">tab variant of S1 (S3 done Monday)</span></li>
+        <li><span class="id">P3.S4</span><span class="name">Rank history</span><span class="els">tab variant of S1</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="day">
+    <div class="day-head">
+      <span class="day-num">WED</span>
+      <span class="day-title">Showpiece day</span>
+      <span class="day-target">cumulative: 11 screens</span>
+    </div>
+
+    <div class="task-group">
+      <div class="task-who">Sombath <span class="count">1 screen · 3 frames · whole day</span></div>
+      <ul class="task-list">
+        <li><span class="id">P2.S4</span><span class="name">Read → Practice → Reflect</span><span class="els">Read stage (key-term taps, pace gate) · Practice stage (free-text + confidence) · Reflect stage (teach-back) — the one design no other team has</span></li>
+      </ul>
+    </div>
+    <div class="task-group">
+      <div class="task-who">Phaleap <span class="count">3 screens</span></div>
+      <ul class="task-list">
+        <li><span class="id">P3.S5</span><span class="name">Leaderboard</span><span class="els">scope toggle, top-3 podium, sticky banner</span></li>
+        <li><span class="id">P3.S6</span><span class="name">User profile</span><span class="els">X-style banner, stats bar, tabs</span></li>
+        <li><span class="id">P4.S1</span><span class="name">Social feed</span><span class="els">the template for every P4 screen after it</span></li>
+      </ul>
+    </div>
+    <div class="tip">P2.S4 is allowed to break the 2-hour rule — it's the whole reason judges will remember RIKSA.</div>
+  </div>
+
+  <div class="day">
+    <div class="day-head">
+      <span class="day-num">THU</span>
+      <span class="day-title">Finish the core app</span>
+      <span class="day-target">cumulative: 20 screens</span>
+    </div>
+
+    <div class="task-group">
+      <div class="task-who">Sombath <span class="count">5 screens — mostly light</span></div>
+      <ul class="task-list">
+        <li><span class="id">P2.S5</span><span class="name">Completion</span><span class="els">reflection quote, XP badge, rank-up, streak</span></li>
+        <li><span class="id">P2.S6</span><span class="name">Resume / in-progress</span><span class="els">progress card on Home + Learn</span></li>
+        <li><span class="id">P5.S1</span><span class="name">Chat session list</span><span class="els">mascot, empty state</span></li>
+        <li><span class="id">P5.S2</span><span class="name">Chat conversation</span><span class="els">context card (P5.S3) inline</span></li>
+      </ul>
+    </div>
+    <div class="task-group">
+      <div class="task-who">Phaleap <span class="count">4 screens</span></div>
+      <ul class="task-list">
+        <li><span class="id">P4.S3</span><span class="name">Post detail + comments</span><span class="els">nested comments, comment input</span></li>
+        <li><span class="id">P4.S2</span><span class="name">Community categories</span><span class="els">list, member counts, join/leave</span></li>
+        <li><span class="id">P4.S4</span><span class="name">Compose post</span><span class="els">form pattern</span></li>
+        <li><span class="id">P4.S5</span><span class="name">Profile tabs</span><span class="els">posts, replies, lessons, XP</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="day">
+    <div class="day-head">
+      <span class="day-num">FRI</span>
+      <span class="day-title">Blog + prototype + polish</span>
+      <span class="day-target">all 24 done + clickable demo</span>
+    </div>
+
+    <div class="task-group">
+      <div class="task-who">Phaleap — morning <span class="count">4 screens, fast assembly</span></div>
+      <ul class="task-list">
+        <li><span class="id">P4.S6</span><span class="name">Blog list</span><span class="els">featured card, 2-col grid</span></li>
+        <li><span class="id">P4.S7</span><span class="name">Blog detail</span><span class="els">cover, content, related</span></li>
+        <li><span class="id">P4.S8</span><span class="name">Blog compose</span><span class="els">form pattern</span></li>
+        <li><span class="id">P4.S9</span><span class="name">Blog: my posts</span><span class="els">status pills + badges</span></li>
+      </ul>
+    </div>
+    <div class="task-group">
+      <div class="task-who">Sombath — all day, then both together</div>
+      <ul class="task-list">
+        <li><span class="id">1</span><span class="name">Wire the demo flow</span><span class="els">screenDesign.md → "Demo Flow 3 minutes" as a clickable prototype (include the done P1 screens)</span></li>
+        <li><span class="id">2</span><span class="name">Consistency pass</span><span class="els">same spacing, header, bottom nav everywhere; new screens must match P1's style</span></li>
+        <li><span class="id">3</span><span class="name">Demo-critical states only</span><span class="els">empty state on Chat List + Social Feed, loading on Leaderboard</span></li>
+        <li><span class="id">4</span><span class="name">Stretch: P6 Admin wireframes</span><span class="els">only if done by mid-afternoon — grayscale, 6 screens</span></li>
+      </ul>
+    </div>
+    <div class="tip">Don't do states for all 24 screens — only where the demo could hit them.</div>
+  </div>
+
+  <div class="section-label">Daily rhythm — both</div>
+
+  <div class="day">
+    <ul class="rhythm">
+      <li><b>Start of day (10 min):</b> open this plan, confirm today's list.</li>
+      <li><b>End of day (15 min):</b> cross-review each other's screens against screenDesign.md element lists — Sombath also checks Phaleap's screens for visual polish, Phaleap checks Sombath's against the spec.</li>
+      <li>Anything unfinished rolls to tomorrow <b>before</b> new work starts.</li>
+      <li><b>2-hour rule:</b> if one screen takes more than 2 hours (except P2.S1 and P2.S4), simplify it and move on. Done and consistent beats perfect and missing.</li>
+    </ul>
+  </div>
+
+  <div class="section-label">Scoreboard</div>
+
+  <div class="day">
+    <table>
+      <tr><th>Day</th><th>Sombath</th><th>Phaleap</th><th>Cumulative</th></tr>
+      <tr><td class="num">MON</td><td>Kit + P2.S2</td><td>Kit + P3.S3</td><td>Component kit + 2 screens</td></tr>
+      <tr><td class="num">TUE</td><td>P2.S1 · P2.S3</td><td>P3.S1 · S2 · S4</td><td>7 screens</td></tr>
+      <tr><td class="num">WED</td><td>P2.S4 (3 frames)</td><td>P3.S5 · S6 · P4.S1</td><td>11 screens</td></tr>
+      <tr><td class="num">THU</td><td>P2.S5 · S6 · P5.S1 · S2 (+S3)</td><td>P4.S3 · S2 · S4 · S5</td><td>20 screens</td></tr>
+      <tr><td class="num">FRI</td><td>Prototype + polish</td><td>P4.S6–S9 → then polish</td><td>All 24 + clickable demo</td></tr>
+    </table>
+  </div>
+
+</main>
+
+<footer>
+  RIKSA — Figma Week Plan · <a href="index.html">Back to Screen Detail hub</a> · <a href="screenDesign.md">screenDesign.md</a>
+</footer>
+
+</body>
+</html>

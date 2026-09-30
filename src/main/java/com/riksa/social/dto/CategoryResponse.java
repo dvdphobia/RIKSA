@@ -9,5 +9,11 @@ public record CategoryResponse(
         String description,
         String iconUrl,
         int memberCount,
-        boolean joined
+        boolean joined,
+        boolean official,
+        boolean ownedByMe,
+        String postPermission,
+        UUID pinnedPostId,
+        String bannerUrl,
+        String bannerColor
 ) {}

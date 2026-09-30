@@ -3,12 +3,14 @@ package com.riksa.blog.controller;
 import com.riksa.blog.dto.*;
 import com.riksa.blog.enums.BlogStatus;
 import com.riksa.blog.service.BlogEngagementService;
-import com.riksa.blog.service.BlogModerationService;
 import com.riksa.blog.service.BlogService;
+import com.riksa.buddy.service.BuddyService;
+import com.riksa.common.constants.BlogEndpoints;
+import com.riksa.common.exception.ResourceNotFoundException;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
+// import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -16,15 +18,16 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/blog")
+@RequestMapping(BlogEndpoints.BASE)
 @RequiredArgsConstructor
 public class BlogController {
 
     private final BlogService blogService;
     private final BlogEngagementService blogEngagementService;
-    private final BlogModerationService blogModerationService;
 
-    @GetMapping
+    private final BuddyService buddyService;
+
+    @GetMapping(BlogEndpoints.ROOT)
     public ResponseEntity<BlogListResponse> listPosts(
             @RequestParam(defaultValue = "APPROVED") BlogStatus status,
             @RequestParam(required = false) UUID categoryId,
@@ -32,7 +35,14 @@ public class BlogController {
             @RequestParam(defaultValue = "20") int size) {
 
         UUID userId = getCurrentUserId();
-        var pageResult = blogService.listPosts(status, categoryId, page, size);
+        // Non-moderators can only see APPROVED posts
+        boolean isModerator = SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_MODERATOR")
+                        || a.getAuthority().equals("ROLE_ADMIN"));
+        BlogStatus effectiveStatus = isModerator ? status : BlogStatus.APPROVED;
+        int effectiveSize = Math.min(Math.max(size, 1), 100);
+        var pageResult = blogService.listPosts(effectiveStatus, categoryId, page, effectiveSize);
 
         var content = pageResult.getContent().stream()
                 .map(post -> BlogMapper.toResponse(post,
@@ -48,8 +58,8 @@ public class BlogController {
         ));
     }
 
-    @PostMapping
-    public ResponseEntity<BlogPostResponse> createPost(@RequestBody BlogPostRequest request) {
+    @PostMapping(BlogEndpoints.ROOT)
+    public ResponseEntity<BlogPostResponse> createPost(@RequestBody @Valid BlogPostRequest request) {
         UUID userId = getCurrentUserId();
         var post = blogService.createPost(
                 userId,
@@ -61,16 +71,80 @@ public class BlogController {
         return ResponseEntity.ok(BlogMapper.toResponse(post, false));
     }
 
-    @GetMapping("/{id}")
+    @PutMapping(BlogEndpoints.UPDATE)
+    public ResponseEntity<BlogPostResponse> updatePost(
+            @PathVariable UUID id, @RequestBody @Valid BlogPostRequest request) {
+        UUID userId = getCurrentUserId();
+        var post = blogService.updatePost(
+                userId,
+                id,
+                request.title(),
+                request.content(),
+                request.coverUrl(),
+                request.categoryId()
+        );
+        return ResponseEntity.ok(BlogMapper.toResponse(post, false));
+    }
+
+    @DeleteMapping(BlogEndpoints.DELETE)
+    public ResponseEntity<Void> deletePost(@PathVariable UUID id) {
+        blogService.deletePost(getCurrentUserId(), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping(BlogEndpoints.MY_POSTS)
+    public ResponseEntity<BlogListResponse> getMyPosts(
+            @RequestParam(required = false) BlogStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        UUID userId = getCurrentUserId();
+        int effectivePage = Math.max(page, 0);
+        int effectiveSize = Math.min(Math.max(size, 1), 100);
+        var pageResult = blogService.getMyPosts(userId, status, effectivePage, effectiveSize);
+
+        var content = pageResult.getContent().stream()
+                .map(post -> BlogMapper.toResponse(post,
+                        blogEngagementService.isLiked(post.getId(), userId)))
+                .toList();
+
+        return ResponseEntity.ok(new BlogListResponse(
+                content,
+                pageResult.getNumber(),
+                pageResult.getSize(),
+                pageResult.getTotalElements(),
+                pageResult.getTotalPages()
+        ));
+    }
+
+    @GetMapping(BlogEndpoints.POST)
     public ResponseEntity<BlogPostResponse> getPost(@PathVariable UUID id) {
         UUID userId = getCurrentUserId();
         var post = blogService.getPost(id);
+        // Non-moderators can only see APPROVED posts
+        boolean isModerator = SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_MODERATOR")
+                        || a.getAuthority().equals("ROLE_ADMIN"));
+        if (post.getStatus() != BlogStatus.APPROVED && !isModerator) {
+            throw new IllegalArgumentException("Blog post not found: " + id);
+        }
         blogEngagementService.trackView(id, userId);
         return ResponseEntity.ok(BlogMapper.toResponse(post,
                 blogEngagementService.isLiked(id, userId)));
     }
 
-    @PostMapping("/{id}/like")
+    @PostMapping(BlogEndpoints.READ_COMPLETE)
+    public ResponseEntity<Void> readComplete(@PathVariable UUID id) {
+        UUID userId = getCurrentUserId();
+        var post = blogService.getPost(id);
+        if (post.getStatus() != BlogStatus.APPROVED) {
+            throw new ResourceNotFoundException("Blog post not found: " + id);
+        }
+        buddyService.recordCare(userId, "BLOG_READ", id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(BlogEndpoints.LIKE)
     public ResponseEntity<BlogPostResponse> toggleLike(@PathVariable UUID id) {
         UUID userId = getCurrentUserId();
         var post = blogEngagementService.toggleLike(id, userId);
@@ -78,25 +152,11 @@ public class BlogController {
                 blogEngagementService.isLiked(id, userId)));
     }
 
-    @PostMapping("/{id}/view")
+    @PostMapping(BlogEndpoints.VIEW)
     public ResponseEntity<Void> trackView(@PathVariable UUID id) {
         UUID userId = getCurrentUserIdOrNull();
         blogEngagementService.trackView(id, userId);
         return ResponseEntity.ok().build();
-    }
-
-    @PatchMapping("/admin/{id}/status")
-    @PreAuthorize("hasRole('MODERATOR')")
-    public ResponseEntity<BlogPostResponse> moderatePost(
-            @PathVariable UUID id,
-            @RequestParam BlogStatus status,
-            @RequestBody(required = false) ModerationRequest request) {
-
-        var post = status == BlogStatus.APPROVED
-                ? blogModerationService.approve(id)
-                : blogModerationService.reject(id, request != null ? request.reason() : null);
-
-        return ResponseEntity.ok(BlogMapper.toResponse(post, false));
     }
 
     private UUID getCurrentUserId() {

@@ -3,19 +3,24 @@ package com.riksa.gamification.dto;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import java.util.UUID;
 
+import java.util.UUID;
 
 @Getter
 @Setter
 @NoArgsConstructor
 public class GamificationProfileResponse {
     private UUID userId;
-    private int totalXp;
-    private int currentStreak;
-    private int highestStreak;
+    private long totalXp;
+    private long xpBalance;
+    private long currentStreak;
+    private long highestStreak;
     private String currentTier;
     private String currentTierIcon;
+    /** XP at which the current tier begins, so clients can measure progress through the band. */
+    private long currentTierMinXp;
     private String nextTier;
-    private int xpToNext;
+    /** XP at which the next tier begins. Zero when the user is already at the highest tier. */
+    private long nextTierMinXp;
+    private long xpToNext;
 }

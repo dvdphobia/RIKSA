@@ -4,5 +4,6 @@ import java.util.UUID;
 
 public record UpdateCommentInput(
         UUID id,
-        String content
+        String content,
+        String mediaUrl
 ) {}

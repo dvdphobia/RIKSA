@@ -12,6 +12,7 @@ public record BlogPostResponse(
         String content,
         String coverUrl,
         BlogStatus status,
+        String rejectionReason,
         int viewCount,
         int likeCount,
         UUID categoryId,

@@ -14,6 +14,39 @@ type Category {
   iconUrl:     String
   memberCount: Int!
   joined:      Boolean!
+  # Curated by RIKSA staff; false for communities members created.
+  official:    Boolean!
+  # True when the signed-in viewer founded this community.
+  ownedByMe:   Boolean!
+  # The viewer's role here; null when they are not a member.
+  myRole:      CommunityRole
+  postPermission: PostPermission!
+  pinnedPostId: UUID
+  # A banner photo the owner uploaded, and/or a #RRGGBB banner colour.
+  bannerUrl:   String
+  bannerColor: String
+  rules:       [CommunityRule!]!
+}
+
+enum CommunityRole { OWNER MODERATOR MEMBER }
+# MEMBERS: any member may post. MODERATORS: only the owner and moderators.
+enum PostPermission { MEMBERS MODERATORS }
+
+type CommunityRule {
+  title: String!
+  body:  String
+}
+
+type CommunityMember {
+  user:     User!
+  role:     CommunityRole!
+  joinedAt: DateTime
+}
+
+type CommunityBan {
+  user:      User!
+  reason:    String
+  createdAt: DateTime
 }
 
 type User {
@@ -23,11 +56,18 @@ type User {
   avatarUrl:   String!
 }
 
+type PostMedia {
+  url:    String!
+  width:  Int
+  height: Int
+}
+
 type Post {
   id:            UUID!
   title:         String!
   content:       String!
   mediaUrl:      String
+  media:         [PostMedia!]!
   reactionCount: Int!
   commentCount:  Int!
   shareCount:    Int!
@@ -36,12 +76,15 @@ type Post {
   myReaction:    ReactionType
   createdAt:     DateTime!
   updatedAt:     DateTime!
+  kind:          PostKind!
+  milestone:     Milestone
   comments(cursor: UUID, limit: Int = 10): CommentPage!
 }
 
 type Comment {
   id:         UUID!
-  content:    String!
+  content:    String
+  mediaUrl:   String
   author:     User!
   postId:     UUID!
   parentId:   UUID
@@ -53,6 +96,15 @@ type Comment {
 
 # ── Enums ────────────────────────────────────────────
 enum ReactionType { UPVOTE DOWNVOTE HAHA LOVE }
+enum PostKind { USER MILESTONE }
+enum MilestoneType { STREAK RANK_UP UNIT_COMPLETE }
+
+type Milestone {
+  type: MilestoneType!
+  title: String!
+  titleKm: String!
+  value: Int
+}
 enum SharePlatform { TELEGRAM FACEBOOK COPY_LINK }
 
 # ── Pagination ───────────────────────────────────────
@@ -72,28 +124,74 @@ type PageInfo {
 }
 
 # ── Inputs ───────────────────────────────────────────
+# The server cleans and validates every field and picks the slug itself.
+input CreateCommunityInput {
+  name:        String!
+  description: String
+  iconUrl:     String
+}
+
+# Owner only. Null leaves a field unchanged; a rules list replaces every rule.
+input UpdateCommunityInput {
+  id:             UUID!
+  name:           String
+  description:    String
+  iconUrl:        String
+  clearIcon:      Boolean
+  postPermission: PostPermission
+  bannerUrl:      String
+  clearBanner:    Boolean
+  # #RRGGBB, or "" to go back to the subject colour.
+  bannerColor:    String
+  rules:          [CommunityRuleInput!]
+}
+
+input CommunityRuleInput {
+  title: String!
+  body:  String
+}
+
 input CreatePostInput {
-  title:      String!
+  # Optional, 0–200 characters; omitted titles are stored as an empty string.
+  title:      String
+  # May be empty when at least one image is supplied.
   content:    String!
+  media:      [PostMediaInput!]
+  # Deprecated. If both media and mediaUrl are supplied, media wins.
   mediaUrl:   String
   categoryId: UUID!
 }
 
+# Null title/content/media leaves that field unchanged; an empty media list
+# clears all images. Titles are limited to 200 characters.
 input UpdatePostInput {
-  id:      UUID!
-  title:   String
-  content: String
+  id:       UUID!
+  title:    String
+  content:  String
+  media:    [PostMediaInput!]
+  # Deprecated. If both media and mediaUrl are supplied, media wins.
+  mediaUrl: String
 }
 
+input PostMediaInput {
+  url:    String!
+  width:  Int
+  height: Int
+}
+
+# At least one of content / mediaUrl must be supplied.
 input CreateCommentInput {
   postId:   UUID!
-  content:  String!
+  content:  String
+  mediaUrl: String
   parentId: UUID
 }
 
+# null leaves a field unchanged; an empty string clears it.
 input UpdateCommentInput {
-  id:      UUID!
-  content: String!
+  id:       UUID!
+  content:  String
+  mediaUrl: String
 }
 
 input ReactInput {
@@ -109,9 +207,14 @@ input SharePostInput {
 
 # ── Query ────────────────────────────────────────────
 type Query {
-  feed(categoryId: UUID, cursor: UUID, limit: Int = 20): FeedPage!
+  feed(categoryId: UUID, authorId: UUID, cursor: UUID, limit: Int = 20): FeedPage!
   post(id: UUID!): Post
   categories: [Category!]!
+  community(id: UUID!): Category
+  # Owner first, then moderators, then members by join date.
+  communityMembers(categoryId: UUID!, query: String, limit: Int = 50): [CommunityMember!]!
+  # Owner and moderators only.
+  communityBans(categoryId: UUID!): [CommunityBan!]!
   comments(postId: UUID!, cursor: UUID, limit: Int = 20): CommentPage!
 }
 
@@ -132,4 +235,15 @@ type Mutation {
 
   joinCategory(categoryId: UUID!): Category!
   leaveCategory(categoryId: UUID!): Category!
+  createCommunity(input: CreateCommunityInput!): Category!
+
+  # Community management
+  updateCommunity(input: UpdateCommunityInput!): Category!
+  # Owner only; role is MODERATOR or MEMBER.
+  setCommunityMemberRole(categoryId: UUID!, userId: UUID!, role: CommunityRole!): CommunityMember!
+  # Owner and moderators; ban also keeps them from joining again.
+  removeCommunityMember(categoryId: UUID!, userId: UUID!, ban: Boolean = false, reason: String): Boolean!
+  unbanCommunityMember(categoryId: UUID!, userId: UUID!): Boolean!
+  # Owner and moderators; a null postId unpins.
+  pinCommunityPost(categoryId: UUID!, postId: UUID): Category!
 }

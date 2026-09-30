@@ -1,5 +1,6 @@
 package com.riksa.gamification.dto;
 
+import com.riksa.buddy.dto.BuddyLookResponse;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -14,7 +15,8 @@ public class LeaderboardEntryResponse {
     private UUID userId;
     private String displayName;
     private String avatarUrl;
-    private int totalXp;
+    private long totalXp;
     private String tierName;
     private String tierIcon;
+    private BuddyLookResponse buddy;
 }

@@ -9,7 +9,9 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "xp_transactions")
+@Table(name = "xp_transactions", indexes = {
+        @Index(name = "ux_xp_transactions_source", columnList = "user_id, source_type, source_id", unique = true)
+})
 @Getter
 @Setter
 public class XpTransaction {
@@ -22,7 +24,7 @@ public class XpTransaction {
     private UUID userId;
 
     @Column(nullable = false)
-    private int amount;
+    private long amount;
 
     @Column(name = "source_type", nullable = false, length = 50)
     private String sourceType;
@@ -31,7 +33,7 @@ public class XpTransaction {
     private UUID sourceId;
 
     @Column(name = "running_balance", nullable = false)
-    private int runningBalance;
+    private long runningBalance;
 
     @Column(name = "created_at", updatable = false)
     @CreationTimestamp

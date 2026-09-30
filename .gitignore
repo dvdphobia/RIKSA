@@ -63,3 +63,11 @@ build/
 
 ### General ###
 HELP.md
+
+
+
+agent.md
+.Claude/*
+
+# Admin panel bundle from a manual deploy (docs/deploy.md)
+riksa-admin.tgz

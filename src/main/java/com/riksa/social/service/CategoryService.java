@@ -18,6 +18,9 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final UserCategoryMembershipRepository membershipRepository;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private CommunityModerationService communityModeration;
+
     public List<Category> listCategories() {
         return categoryRepository.findAllByOrderByNameAsc();
     }
@@ -26,6 +29,9 @@ public class CategoryService {
     public Category joinCategory(UUID userId, UUID categoryId) {
         if (membershipRepository.existsByUserIdAndCategoryId(userId, categoryId)) {
             throw new IllegalStateException("Already a member of this category");
+        }
+        if (communityModeration != null) {
+            communityModeration.requireNotBanned(userId, categoryId);
         }
         UserCategoryMembership membership = new UserCategoryMembership();
         membership.setUserId(userId);
@@ -41,13 +47,18 @@ public class CategoryService {
         if (!membershipRepository.existsByUserIdAndCategoryId(userId, categoryId)) {
             throw new IllegalStateException("Not a member of this category");
         }
-        membershipRepository.deleteByUserIdAndCategoryId(userId, categoryId);
-
-        return categoryRepository.findById(categoryId)
+        Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+        // A founder leaving would strand the community with nobody to answer for it.
+        if (userId.equals(category.getCreatedBy())) {
+            throw new IllegalStateException("You can't leave a community you created");
+        }
+        membershipRepository.deleteByUserIdAndCategoryId(userId, categoryId);
+        return category;
     }
 
     public boolean isMember(UUID userId, UUID categoryId) {
+        if (userId == null) return false;
         return membershipRepository.existsByUserIdAndCategoryId(userId, categoryId);
     }
 

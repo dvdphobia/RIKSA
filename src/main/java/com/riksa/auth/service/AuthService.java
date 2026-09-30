@@ -1,32 +1,42 @@
 package com.riksa.auth.service;
 
 import com.riksa.auth.dto.*;
+import com.riksa.auth.event.UserProfileUpdatedEvent;
+import com.riksa.auth.avatar.AvatarCatalog;
 import com.riksa.auth.entity.Role;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.otp.OtpService;
 import com.riksa.auth.repository.ProvinceRepository;
 import com.riksa.auth.repository.UserRepository;
 import com.riksa.auth.security.JwtService;
+import com.riksa.auth.telegram.TelegramAuthRequest;
 import com.riksa.auth.token.EmailVerificationToken;
 import com.riksa.auth.token.EmailVerificationTokenRepository;
 import com.riksa.auth.token.RefreshToken;
 import com.riksa.auth.token.RefreshTokenRepository;
+import com.riksa.gamification.entity.UserGamification;
+import com.riksa.gamification.repository.UserGamificationRepository;
+import com.riksa.common.event.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.OffsetDateTime;
-import java.util.Random;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AuthService {
+
+    private final UserGamificationRepository userGamificationRepository;
 
     private final UserRepository userRepository;
     private final ProvinceRepository provinceRepository;
@@ -35,6 +45,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final OtpService otpService;
+    private final EventPublisher eventPublisher;
 
     @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
@@ -47,11 +58,6 @@ public class AuthService {
 
     @Value("${login.lockout-minutes:15}")
     private int lockoutMinutes;
-
-    private static final String[] AVAILABLE_AVATARS = {
-            "avatar-1.png", "avatar-2.png", "avatar-3.png", "avatar-4.png", "avatar-5.png",
-            "avatar-6.png", "avatar-7.png", "avatar-8.png", "avatar-9.png", "avatar-10.png"
-    };
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -78,17 +84,27 @@ public class AuthService {
         }
 
         User saved = userRepository.save(user);
+
+        // Create gamification row so the XP hot path doesn't crash on first lesson completion
+        UserGamification gamification = new UserGamification();
+        gamification.setUserId(saved.getId());
+        userGamificationRepository.save(gamification);
+
         sendEmailVerification(saved);
         return buildAuthResponse(saved);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid username or password"));
 
         if (user.isLocked()) {
             throw new IllegalArgumentException("Account is temporarily locked. Try again later.");
+        }
+
+        if (user.isSuspended()) {
+            throw new AccessDeniedException("Account suspended until " + user.getSuspendedUntil());
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -121,6 +137,11 @@ public class AuthService {
         refreshTokenRepository.save(stored);
 
         User user = stored.getUser();
+
+        if (user.isSuspended()) {
+            throw new AccessDeniedException("Account suspended until " + user.getSuspendedUntil());
+        }
+
         return buildAuthResponse(user);
     }
 
@@ -140,19 +161,47 @@ public class AuthService {
         return mapToProfile(user);
     }
 
+    @Transactional(readOnly = true)
+    public List<ProvinceResponse> getProvinces() {
+        return provinceRepository.findAllByOrderByNameLatinAsc().stream()
+                .map(province -> new ProvinceResponse(
+                        province.getId(),
+                        province.getNameKhmer(),
+                        province.getNameLatin()
+                ))
+                .toList();
+    }
+
     @Transactional
-    public UserProfileResponse updateProfile(UUID userId, String displayName, String bio, String gender, UUID provinceId) {
+    public UserProfileResponse updateProfile(
+            UUID userId,
+            String displayName,
+            String bio,
+            String gender,
+            UUID provinceId,
+            String avatarUrl,
+            Boolean shareMilestones
+    ) {
+        if (avatarUrl != null && !AvatarCatalog.isAvailable(avatarUrl)) {
+            throw new IllegalArgumentException("avatarUrl must be one of the bundled preset avatars");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if (displayName != null) user.setDisplayName(displayName);
         if (bio != null) user.setBio(bio);
         if (gender != null) user.setGender(gender);
+        if (avatarUrl != null) user.setAvatarUrl(avatarUrl);
+        if (shareMilestones != null) user.setShareMilestones(shareMilestones);
         if (provinceId != null) {
-            provinceRepository.findById(provinceId).ifPresent(user::setProvince);
+            user.setProvince(provinceRepository.findById(provinceId)
+                    .orElseThrow(() -> new IllegalArgumentException("Province not found")));
         }
 
-        return mapToProfile(userRepository.save(user));
+        User saved = userRepository.save(user);
+        eventPublisher.publish(new UserProfileUpdatedEvent(this, userId));
+        return mapToProfile(saved);
     }
 
     @Transactional
@@ -162,8 +211,9 @@ public class AuthService {
                 .or(() -> userRepository.findByTelegramId(identifier))
                 .orElseThrow(() -> new IllegalArgumentException("No account found for this identifier"));
 
-        if (user.getTelegramId() != null) {
-            otpService.generateOtp(user.getTelegramId());
+        String telegramChatId = telegramDeliveryChatId(user);
+        if (telegramChatId != null) {
+            otpService.generateOtp(telegramChatId);
         } else {
             throw new IllegalArgumentException("Password reset requires a verified Telegram account. Please contact support.");
         }
@@ -176,7 +226,11 @@ public class AuthService {
                 .or(() -> userRepository.findByTelegramId(identifier))
                 .orElseThrow(() -> new IllegalArgumentException("No account found for this identifier"));
 
-        boolean verified = otpService.verifyOtp(user.getTelegramId(), code);
+        String telegramChatId = telegramDeliveryChatId(user);
+        if (telegramChatId == null) {
+            throw new IllegalArgumentException("This account does not have a linked Telegram chat");
+        }
+        boolean verified = otpService.verifyOtp(telegramChatId, code);
         if (!verified) {
             throw new IllegalArgumentException("Invalid or expired OTP code");
         }
@@ -223,6 +277,52 @@ public class AuthService {
         return verified;
     }
 
+    @Transactional
+    public AuthResponse telegramAuth(TelegramAuthRequest request) {
+        String telegramId = request.getIdentifier();
+        if (!otpService.verifyOtp(telegramId, request.getCode())) {
+            throw new IllegalArgumentException("Invalid or expired OTP code");
+        }
+
+        User user = userRepository.findByTelegramId(telegramId).orElse(null);
+        if (user == null) {
+            String username = request.getUsername();
+            String displayName = request.getDisplayName();
+            if (username == null || username.isBlank()
+                    || displayName == null || displayName.isBlank()) {
+                throw new IllegalArgumentException(
+                        "Username and display name are required for a new Telegram account"
+                );
+            }
+            if (userRepository.existsByUsername(username)) {
+                throw new IllegalArgumentException("Username is already taken");
+            }
+
+            user = new User();
+            user.setTelegramId(telegramId);
+            user.setTelegramChatId(telegramId);
+            user.setUsername(username);
+            user.setDisplayName(displayName);
+            user.setRole(Role.USER);
+            user.setPhoneVerified(true);
+            user.setAvatarUrl(generateRandomAvatar());
+            user = userRepository.save(user);
+
+            UserGamification gamification = new UserGamification();
+            gamification.setUserId(user.getId());
+            userGamificationRepository.save(gamification);
+        } else {
+            if (user.isSuspended()) {
+                throw new AccessDeniedException("Account suspended until " + user.getSuspendedUntil());
+            }
+            user.setPhoneVerified(true);
+            user.setTelegramChatId(telegramId);
+            user = userRepository.save(user);
+        }
+
+        return buildAuthResponse(user);
+    }
+
     // --- Private helpers ---
 
     private void handleFailedLogin(User user) {
@@ -246,8 +346,9 @@ public class AuthService {
 
         emailVerificationTokenRepository.save(verificationToken);
 
-        // Stub: In production, send email with verification link
-        log.info("Email verification token for {}: /api/auth/verify-email?token={}", user.getEmail(), token);
+        // Stub: replace this with an email provider before enabling email verification in production.
+        // Never log verification tokens, even in development.
+        log.info("Email verification token generated for {}", user.getEmail());
     }
 
     private AuthResponse buildAuthResponse(User user) {
@@ -277,12 +378,20 @@ public class AuthService {
                 user.getPhoneVerified(),
                 user.getRole().name(),
                 user.getCountryId(),
-                user.getCreatedAt()
+                user.getProvince() == null ? null : user.getProvince().getId(),
+                user.getCreatedAt(),
+                user.isShareMilestones()
         );
     }
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private String generateRandomAvatar() {
-        Random random = new Random();
-        return AVAILABLE_AVATARS[random.nextInt(AVAILABLE_AVATARS.length)];
+        var availableAvatars = AvatarCatalog.availableAvatars();
+        return availableAvatars.get(SECURE_RANDOM.nextInt(availableAvatars.size()));
+    }
+
+    private String telegramDeliveryChatId(User user) {
+        return user.getTelegramChatId() != null ? user.getTelegramChatId() : user.getTelegramId();
     }
 }

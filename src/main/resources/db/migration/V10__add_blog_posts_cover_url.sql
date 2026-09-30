@@ -1,0 +1,2 @@
+ALTER TABLE "blog_posts"
+    ADD COLUMN IF NOT EXISTS cover_url VARCHAR(255);

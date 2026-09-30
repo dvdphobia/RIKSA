@@ -48,7 +48,7 @@
 | `GET` | `/api/v1/gamification/me` | Bearer JWT | — | `GamificationProfileResponse` | — |
 | `GET` | `/api/v1/gamification/xp` | Bearer JWT | `?cursor=<base64>&limit=20` | `CursorPage<XpTransactionResponse>` | ✅ |
 | `GET` | `/api/v1/gamification/achievements` | Bearer JWT | — | `List<AchievementResponse>` | — |
-| `GET` | `/api/v1/gamification/rank-history` | Bearer JWT | — | `List<RankHistoryResponse>` | — |
+| `GET` | `/api/v1/gamification/rank-history` | Bearer JWT | `?cursor=<base64>&limit=20` | `CursorPage<RankHistoryResponse>` | ✅ |
 | `GET` | `/api/v1/gamification/streak` | Bearer JWT | — | `StreakResponse` | — |
 | `GET` | `/api/v1/gamification/leaderboard` | Bearer JWT | `?cursor=<base64>&limit=20` | `CursorPage<LeaderboardEntryResponse>` | ✅ |
 
@@ -87,11 +87,12 @@
 
 | # | What | Notes |
 |---|------|-------|
-| 1 | `XP grant / streak bump` hot path | Need a service method that uses `findByIdForUpdate` (PESSIMISTIC_WRITE), increments `totalXp`, inserts `XpTransaction` with `runningBalance`, checks streak (compare `lastCompletedAt` to cutoff), and potentially inserts `RankHistory` on tier change. Callers: lesson completion, task completion, daily challenge. |
-| 2 | `Achievement check/earn` | After XP grant, check if any unearned achievements now meet criteria. Need to compare `totalXp`, completed lessons, streak, etc. against achievement definitions. |
-| 3 | `RankHistory` insertion logic | Detect tier change during XP grant and insert a `RankHistory` row. |
-| 4 | `LeaderboardSnapshot` batch job | Scheduled job that runs daily/weekly to materialize `LeaderboardSnapshot` rows. The entity + repo are already in `com.riksa.leaderboard`. |
-| 5 | Lesson completion → XP pipeline | Wire `Lesson` entity to actual course completion events. The `Lesson` entity (baseXp, difficulty) is designed for this but no completion logic exists yet. |
+| 1 | ~~XP grant / streak bump hot path~~ | ✅ DONE — XpLedgerService, StreakService, RankService, AchievementService + listeners all implemented. LessonCompletedEvent published by LessonCompletionService. |
+| 2 | ~~Achievement check/earn~~ | ✅ DONE — AchievementService + AchievementListener implemented. |
+| 3 | ~~RankHistory insertion logic~~ | ✅ DONE — RankService + RankListener implemented. |
+| 4 | ~~LeaderboardSnapshot batch job~~ | ✅ DONE — LeaderboardRefreshJob (@Scheduled every 5 min) + LeaderboardSnapshotService. |
+| 5 | ~~Lesson completion → XP pipeline~~ | ✅ DONE — LessonController + LessonCompletionService implemented. Publishes LessonCompletedEvent which triggers the full gamification hot path. |
+| 6 | AI Chat module | Schema exists (chat_sessions, chat_messages) but no Java code. Out of scope for v1. |
 
 ---
 
@@ -100,6 +101,22 @@
 - `GamificationService` now depends on `UserRepository` (from `com.riksa.auth`) — for leaderboard displayName/avatarUrl lookups. Batch-loaded via `findAllById()`.
 - `GamificationService` now depends on `ObjectMapper` (from Jackson, auto-configured by Spring Boot) — for cursor encode/decode.
 - `GamificationService` now depends on `RankHistoryRepository` and `StreakMilestoneRepository`.
+
+The remaining 20% is the hot-path write pipeline — the actual logic that grants XP when a user completes a lesson/task, updates their streak, checks if they earned an achievement, and inserts rank history on tier change. That's the hardest part.
+
+---
+
+## Redis Infrastructure — Implemented (Aug 22, 2026)
+
+- Redis 8.2 is part of Docker Compose and Spring Boot uses Lettuce through `spring-boot-starter-data-redis`.
+- Auth endpoint rate limits use atomic Redis Lua counters with TTLs and fail closed with HTTP 503 when Redis is unavailable.
+- OTP codes are HMAC-SHA256 hashed, stored with TTLs, verified atomically, and single-use. PostgreSQL lookup remains temporarily as a migration fallback for old OTPs.
+- Telegram auth challenges use Redis TTL storage for new flows with a PostgreSQL fallback for challenges created before deployment.
+- JWT user security state and short-lived gamification responses use Redis-backed Spring Cache with PostgreSQL fallback on cache errors.
+- Current country/province leaderboards use Redis sorted sets with `totalXp + currentStreak * 5`; PostgreSQL snapshots remain the historical/fallback source.
+- XP, streak, and profile events update Redis leaderboard projections after transaction commit.
+- Leaderboard refresh, streak reset, and token cleanup jobs use Redis-backed ShedLock coordination.
+- Redis integration tests use Testcontainers and automatically skip when Docker is unavailable.
 
 ---
 

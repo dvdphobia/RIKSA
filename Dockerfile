@@ -1,24 +1,23 @@
 # Build stage
-FROM eclipse-temurin:21-jdk-jammy AS build
+FROM maven:3.9.16-eclipse-temurin-21 AS build
 WORKDIR /app
 
-COPY mvnw .
-COPY .mvn .mvn
 COPY pom.xml .
-RUN chmod +x mvnw && ./mvnw dependency:go-offline -B
+RUN mvn dependency:go-offline -B
 
 COPY src src
-RUN ./mvnw package -DskipTests -B
+RUN mvn package -DskipTests -B
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 RUN addgroup --system app && adduser --system --ingroup app app
 
 COPY --from=build /app/target/*.jar app.jar
 
-RUN chown app:app app.jar
+RUN mkdir -p /app/uploads/media && chown -R app:app /app
 
 USER app
 

@@ -1,0 +1,2 @@
+ALTER TABLE "users"
+    ADD COLUMN IF NOT EXISTS leaderboard_excluded BOOLEAN NOT NULL DEFAULT FALSE;

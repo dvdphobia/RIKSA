@@ -17,17 +17,23 @@ import java.util.UUID;
 @Repository
 public interface UserGamificationRepository extends JpaRepository<UserGamification, UUID> {
 
+    long countByTotalXpGreaterThanEqual(long minimumXp);
+
+    long countByTotalXpGreaterThanEqualAndTotalXpLessThan(long minimumXp, long upperExclusiveXp);
+
+    List<UserGamification> findAllByUserIdIn(java.util.Collection<UUID> userIds);
+
     Optional<UserGamification> findByUserId(UUID userId);
 
     List<UserGamification> findAllByOrderByTotalXpDesc(Pageable pageable);
 
     @Query("""
         SELECT ug FROM UserGamification ug
-        WHERE (:cursorXp IS NULL OR ug.totalXp < :cursorXp
+        WHERE (ug.totalXp < :cursorXp
                OR (ug.totalXp = :cursorXp AND ug.userId > :cursorUserId))
         ORDER BY ug.totalXp DESC, ug.userId ASC
     """)
-    List<UserGamification> findLeaderboardAfterCursor(@Param("cursorXp") Integer cursorXp,
+    List<UserGamification> findLeaderboardAfterCursor(@Param("cursorXp") Long cursorXp,
                                                        @Param("cursorUserId") UUID cursorUserId,
                                                        Pageable pageable);
 
@@ -50,4 +56,24 @@ public interface UserGamificationRepository extends JpaRepository<UserGamificati
     Optional<UserGamification> findByIdOptimistic(@Param("userId") UUID userId);
 
     boolean existsByUserId(UUID userId);
+
+    @Query("""
+        SELECT CASE
+                 WHEN ug.currentStreak = 0 THEN '0'
+                 WHEN ug.currentStreak BETWEEN 1 AND 2 THEN '1-2'
+                 WHEN ug.currentStreak BETWEEN 3 AND 6 THEN '3-6'
+                 WHEN ug.currentStreak BETWEEN 7 AND 13 THEN '7-13'
+                 WHEN ug.currentStreak BETWEEN 14 AND 29 THEN '14-29'
+                 ELSE '30+'
+               END AS bucket,
+               COUNT(ug) AS userCount
+        FROM UserGamification ug
+        GROUP BY bucket
+    """)
+    List<StreakBucketCount> findStreakHistogram();
+
+    interface StreakBucketCount {
+        String getBucket();
+        long getUserCount();
+    }
 }
