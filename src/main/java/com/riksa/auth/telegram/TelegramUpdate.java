@@ -18,12 +18,28 @@ public record TelegramUpdate(
             @JsonProperty("message_id") Long messageId,
             TelegramChat chat,
             TelegramUser from,
-            String text
+            String text,
+            TelegramContact contact
     ) {
+        public TelegramMessage(Long messageId, TelegramChat chat, TelegramUser from, String text) {
+            this(messageId, chat, from, text, null);
+        }
+
         public TelegramMessage(TelegramChat chat, TelegramUser from, String text) {
-            this(null, chat, from, text);
+            this(null, chat, from, text, null);
         }
     }
+
+    /**
+     * A shared contact card. {@code userId} is set only when the card belongs to a
+     * Telegram user, and equals the sender's id when they shared their own number.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record TelegramContact(
+            @JsonProperty("phone_number") String phoneNumber,
+            @JsonProperty("first_name") String firstName,
+            @JsonProperty("user_id") Long userId
+    ) {}
 
     /** Sent when the user taps an inline button such as Confirm. */
     @JsonIgnoreProperties(ignoreUnknown = true)

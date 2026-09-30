@@ -4,6 +4,7 @@ import com.riksa.auth.dto.*;
 import com.riksa.auth.google.GoogleAuthRequest;
 import com.riksa.auth.otp.OtpSendRequest;
 import com.riksa.auth.otp.OtpVerifyRequest;
+import com.riksa.auth.telegram.PhoneVerificationService;
 import com.riksa.auth.telegram.TelegramAuthCompleteRequest;
 import com.riksa.auth.telegram.TelegramAuthFlowService;
 import com.riksa.auth.telegram.TelegramAuthRequest;
@@ -38,6 +39,7 @@ public class AuthController {
     private final OAuth2Service oAuth2Service;
     private final JwtService jwtService;
     private final TelegramAuthFlowService telegramAuthFlowService;
+    private final PhoneVerificationService phoneVerificationService;
 
     @PostMapping(AuthEndpoints.REGISTER)
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
@@ -106,6 +108,14 @@ public class AuthController {
     ) {
         telegramAuthFlowService.link(extractUserId(authHeader), request);
         return ResponseEntity.ok(new MessageResponse("Telegram account linked successfully"));
+    }
+
+    /** Returns the bot link that verifies the signed-in user's phone through Telegram. */
+    @PostMapping(AuthEndpoints.PHONE_VERIFY_START)
+    public ResponseEntity<PhoneVerificationService.StartResponse> startPhoneVerification(
+            @RequestHeader("Authorization") String authHeader
+    ) {
+        return ResponseEntity.ok(phoneVerificationService.start(extractUserId(authHeader)));
     }
 
     @PostMapping(AuthEndpoints.TELEGRAM_WEBHOOK)

@@ -24,12 +24,17 @@ public class TelegramService {
     }
 
     public void sendMessage(String chatId, String text, InlineKeyboard keyboard) {
+        sendWithMarkup(chatId, text, keyboard);
+    }
+
+    /** Sends with any reply markup: an inline keyboard, a reply keyboard or its removal. */
+    public void sendWithMarkup(String chatId, String text, Object markup) {
         if (!telegramConfig.isEnabled()) {
             log.info("Telegram disabled - message delivery skipped");
             return;
         }
         try {
-            post("sendMessage", new SendMessageRequest(chatId, text, "HTML", true, keyboard));
+            post("sendMessage", new SendMessageRequest(chatId, text, "HTML", true, markup));
             log.info("Telegram message sent to chatId {}", chatId);
         } catch (Exception e) {
             log.error("Failed to send Telegram message to chatId {} ({})", chatId, e.getClass().getSimpleName());
@@ -143,7 +148,22 @@ public class TelegramService {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private record SendMessageRequest(
             String chat_id, String text, String parse_mode, boolean disable_web_page_preview,
-            InlineKeyboard reply_markup) {}
+            Object reply_markup) {}
+
+    /** A keyboard under the chat input, e.g. with a "Share my phone number" button. */
+    public record ReplyKeyboard(
+            List<List<KeyboardButton>> keyboard, boolean resize_keyboard, boolean one_time_keyboard) {}
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record KeyboardButton(String text, Boolean request_contact) {
+        public static KeyboardButton shareContact(String text) {
+            return new KeyboardButton(text, true);
+        }
+    }
+
+    public record ReplyKeyboardRemove(boolean remove_keyboard) {
+        public static final ReplyKeyboardRemove INSTANCE = new ReplyKeyboardRemove(true);
+    }
 
     private record EditMessageRequest(
             String chat_id, Long message_id, String text, String parse_mode, boolean disable_web_page_preview) {}

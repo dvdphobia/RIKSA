@@ -30,4 +30,5 @@ public final class AuthEndpoints {
     public static final String FORGOT_PASSWORD = "/forgot-password";
     public static final String RESET_PASSWORD = "/reset-password";
     public static final String VERIFY_EMAIL = "/verify-email";
+    public static final String PHONE_VERIFY_START = "/phone/verify/start";
 }

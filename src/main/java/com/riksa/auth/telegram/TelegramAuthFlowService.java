@@ -82,6 +82,9 @@ public class TelegramAuthFlowService {
     @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private PhoneVerificationService phoneVerification;
+
     // ---------------------------------------------------------------- app API
 
     public TelegramBotInfoResponse botInfo() {
@@ -234,12 +237,21 @@ public class TelegramAuthFlowService {
         }
 
         TelegramUpdate.TelegramMessage message = update.message();
-        if (message == null || message.chat() == null || message.from() == null || message.text() == null) {
+        if (message == null || message.chat() == null || message.from() == null) {
             return;
         }
         if (!"private".equals(message.chat().type())
                 || Boolean.TRUE.equals(message.from().bot())
                 || !message.chat().id().equals(message.from().id())) {
+            return;
+        }
+        if (message.contact() != null) {
+            if (phoneVerification == null || !phoneVerification.handleContact(message)) {
+                telegramService.sendMessage(message.chat().id().toString(), TelegramBotMessages.help());
+            }
+            return;
+        }
+        if (message.text() == null) {
             return;
         }
 
@@ -252,6 +264,10 @@ public class TelegramAuthFlowService {
             case "/start" -> {
                 if (parts.length == 2 && parts[1].startsWith(LOGIN_PAYLOAD_PREFIX)) {
                     handleLoginLink(message, parts[1].substring(LOGIN_PAYLOAD_PREFIX.length()));
+                } else if (parts.length == 2 && phoneVerification != null
+                        && parts[1].startsWith(PhoneVerificationService.PAYLOAD_PREFIX)) {
+                    phoneVerification.handleStart(
+                            message, parts[1].substring(PhoneVerificationService.PAYLOAD_PREFIX.length()));
                 } else {
                     // First contact, or someone opening the bot directly: hand out a code.
                     sendLoginCode(message);

@@ -78,6 +78,40 @@ final class TelegramBotMessages {
                 + "New to Riksa? Both options create your account.";
     }
 
+    static final String PHONE_SHARE_BUTTON = "📱 Share my phone number";
+
+    static String phoneSharePrompt() {
+        return "📱 <b>Verify your phone for Riksa</b>\n\n"
+                + "Tap <b>Share my phone number</b> below. Telegram sends us the number on your "
+                + "Telegram account, so there's no SMS code to type.\n\n"
+                + "🔒 Only you and Riksa staff can see it.";
+    }
+
+    static String phoneVerified(String maskedPhone) {
+        return "✅ <b>Phone verified!</b>\n\n" + escape(maskedPhone)
+                + " is now on your Riksa account. Go back to the app.";
+    }
+
+    static String phoneNotOwnContact() {
+        return "⚠️ Please use the <b>Share my phone number</b> button to send <b>your own</b> number. "
+                + "Forwarded contacts can't be used.";
+    }
+
+    static String phoneTaken() {
+        return "⚠️ This number or Telegram account is already used by another Riksa account.\n\n"
+                + "If that's your old account, sign in to it instead.";
+    }
+
+    static String phoneWrongTelegram() {
+        return "⚠️ Your Riksa account is linked to a different Telegram account. "
+                + "Open this link from that Telegram account instead.";
+    }
+
+    static String phoneLinkExpired() {
+        return "⌛ This verification link has expired. Go back to the Riksa app and tap "
+                + "<b>Verify phone</b> again.";
+    }
+
     private static String fallbackName(String name) {
         return name == null || name.isBlank() ? "there" : name;
     }
