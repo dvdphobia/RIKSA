@@ -73,6 +73,31 @@ class RoadmapServiceTest {
     }
 
     @Test
+    void roadmapLessonSummaryResolvesBackgroundFromTheLessonThenTheSubject() {
+        Category category = new Category();
+        category.setId(UUID.randomUUID());
+        category.setName("Chemistry");
+        category.setBackgroundKey("chemistry");
+        category.setBackgroundImageUrl("https://subject.example/chem.png");
+        RoadmapUnit unit = unit(category, 1, "Atoms");
+        Lesson inherited = lesson(unit, 1, "Elements");
+        Lesson overridden = lesson(unit, 2, "Bonds");
+        overridden.setBackgroundKey("none");
+        overridden.setBackgroundImageUrl("https://lesson.example/bonds.png");
+
+        when(unitRepository.findByCategoryIdOrderByPositionAsc(category.getId())).thenReturn(List.of(unit));
+        when(lessonRepository.findRoadmapLessons(List.of(unit.getId()))).thenReturn(List.of(inherited, overridden));
+        when(exerciseRepository.findByLessonIdIn(anyList())).thenReturn(List.of());
+
+        var lessons = service().getRoadmap(null, category.getId()).units().getFirst().lessons();
+
+        assertThat(lessons.get(0).backgroundKey()).isEqualTo("chemistry");
+        assertThat(lessons.get(0).backgroundImageUrl()).isEqualTo("https://subject.example/chem.png");
+        assertThat(lessons.get(1).backgroundKey()).isEqualTo("none");
+        assertThat(lessons.get(1).backgroundImageUrl()).isEqualTo("https://lesson.example/bonds.png");
+    }
+
+    @Test
     void checksUnitOnlyWhenEveryLessonIsCompleted() {
         UUID userId = UUID.randomUUID();
         Category category = new Category();

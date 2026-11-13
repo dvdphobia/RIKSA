@@ -3,8 +3,10 @@ package com.riksa.admin.service;
 import com.riksa.admin.dto.CategoryRequest;
 import com.riksa.admin.dto.CategoryResponse;
 import com.riksa.common.exception.ResourceNotFoundException;
+import com.riksa.learning.service.LessonBackgrounds;
 import com.riksa.social.entity.Category;
 import com.riksa.social.repository.CategoryRepository;
+import com.riksa.social.service.UploadedMediaUrlValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ import java.util.UUID;
 public class CategoryAdminService {
 
     private final CategoryRepository categoryRepository;
+    private final UploadedMediaUrlValidator uploadedMediaUrlValidator;
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> list() {
@@ -47,6 +50,7 @@ public class CategoryAdminService {
         category.setSlug(req.getSlug());
         category.setDescription(req.getDescription());
         category.setIconUrl(req.getIconUrl());
+        applyBackground(category, req);
         category.setOfficial(true);
         category = categoryRepository.save(category);
 
@@ -71,6 +75,7 @@ public class CategoryAdminService {
         category.setSlug(req.getSlug());
         category.setDescription(req.getDescription());
         category.setIconUrl(req.getIconUrl());
+        applyBackground(category, req);
         category = categoryRepository.save(category);
 
         return toResponse(category);
@@ -84,6 +89,18 @@ public class CategoryAdminService {
         categoryRepository.delete(category);
     }
 
+    private void applyBackground(Category category, CategoryRequest req) {
+        category.setBackgroundKey(LessonBackgrounds.normalizeKey(req.getBackgroundKey()));
+        category.setBackgroundImageUrl(normalizeImage(req.getBackgroundImageUrl()));
+    }
+
+    private String normalizeImage(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        return uploadedMediaUrlValidator.normalize(raw);
+    }
+
     private CategoryResponse toResponse(Category category) {
         CategoryResponse resp = new CategoryResponse();
         resp.setId(category.getId());
@@ -91,6 +108,8 @@ public class CategoryAdminService {
         resp.setSlug(category.getSlug());
         resp.setDescription(category.getDescription());
         resp.setIconUrl(category.getIconUrl());
+        resp.setBackgroundKey(category.getBackgroundKey());
+        resp.setBackgroundImageUrl(category.getBackgroundImageUrl());
         resp.setCreatedAt(category.getCreatedAt());
         resp.setUpdatedAt(category.getUpdatedAt());
         return resp;

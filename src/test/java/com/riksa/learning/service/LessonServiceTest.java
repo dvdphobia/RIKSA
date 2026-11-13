@@ -10,6 +10,7 @@ import com.riksa.learning.repository.ExerciseRepository;
 import com.riksa.learning.repository.ExerciseAttemptRepository;
 import com.riksa.learning.repository.LessonCompletionRepository;
 import com.riksa.learning.repository.LessonRepository;
+import com.riksa.social.entity.Category;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -104,5 +105,42 @@ class LessonServiceTest {
 
         assertThat(response.isCompleted()).isFalse();
         assertThat(response.getExplanation()).isNull();
+    }
+
+    @Test
+    void lessonPayloadsResolveBackgroundFromTheLessonThenTheSubject() {
+        UUID userId = UUID.randomUUID();
+        UUID lessonId = UUID.randomUUID();
+        Category category = new Category();
+        category.setId(UUID.randomUUID());
+        category.setName("Physics");
+        category.setBackgroundKey("physics");
+        category.setBackgroundImageUrl("https://subject.example/physics.png");
+        Lesson lesson = new Lesson();
+        lesson.setId(lessonId);
+        lesson.setTitle("Forces");
+        lesson.setCategory(category);
+        when(lessonRepository.findByCategoryIdOrderByPositionAsc(eq(category.getId()), any()))
+                .thenReturn(new PageImpl<>(List.of(lesson)));
+        when(exerciseRepository.countByLessonIds(List.of(lessonId))).thenReturn(List.of());
+        when(completionRepository.findByUserIdAndLessonIdIn(userId, List.of(lessonId))).thenReturn(List.of());
+        when(progressionService.getState(userId, lesson)).thenReturn(LessonProgressState.AVAILABLE);
+
+        LessonService service = new LessonService(lessonRepository, exerciseRepository, exerciseAttemptRepository,
+                completionRepository, progressionService);
+        var listed = service.listLessons(userId, category.getId(), null, 0, 20).getContent().getFirst();
+
+        assertThat(listed.getBackgroundKey()).isEqualTo("physics");
+        assertThat(listed.getBackgroundImageUrl()).isEqualTo("https://subject.example/physics.png");
+
+        lesson.setBackgroundKey("none");
+        lesson.setBackgroundImageUrl("https://lesson.example/forces.png");
+        when(progressionService.requireAccessible(userId, lessonId)).thenReturn(lesson);
+        when(exerciseRepository.findByLessonId(lessonId)).thenReturn(List.of());
+
+        var detail = service.getLesson(userId, lessonId);
+
+        assertThat(detail.getBackgroundKey()).isEqualTo("none");
+        assertThat(detail.getBackgroundImageUrl()).isEqualTo("https://lesson.example/forces.png");
     }
 }
