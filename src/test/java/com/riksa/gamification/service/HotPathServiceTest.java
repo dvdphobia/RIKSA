@@ -197,6 +197,25 @@ class StreakServiceTest {
     }
 
     @Test
+    void updateStreak_olderCompletionDoesNotMoveStateBackward() {
+        UUID userId = UUID.randomUUID();
+        UserGamification ug = new UserGamification();
+        ug.setUserId(userId);
+        ug.setCurrentStreak(5);
+        ug.setHighestStreak(5);
+        ug.setLastCompletedAt(OffsetDateTime.parse("2026-11-10T09:00:00+07:00"));
+        when(userGamificationRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(ug));
+
+        long result = streakService.updateStreak(
+                userId, OffsetDateTime.parse("2026-11-09T18:00:00Z"));
+
+        assertThat(result).isEqualTo(5);
+        assertThat(ug.getLastCompletedAt()).isEqualTo(OffsetDateTime.parse("2026-11-10T09:00:00+07:00"));
+        verify(userGamificationRepository, never()).save(any());
+        verify(eventPublisher, never()).publish(any());
+    }
+
+    @Test
     void updateStreak_missedDay_resetsTo1() {
         UUID userId = UUID.randomUUID();
         UserGamification ug = new UserGamification();

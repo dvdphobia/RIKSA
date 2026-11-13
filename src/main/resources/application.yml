@@ -75,6 +75,15 @@ otp:
   code-length: ${OTP_CODE_LENGTH:6}
   hash-secret: ${OTP_HASH_SECRET:${JWT_SECRET:CHANGE-ME-IN-PRODUCTION-MUST-BE-256-BITS-OR-LONGER}}
 
+resend:
+  email:
+    # Disabled by default. When enabled, all three delivery values are required.
+    enabled: ${RESEND_ENABLED:false}
+    api-key: ${RESEND_API_KEY:}
+    from: ${RESEND_FROM:}
+    # Public HTTPS URL of the backend-hosted confirmation page.
+    confirmation-url: ${RESEND_CONFIRMATION_URL:}
+
 telegram:
   enabled: ${TELEGRAM_ENABLED:true}
   bot-token: ${TELEGRAM_BOT_TOKEN:}

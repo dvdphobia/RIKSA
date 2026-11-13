@@ -57,6 +57,17 @@ public class XpLedgerService {
     @CacheEvict(cacheNames = CacheNames.GAMIFICATION_PROFILE, key = "#userId.toString()",
             condition = "@redisCacheFeatureSwitch.enabled()")
     public long awardXp(UUID userId, int amount, String sourceType, UUID sourceId) {
+        return awardXpAndGetResult(userId, amount, sourceType, sourceId).totalXp();
+    }
+
+    /**
+     * Award XP and report the amount actually recorded after boosts and caps.
+     * Source-backed retries return the amount from the original ledger entry.
+     */
+    @Transactional
+    @CacheEvict(cacheNames = CacheNames.GAMIFICATION_PROFILE, key = "#userId.toString()",
+            condition = "@redisCacheFeatureSwitch.enabled()")
+    public XpAwardResult awardXpAndGetResult(UUID userId, int amount, String sourceType, UUID sourceId) {
         if (amount <= 0) {
             throw new IllegalArgumentException("XP amount must be positive, got: " + amount);
         }
@@ -70,11 +81,11 @@ public class XpLedgerService {
         // A completion event can be retried after an infrastructure failure.
         // Source-backed rewards must be idempotent; source-less rewards retain
         // their existing behavior because they do not identify a single action.
-        if (sourceId != null && xpTransactionRepository
-                .findByUserIdAndSourceTypeAndSourceId(userId, sourceType, sourceId)
-                .isPresent()) {
+        var existingTransaction = sourceId == null ? java.util.Optional.<XpTransaction>empty()
+                : xpTransactionRepository.findByUserIdAndSourceTypeAndSourceId(userId, sourceType, sourceId);
+        if (existingTransaction.isPresent()) {
             log.info("Skipping duplicate XP source {}:{} for user {}", sourceType, sourceId, userId);
-            return ug.getTotalXp();
+            return new XpAwardResult(Math.toIntExact(existingTransaction.get().getAmount()), ug.getTotalXp());
         }
 
         int awardedAmount = applyActiveBoost(amount, sourceType);
@@ -105,7 +116,7 @@ public class XpLedgerService {
             eventPublisher.publish(new XpGainedEvent(this, userId, awardedAmount, newTotal, sourceType, sourceId));
         }
 
-        return newTotal;
+        return new XpAwardResult(awardedAmount, newTotal);
     }
 
     private int applyActiveBoost(int baseAmount, String sourceType) {
@@ -138,4 +149,6 @@ public class XpLedgerService {
                 && !normalized.contains("MARKET")
                 && !normalized.contains("SPEND");
     }
+
+    public record XpAwardResult(int amountAwarded, long totalXp) {}
 }

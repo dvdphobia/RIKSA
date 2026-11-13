@@ -223,6 +223,10 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
   const difficulty = watch("difficulty");
 
   const submit = (values: LessonFormValues) => {
+    if (isEdit && !record.data) {
+      toast.error("Lesson has not loaded; changes were not saved");
+      return;
+    }
     const sendExercises = !isEdit || exercisesChanged;
     if (sendExercises) {
       for (const [i, e] of values.exercises.entries()) {
@@ -247,11 +251,38 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
     save.mutate(payload);
   };
 
+  if (isEdit && !id) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <Alert variant="destructive">
+          <AlertDescription>Lesson ID is missing. No changes can be saved.</AlertDescription>
+        </Alert>
+        <Button variant="outline" onClick={toList}>Back to lessons</Button>
+      </div>
+    );
+  }
+
   if (isEdit && record.isLoading) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (isEdit && (record.isError || !record.data)) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <Alert variant="destructive">
+          <AlertDescription>
+            Could not load this lesson. The edit form is unavailable so defaults cannot overwrite it.
+          </AlertDescription>
+        </Alert>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => record.refetch()}>Retry</Button>
+          <Button variant="outline" onClick={toList}>Back to lessons</Button>
+        </div>
       </div>
     );
   }

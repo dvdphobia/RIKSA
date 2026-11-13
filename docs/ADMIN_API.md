@@ -1,7 +1,6 @@
-# Riksa Admin API — Complete Reference for the Flutter Web Panel
+# Riksa Admin API Reference
 
-> Everything you need to build the admin web interface. No backend knowledge required —
-> every endpoint, parameter, request body, response shape, enum and error case is listed here.
+> Contract reference for the React admin panel in admin-panel/. Confirm endpoint behavior and authorization in the current admin controllers.
 
 **Base URL:** `http://<host>:8080/api/v1/admin`
 (All paths below are relative to `/api/v1/admin` unless stated otherwise.)
@@ -22,7 +21,7 @@
 10. [Blog Moderation](#10-blog-moderation)
 11. [Social Moderation (Posts & Comments)](#11-social-moderation-posts--comments)
 12. [Audit Logs](#12-audit-logs)
-13. [Flutter Implementation Notes](#13-flutter-implementation-notes)
+13. [Admin UI Implementation Notes](#13-admin-ui-implementation-notes)
 14. [Suggested Screen Map](#14-suggested-screen-map)
 
 ---
@@ -59,7 +58,7 @@ POST /api/v1/auth/refresh   → new token pair when access token expires (15 min
 | User management | `/users` | **ADMIN only** |
 | Audit logs | `/audit-logs` | **ADMIN only** |
 
-**Flutter tip:** hide the *Users* and *Audit Logs* nav items when the logged-in user's role is `MODERATOR`.
+**UI tip:** hide the *Users* and *Audit Logs* nav items when the logged-in user is a MODERATOR..
 
 ---
 
@@ -118,7 +117,7 @@ Response shape (fields you care about in **bold**):
 ```
 
 Dart model needs only: `content`, `number`, `size`, `totalElements`, `totalPages`, `first`, `last`, `empty`.
-This maps directly to Flutter `PaginatedDataTable` needs.
+This response shape works with the admin panel list and table components.
 
 ### 3.2 Cursor pagination — `CursorPage<T>`
 
@@ -582,21 +581,20 @@ Returns the custom wrapper (newest first):
 { "content": [ BlogPostResponse... ], "page": 0, "size": 20, "totalElements": 3, "totalPages": 1 }
 ```
 
-### 10.2 `PATCH /blog/{id}/status` — approve or reject
+### 10.2 PATCH /blog/{id}/status — approve, reject, hide, or restore
 
-```json
-{ "status": "APPROVED" }
-```
-or
-```json
-{ "status": "REJECTED", "reason": "Off-topic promotional content" }
-```
+Request bodies:
 
-- `status`: required, `APPROVED` or `REJECTED` (`PENDING` → `400`).
-- `reason`: strongly recommended for rejections (shown to the author).
-- Only `PENDING` posts can be moderated → otherwise `409 Conflict` (`"Post already moderated: APPROVED"`).
-- Returns the updated `BlogPostResponse`.
+    { "status": "APPROVED" }
 
+    { "status": "REJECTED", "reason": "Off-topic promotional content" }
+
+    { "status": "HIDDEN", "reason": "Violates community guidelines" }
+
+- status is required. Allowed values are APPROVED, REJECTED, or HIDDEN; PENDING cannot be set through this endpoint.
+- A rejection reason is recommended. A hide reason is required and limited to 1200 characters.
+- PENDING posts can be approved or rejected. APPROVED posts can be hidden. Setting APPROVED on a HIDDEN post restores it.
+- The response includes moderation details for the panel. HIDDEN posts include the hidden reason.
 ---
 
 ## 11. Social Moderation (Posts & Comments)
@@ -719,34 +717,15 @@ Known `action` values:
 
 ---
 
-## 13. Flutter Implementation Notes
+## 13. Admin UI implementation notes
 
-**HTTP client** — use `dio` with:
-- an interceptor that adds `Authorization: Bearer <token>`;
-- on `401`, call `POST /api/v1/auth/refresh`, store the new pair, retry the request once;
-- on `403`, show "insufficient permissions".
+The admin panel is the React and TypeScript application in admin-panel/. Follow its existing request wrapper in src/lib/api.ts and shared contracts in src/lib/types.ts.
 
-**Models** — generate with `freezed`/`json_serializable`. Key type mappings:
-
-| JSON | Dart |
-|---|---|
-| UUID string | `String` |
-| timestamp | `DateTime` (`DateTime.parse`) |
-| enum string | Dart `enum` with `@JsonValue("HIDDEN")` etc. (values are uppercase) |
-| `Page<T>` | generic class with `content`, `number`, `size`, `totalElements`, `totalPages`, `first`, `last`, `empty` |
-| `CursorPage<T>` | `edges`, `hasNextPage`, `endCursor` (nullable) |
-
-**Gotchas:**
-- Page numbers are **0-based**.
-- `204` responses (deletes) have **no body** — don't try to parse them.
-- `201` responses (creates) include a `Location` header; the body already contains the created object.
-- Multipart uploads: `FormData.fromMap({'file': await MultipartFile.fromFile(path)})` — field names are exactly `file` / `files`.
-- `endCursor` is **absent**, not `null`, on the last cursor page — model it as `String?`.
-- The lesson edit form cannot pre-fill `answerKey`s (never returned by the API). Either require re-entering exercises on edit, or keep a local draft.
-- Error `message` strings are user-safe — show them directly in snackbars.
-- Reports default to `status=OPEN`; remember to pass `status=RESOLVED`/`DISMISSED` explicitly for history tabs.
-
----
+- The request wrapper attaches the access token, refreshes once after a 401, and emits a session-expired event if refresh fails.
+- Use the role returned by login for navigation visibility, but rely on the API for authorization. MODERATOR users cannot use ADMIN-only endpoints.
+- Spring page numbers are zero-based. A 204 response has no body; do not parse it as JSON.
+- Enum values are uppercase strings. Keep request and response types aligned with the backend DTOs.
+- The error response includes status and a user-safe message. Render permission errors separately from expired-session errors.
 
 ## 14. Suggested Screen Map
 
@@ -757,10 +736,10 @@ Known `action` values:
 | Lessons | 7.1 table → detail/edit (7.2, 7.4), create form (7.3), delete confirm (7.5), bulk import dialog (7.6–7.8) |
 | Categories | 8.1 table → create (8.3), edit (8.4), delete (8.5) |
 | Reports queue | 9.1 with status/targetType tabs → resolve dialog (9.3), detail (9.2) |
-| Blog queue | 10.1 (`PENDING` tab default, plus `APPROVED`/`REJECTED` history) → approve/reject (10.2) |
+| Blog queue | 10.1 (PENDING default, plus APPROVED/REJECTED/HIDDEN history) → approve/reject/hide/restore (10.2) |
 | Hidden content | 11.1 + 11.2 tabs → restore/hide (11.3, 11.4) |
 | Audit logs (ADMIN) | 12 with filter bar |
 
 ---
 
-*Generated from the implemented backend on 2026-08-06. Source of truth: `src/main/java/com/riksa/admin/`.*
+*Maintained API reference. Check src/main/java/com/riksa/admin/ for current behavior.*

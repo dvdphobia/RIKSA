@@ -49,6 +49,9 @@ public class BlogPost {
     @Column(name = "rejection_reason", length = 500)
     private String rejectionReason;
 
+    @Column(name = "hidden_reason", length = 1200)
+    private String hiddenReason;
+
     @Column(name = "first_approved_at")
     private OffsetDateTime firstApprovedAt;
 

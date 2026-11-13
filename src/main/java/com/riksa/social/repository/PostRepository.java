@@ -2,8 +2,10 @@ package com.riksa.social.repository;
 
 import com.riksa.social.entity.Post;
 import com.riksa.social.enums.ContentStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,6 +15,10 @@ import java.util.List;
 import java.util.UUID;
 
 public interface PostRepository extends JpaRepository<Post, UUID> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Post p WHERE p.id = :postId")
+    java.util.Optional<Post> findByIdForUpdate(@Param("postId") UUID postId);
 
     @Query("""
         SELECT p FROM Post p

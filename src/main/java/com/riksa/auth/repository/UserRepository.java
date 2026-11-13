@@ -5,9 +5,12 @@ import com.riksa.auth.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.Collection;
@@ -55,6 +58,21 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("SELECT COALESCE(SUM(u.failedLoginAttempts), 0) FROM User u")
     long sumFailedLoginAttempts();
+
+    @Modifying
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Query("""
+        UPDATE User u
+        SET u.failedLoginAttempts = u.failedLoginAttempts + 1,
+            u.lockedUntil = CASE
+                WHEN u.failedLoginAttempts + 1 >= :maxFailedAttempts THEN :lockedUntil
+                ELSE u.lockedUntil
+            END
+        WHERE u.id = :userId
+        """)
+    void recordFailedLogin(@Param("userId") UUID userId,
+                           @Param("maxFailedAttempts") int maxFailedAttempts,
+                           @Param("lockedUntil") OffsetDateTime lockedUntil);
 
     @Query("""
         SELECT u FROM User u

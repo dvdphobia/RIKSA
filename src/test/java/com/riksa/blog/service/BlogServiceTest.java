@@ -174,6 +174,25 @@ class BlogServiceTest {
     }
 
     @Test
+    void authorEditCannotRestoreModeratorHiddenPost() {
+        UUID authorId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        BlogPost post = existingPost(postId, authorId, BlogStatus.HIDDEN);
+        post.setHiddenReason("Reported content");
+        post.setFirstApprovedAt(OffsetDateTime.now().minusDays(1));
+        when(blogPostRepository.findByIdForUpdate(postId)).thenReturn(Optional.of(post));
+
+        BlogPost result = blogService.updatePost(authorId, postId, "Edited title", "A clean educational update.",
+                null, UUID.randomUUID());
+
+        assertThat(result.getStatus()).isEqualTo(BlogStatus.HIDDEN);
+        assertThat(result.getHiddenReason()).isEqualTo("Reported content");
+        assertThat(result.getTitle()).isEqualTo("Edited title");
+        verify(blogPostRepository).save(post);
+        verify(eventPublisher, never()).publish(any());
+    }
+
+    @Test
     void blockedEditLeavesPostUnchanged() {
         UUID authorId = UUID.randomUUID();
         UUID postId = UUID.randomUUID();

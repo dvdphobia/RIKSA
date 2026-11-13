@@ -47,7 +47,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 Map.entry("/telegram", new Policy("telegram", 10, Duration.ofMinutes(1))),
                 Map.entry("/google", new Policy("google", 10, Duration.ofMinutes(1))),
                 Map.entry("/refresh", new Policy("refresh", 30, Duration.ofMinutes(1))),
-                Map.entry("/verify-email", new Policy("verify-email", 20, Duration.ofHours(1)))
+                Map.entry("/verify-email", new Policy("verify-email", 20, Duration.ofHours(1))),
+                Map.entry("/resend-verification-email", new Policy("resend-verification-email", 5, Duration.ofMinutes(15)))
         );
     }
 

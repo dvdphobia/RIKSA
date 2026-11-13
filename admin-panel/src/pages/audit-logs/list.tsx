@@ -120,7 +120,9 @@ export const AuditLogList = () => {
         id: "actorId",
         header: "Actor",
         cell: ({ row }) => (
-          <code className="text-xs">{row.original.actorId.slice(0, 8)}...</code>
+          <code className="text-xs">
+            {row.original.actorId ? `${row.original.actorId.slice(0, 8)}...` : "Deleted account"}
+          </code>
         ),
       },
       {

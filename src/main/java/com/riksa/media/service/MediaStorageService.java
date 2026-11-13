@@ -133,6 +133,22 @@ public class MediaStorageService {
                 && Files.isRegularFile(file);
     }
 
+    /** Deletes only a file name minted by this service. */
+    public boolean deleteIfExists(String id) {
+        if (id == null || !STORED_NAME.matcher(id).matches()) {
+            return false;
+        }
+        Path file = root.resolve(id).normalize();
+        if (!file.startsWith(root)) {
+            return false;
+        }
+        try {
+            return Files.deleteIfExists(file);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not delete stored image " + id, e);
+        }
+    }
+
     /** Reads image dimensions from metadata without decoding the full bitmap. */
     public ImageDimensions dimensions(byte[] bytes) {
         if (bytes == null || bytes.length == 0) {

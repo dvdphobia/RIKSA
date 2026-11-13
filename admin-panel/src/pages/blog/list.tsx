@@ -19,7 +19,7 @@ import {
 import { Label } from "../../components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Textarea } from "../../components/ui/textarea";
-import { Check, Eye, X } from "lucide-react";
+import { Check, Eye, EyeOff, RotateCcw, X } from "lucide-react";
 
 const MODERATION_REASONS: Record<string, string> = {
   PROFANITY: "Configured content terms matched; the matched terms are not returned.",
@@ -42,6 +42,8 @@ export const BlogList = () => {
   const [viewTarget, setViewTarget] = useState<BlogPost | null>(null);
   const [rejectTarget, setRejectTarget] = useState<BlogPost | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [hideTarget, setHideTarget] = useState<BlogPost | null>(null);
+  const [hideReason, setHideReason] = useState("");
 
   const moderate = useMutation({
     mutationFn: ({
@@ -61,6 +63,8 @@ export const BlogList = () => {
       toast.success("Blog post updated");
       setRejectTarget(null);
       setRejectReason("");
+      setHideTarget(null);
+      setHideReason("");
       queryClient.invalidateQueries({ queryKey: ["blog"] });
     },
     onError: (e) =>
@@ -164,6 +168,26 @@ export const BlogList = () => {
                   </Button>
                 </>
               )}
+              {post.status === "APPROVED" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Hide published post"
+                  onClick={() => setHideTarget(post)}
+                >
+                  <EyeOff className="h-4 w-4 text-destructive" />
+                </Button>
+              )}
+              {post.status === "HIDDEN" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Restore published post"
+                  onClick={() => moderate.mutate({ id: post.id, status: "APPROVED" })}
+                >
+                  <RotateCcw className="h-4 w-4 text-green-600" />
+                </Button>
+              )}
             </div>
           );
         },
@@ -188,6 +212,7 @@ export const BlogList = () => {
             <TabsTrigger value="PENDING">Pending</TabsTrigger>
             <TabsTrigger value="APPROVED">Approved</TabsTrigger>
             <TabsTrigger value="REJECTED">Rejected</TabsTrigger>
+            <TabsTrigger value="HIDDEN">Hidden</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -210,6 +235,11 @@ export const BlogList = () => {
           <pre className="max-h-96 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted p-4 text-sm">
             {viewTarget?.content}
           </pre>
+          {viewTarget?.status === "HIDDEN" && (
+            <p className="rounded-md border border-destructive/40 p-3 text-sm">
+              Hidden by moderation: {viewTarget.hiddenReason || "No reason recorded"}
+            </p>
+          )}
           {viewTarget?.status === "PENDING" && (
             <section className="space-y-2 rounded-md border p-3">
               <div>
@@ -293,6 +323,45 @@ export const BlogList = () => {
               }
             >
               Reject post
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!hideTarget}
+        onOpenChange={(open) => !open && setHideTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hide "{hideTarget?.title}"</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Reason (recorded in the moderation audit)</Label>
+            <Textarea
+              value={hideReason}
+              onChange={(e) => setHideReason(e.target.value)}
+              maxLength={1200}
+              placeholder="Why is this published post being hidden?"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHideTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!hideReason.trim() || moderate.isPending}
+              onClick={() =>
+                hideTarget &&
+                moderate.mutate({
+                  id: hideTarget.id,
+                  status: "HIDDEN",
+                  reason: hideReason,
+                })
+              }
+            >
+              {moderate.isPending ? "Saving..." : "Hide post"}
             </Button>
           </DialogFooter>
         </DialogContent>

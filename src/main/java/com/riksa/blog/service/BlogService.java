@@ -71,6 +71,8 @@ public class BlogService {
                                String coverUrl, UUID categoryId) {
         BlogPost post = getPostForUpdate(postId);
         requireOwner(post, authorId);
+        boolean moderatorHidden = post.getStatus() == BlogStatus.HIDDEN;
+        String hiddenReason = post.getHiddenReason();
         editRateLimiter.checkAndRecord("blog-edit", authorId, MAX_EDITS_PER_TEN_MINUTES, Duration.ofMinutes(10));
 
         OffsetDateTime now = OffsetDateTime.now();
@@ -85,6 +87,13 @@ public class BlogService {
         post.setNormalizedHash(normalizedHash);
         post.setRejectionReason(null);
         applyModerationResult(post, result);
+
+        // An author's edit cannot undo a moderator's publication hold.
+        if (moderatorHidden) {
+            post.setStatus(BlogStatus.HIDDEN);
+            post.setHiddenReason(hiddenReason);
+            return blogPostRepository.save(post);
+        }
 
         if (result.verdict() == ModerationVerdict.ALLOW) {
             return blogModerationService.publishApproved(post, null);

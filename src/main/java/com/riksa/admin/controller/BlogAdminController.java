@@ -54,6 +54,9 @@ public class BlogAdminController {
         if (request.getStatus() == BlogStatus.APPROVED) {
             BlogPost post = blogModerationService.approve(id, moderatorId);
             return ResponseEntity.ok(AdminBlogMapper.toResponse(post, false));
+        } else if (request.getStatus() == BlogStatus.HIDDEN) {
+            BlogPost post = blogModerationService.hide(id, request.getReason(), moderatorId);
+            return ResponseEntity.ok(AdminBlogMapper.toResponse(post, false));
         } else if (request.getStatus() == BlogStatus.REJECTED) {
             BlogPost post = blogModerationService.reject(id, request.getReason(), moderatorId);
             return ResponseEntity.ok(AdminBlogMapper.toResponse(post, false));

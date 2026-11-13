@@ -2,6 +2,7 @@ package com.riksa.auth.service;
 
 import com.riksa.auth.dto.*;
 import com.riksa.auth.entity.Role;
+import com.riksa.auth.event.EmailVerificationRequestedEvent;
 import com.riksa.auth.entity.User;
 import com.riksa.auth.otp.OtpService;
 import com.riksa.auth.repository.ProvinceRepository;
@@ -15,12 +16,14 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
 import java.util.Optional;
@@ -45,6 +48,12 @@ class AuthServiceTest {
     @Mock private UserGamificationRepository userGamificationRepository;
 
     @InjectMocks private AuthService authService;
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(authService, "maxFailedAttempts", 5);
+        ReflectionTestUtils.setField(authService, "lockoutMinutes", 15);
+    }
 
     @Test
     void register_duplicateUsername_throwsException() {
@@ -80,6 +89,7 @@ class AuthServiceTest {
     @Test
     void login_wrongPassword_throwsException() {
         User user = new User();
+        user.setId(UUID.randomUUID());
         user.setUsername("john");
         user.setPassword("encoded-password");
         user.setFailedLoginAttempts(0);
@@ -95,8 +105,7 @@ class AuthServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Invalid username or password");
 
-        verify(userRepository).save(user);
-        assertThat(user.getFailedLoginAttempts()).isEqualTo(1);
+        verify(userRepository).recordFailedLogin(eq(user.getId()), eq(5), any(OffsetDateTime.class));
     }
 
     @Test
@@ -186,7 +195,7 @@ class AuthServiceTest {
         stored.setUser(user);
         stored.setExpiresAt(OffsetDateTime.now().plusDays(1));
 
-        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(jwtService.isRefreshTokenValid(token)).thenReturn(true);
         when(refreshTokenRepository.findByTokenAndRevokedFalse(token)).thenReturn(Optional.of(stored));
 
         assertThatThrownBy(() -> authService.refreshToken(token))
@@ -200,12 +209,24 @@ class AuthServiceTest {
     void refreshToken_revokedToken_throwsException() {
         String token = "some.jwt.token";
 
-        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(jwtService.isRefreshTokenValid(token)).thenReturn(true);
         when(refreshTokenRepository.findByTokenAndRevokedFalse(token)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> authService.refreshToken(token))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Refresh token not found or revoked");
+    }
+
+    @Test
+    void refreshToken_rejectsAccessToken() {
+        String token = "access.jwt.token";
+        when(jwtService.isRefreshTokenValid(token)).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.refreshToken(token))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid or expired refresh token");
+
+        verifyNoInteractions(refreshTokenRepository);
     }
 
     @Test
@@ -235,6 +256,29 @@ class AuthServiceTest {
         assertThat(response.getRole()).isEqualTo("USER");
         verify(userRepository).save(any(User.class));
         verify(emailVerificationTokenRepository).save(any());
+        verify(eventPublisher).publish(any(EmailVerificationRequestedEvent.class));
+    }
+
+    @Test
+    void resendEmailVerification_unverifiedAccountPublishesEmailRequest() {
+        User user = new User();
+        user.setEmail("new@example.com");
+        user.setEmailVerified(false);
+        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.of(user));
+
+        authService.resendEmailVerification("new@example.com");
+
+        verify(emailVerificationTokenRepository).save(any());
+        verify(eventPublisher).publish(any(EmailVerificationRequestedEvent.class));
+    }
+
+    @Test
+    void resendEmailVerification_unknownAddressDoesNothing() {
+        when(userRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
+
+        authService.resendEmailVerification("unknown@example.com");
+
+        verifyNoInteractions(emailVerificationTokenRepository, eventPublisher);
     }
 
     @Test
@@ -308,6 +352,24 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.forgotPassword("nobody"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("No account found for this identifier");
+    }
+
+    @Test
+    void resetPassword_validOtp_revokesExistingRefreshTokens() {
+        User user = new User();
+        user.setUsername("john");
+        user.setTelegramId("123456789");
+        user.setPassword("old-password");
+
+        when(userRepository.findByUsername("john")).thenReturn(Optional.of(user));
+        when(otpService.verifyOtp("123456789", "123456")).thenReturn(true);
+        when(passwordEncoder.encode("NewPassword1")).thenReturn("new-encoded-password");
+
+        authService.resetPassword("john", "123456", "NewPassword1");
+
+        assertThat(user.getPassword()).isEqualTo("new-encoded-password");
+        verify(userRepository).save(user);
+        verify(refreshTokenRepository).revokeAllByUser(user);
     }
 
     @Test
@@ -403,6 +465,7 @@ class AuthServiceTest {
     @Test
     void login_maxFailedAttempts_locksAccount() {
         User user = new User();
+        user.setId(UUID.randomUUID());
         user.setUsername("john");
         user.setPassword("encoded-password");
         user.setFailedLoginAttempts(4);
@@ -417,7 +480,6 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.login(request))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        assertThat(user.getFailedLoginAttempts()).isEqualTo(5);
-        assertThat(user.getLockedUntil()).isNotNull();
+        verify(userRepository).recordFailedLogin(eq(user.getId()), eq(5), any(OffsetDateTime.class));
     }
 }

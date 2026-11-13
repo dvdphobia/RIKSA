@@ -14,31 +14,32 @@ npm run build
 
 Vite serves the development panel at `http://localhost:5173`. Set `VITE_API_URL` to the API base URL; the default is `http://localhost:8080/api/v1`. See [`admin-panel/.env.example`](.env.example) for the environment variable example.
 
-Sign-in requires a backend account with role `ADMIN` or `MODERATOR`. Regular `USER` accounts cannot access the panel.
+Sign-in uses the Telegram authentication flow (`/api/v1/auth/telegram/*` — one-tap bot confirmation or 8-character bot code) and requires a linked backend account with role `ADMIN`. Non-admin accounts (`USER`, `MODERATOR`, or unlinked Telegram accounts) are rejected at login.
 
 ## Pages and access
 
-All pages below are available to both administrators and moderators unless marked **ADMIN only**. The backend also enforces these roles.
+All pages require an authenticated `ADMIN` session.
 
 | Route | Page | Access |
 |---|---|---|
-| `/` | Dashboard and operational stats | ADMIN, MODERATOR |
-| `/users` | User search and account controls | ADMIN only |
-| `/lessons` | Lessons, exercises, bulk import, and markdown upload | ADMIN, MODERATOR |
-| `/categories` | Lesson categories | ADMIN, MODERATOR |
-| `/roadmap` | Roadmap units and lesson ordering | ADMIN, MODERATOR |
-| `/resources` | Lesson resource review and moderation | ADMIN, MODERATOR |
-| `/reports` | Report queue and resolution | ADMIN, MODERATOR |
-| `/blog` | Blog moderation queue | ADMIN, MODERATOR |
-| `/moderation` | Post and comment moderation | ADMIN, MODERATOR |
-| `/gamification` | Achievements, ranks, streaks, and XP boosts | ADMIN only |
-| `/leaderboard` | Leaderboard snapshots | ADMIN only |
-| `/market` | Market item catalog | ADMIN only |
-| `/platform` | XP rules, app flags, announcements, AI chat, and banned words | ADMIN only |
-| `/audit-logs` | Filterable admin audit trail | ADMIN only |
+| `/` | Dashboard and operational stats | ADMIN |
+| `/users` | User search and account controls | ADMIN |
+| `/lessons` | Lessons, exercises, bulk import, and markdown upload | ADMIN |
+| `/categories` | Lesson categories | ADMIN |
+| `/roadmap` | Roadmap units and lesson ordering | ADMIN |
+| `/resources` | Lesson resource review and moderation | ADMIN |
+| `/reports` | Report queue and resolution | ADMIN |
+| `/blog` | Blog moderation queue | ADMIN |
+| `/moderation` | Post and comment moderation | ADMIN |
+| `/gamification` | Achievements, ranks, streaks, and XP boosts | ADMIN |
+| `/leaderboard` | Leaderboard snapshots | ADMIN |
+| `/market` | Market item catalog | ADMIN |
+| `/platform` | XP rules, app flags, announcements, AI chat, and banned words | ADMIN |
+| `/audit-logs` | Filterable admin audit trail | ADMIN |
 
 ## Implementation notes
 
+- Authentication reuses the backend Telegram challenge flow (`GET /auth/telegram/bot`, `POST /auth/telegram/start`, `POST /auth/telegram/status`, and `POST /auth/telegram/code`) and validates that the resolved user has `role === "ADMIN"`.
 - API requests use bearer JWTs and automatic refresh on `401` responses.
 - Server tables use Spring pagination; reports use cursor pagination.
 - Lesson bodies are edited as markdown for the mobile app renderer. Existing markdown is preserved until the body is edited.

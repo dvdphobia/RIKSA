@@ -31,7 +31,7 @@ public class CommentController {
                                 @Argument Integer limit) {
         UUID userId = getCurrentUserId();
         int pageLimit = (limit != null && limit > 0) ? Math.min(limit, 50) : 20;
-        return resolver.resolveComments(postId, userId, pageLimit);
+        return resolver.resolveComments(postId, userId, cursor, pageLimit);
     }
 
     @MutationMapping(SocialEndpoints.MUTATION_CREATE_COMMENT)
@@ -67,7 +67,7 @@ public class CommentController {
     public CommentPage commentReplies(CommentResponse comment, @Argument UUID cursor, @Argument Integer limit) {
         UUID userId = getCurrentUserId();
         int pageLimit = (limit != null && limit > 0) ? Math.min(limit, 50) : 5;
-        return resolver.resolveReplies(comment.id(), userId, pageLimit);
+        return resolver.resolveReplies(comment.id(), userId, cursor, pageLimit);
     }
 
     private UUID getCurrentUserId() {

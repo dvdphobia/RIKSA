@@ -12,6 +12,9 @@ import java.util.UUID;
 
 @Service
 public class JwtService {
+    private static final String TOKEN_PURPOSE_CLAIM = "token_purpose";
+    private static final String ACCESS_TOKEN = "access";
+    private static final String REFRESH_TOKEN = "refresh";
 
     private final SecretKey key;
     private final long accessExpiration;
@@ -28,20 +31,21 @@ public class JwtService {
     }
 
     public String generateAccessToken(UUID userId, String username, String role) {
-        return buildToken(userId, username, role, accessExpiration);
+        return buildToken(userId, username, role, accessExpiration, ACCESS_TOKEN);
     }
 
     public String generateRefreshToken(UUID userId, String username, String role) {
-        return buildToken(userId, username, role, refreshExpiration);
+        return buildToken(userId, username, role, refreshExpiration, REFRESH_TOKEN);
     }
 
-    private String buildToken(UUID userId, String username, String role, long expiration) {
+    private String buildToken(UUID userId, String username, String role, long expiration, String purpose) {
         Date now = new Date();
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(userId.toString())
                 .claim("username", username)
                 .claim("role", role)
+                .claim(TOKEN_PURPOSE_CLAIM, purpose)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expiration))
                 .signWith(key)
@@ -52,6 +56,22 @@ public class JwtService {
         try {
             parseToken(token);
             return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public boolean isAccessTokenValid(String token) {
+        return isTokenValidForPurpose(token, ACCESS_TOKEN);
+    }
+
+    public boolean isRefreshTokenValid(String token) {
+        return isTokenValidForPurpose(token, REFRESH_TOKEN);
+    }
+
+    private boolean isTokenValidForPurpose(String token, String purpose) {
+        try {
+            return purpose.equals(parseToken(token).get(TOKEN_PURPOSE_CLAIM, String.class));
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }

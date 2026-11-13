@@ -1,22 +1,17 @@
 # Riksa Auth, Profile, and Identity Data API
 
-> Audited against the working tree on **August 24, 2026**. This document is the
-> frontend source of truth for the current implementation. It intentionally
-> distinguishes working behavior from planned behavior.
+> Current frontend API reference. Verify behavior against the auth controllers, security configuration, and Flyway migrations when implementation changes.
 
 > Telegram's bot deep-link signup/login flow is documented separately in
 > [`FLUTTER_TELEGRAM_AUTH.md`](./FLUTTER_TELEGRAM_AUTH.md). That handoff is the
 > source of truth for new Flutter Telegram work.
 
-## Contract and schema version
+## API version and data behavior
 
 | Item | Current value | Notes |
 |---|---|---|
 | REST API version | `v1` | All REST routes use `/api/v1/*` |
 | Auth base path | `/api/v1/auth` | Older `/api/auth/*` examples are obsolete |
-| Application version | `0.0.1-SNAPSHOT` | From `pom.xml` |
-| Latest repository migration | `V20` | Adds Telegram chat identity and short-lived bot deep-link auth challenges |
-| Auth schema migrations | `V1`-`V6`, `V15`, `V17` | Core users, refresh tokens, OTP, Telegram ID, lockout, email verification, gamification backfill, suspension |
 | Profile concurrency version | None | `users` has no optimistic-lock `version`; profile updates are last-write-wins |
 | Gamification concurrency version | `user_gamification.version` | Internal `@Version` field added by `V8`; it is not an API field |
 
@@ -35,12 +30,12 @@ paths relative to the API origin.
 | Update basic profile | Development-ready with caveat | Display name, bio, gender, and preset avatar work |
 | Refresh token rotation | Development-ready | Replace **both** stored tokens after every refresh |
 | Logout one refresh token | Development-ready | Clear local tokens even if the request fails |
-| Google sign-in | Partially ready | Requires `GOOGLE_CLIENT_ID`; see security gaps below |
-| Province picker/persistence | Blocked end to end | No province-list endpoint, no province seed migration, and profile responses omit province |
-| Email verification | Blocked end to end | A token is stored, but no email provider delivers it |
+| Google sign-in | Configuration-dependent | Requires GOOGLE_CLIENT_ID and valid provider configuration |
+| Province picker/persistence | Supported | GET /api/v1/auth/provinces returns seeded provinces; the self profile includes provinceId |
+| Email verification | Configurable | Resend delivery requires RESEND_ENABLED=true and valid Resend settings; otherwise the account remains unverified until delivery is configured |
 | Telegram signup/login/linking | Development-ready | Use the bot deep-link challenge flow in `FLUTTER_TELEGRAM_AUTH.md`; never ask Flutter for a chat ID |
 | Provincial leaderboard | Backend data exists only when a user has a province | Do not make it a required auth/onboarding step yet |
-| Public showcase profile | Development-ready | Call `GET /api/v1/profiles/{userId}` without a token |
+| Public showcase profile | Partially ready | Basic identity, gamification, and buddy data are available; achievements, rank, and verification badge are not returned |
 
 The recommended development flow today is:
 
@@ -49,8 +44,9 @@ The recommended development flow today is:
 3. Immediately call `GET /api/v1/auth/me` and use that response as the
    canonical signed-in user.
 4. Allow editing `displayName`, `bio`, `gender`, and a preset `avatarUrl`.
-5. Hide or locally mock province selection, email verification, and password
-   recovery until those gaps are fixed.
+5. Select a province from GET /api/v1/auth/provinces and save provinceId in the self profile.
+   Email verification is delivered only when Resend is configured; password
+   recovery requires a linked Telegram account.
 
 ## Authentication model
 
@@ -68,6 +64,7 @@ Both tokens are signed JWTs. Current claims are:
   "sub": "user-uuid",
   "username": "sophea",
   "role": "USER",
+  "token_purpose": "access",
   "iat": 1786890000,
   "exp": 1786890900
 }
@@ -91,20 +88,22 @@ token.
 | `POST` | `/forgot-password` | Public | Public |
 | `POST` | `/reset-password` | Public | Public |
 | `POST` | `/verify-email` | Public | Public |
-| `GET` | `/me` | Bearer access token | The whole `/auth/**` tree is permitted by Spring Security, but this controller manually parses a required Bearer token |
-| `PUT` | `/me` | Bearer access token | Same caveat as `GET /me` |
-| `GET` | `/api/v1/profiles/{userId}` | Public | Public; returns intentionally non-sensitive profile fields |
+| POST | /resend-verification-email | Public | Generic response; delivery depends on Resend configuration |
+| GET | /me | Bearer access token | Required by Spring Security; the JWT filter validates access-token purpose and supplies the user principal |
+| PUT | /me | Bearer access token | Required by Spring Security; the JWT filter validates access-token purpose and supplies the user principal |
+| GET | /provinces | Public | Ordered list of province IDs and Khmer/Latin names |
+| DELETE | /me | Bearer access token | Deletes the current account; returns 204 |
+| POST | /telegram/link | Bearer access token | Links a Telegram identity to the signed-in account |
+| POST | /phone/verify/start | Bearer access token | Starts Telegram contact verification; requires Telegram bot updates to be configured |
+| GET | /api/v1/profiles/{userId} | Public | Returns the PublicProfileResponse; it currently includes the user role. See the Flutter contract for the response shape and privacy note |
 
-All `/api/v1/auth/**` requests currently share one in-memory, per-IP rate
-limit: **5 requests per 60 seconds** by default. A `429` can therefore be
-triggered by a short sequence such as register, profile load, profile update,
-and retries.
+Auth rate limits use Redis-backed, route-specific buckets. Responses include rate-limit headers; resend-verification-email allows five requests per 15 minutes per client address. See RateLimitFilter for current route policies.
 
 ## Shared response objects
 
 ### `AuthResponse`
 
-Returned by register, login, refresh, and Google sign-in.
+Returned by register, login, refresh, Google sign-in, and Telegram sign-in.
 
 ```json
 {
@@ -138,21 +137,15 @@ This exact shape is returned by `GET /me` and `PUT /me`:
   "phoneVerified": false,
   "role": "USER",
   "countryId": "KH",
-  "createdAt": "2026-08-16T20:30:00+07:00"
+  "provinceId": "b1b2c3d4-e5f6-4890-abcd-ef1234567890",
+  "createdAt": "2026-08-16T20:30:00+07:00",
+  "shareMilestones": true
 }
 ```
 
-Nullable fields can be returned as `null`: `email`, `avatarUrl`, `bio`,
-`gender`, and `phoneNumber`. Google accounts may have different nullability
-from password accounts.
+Nullable fields can be null: email, avatarUrl, bio, gender, phoneNumber, and provinceId. Google accounts may have different nullability from password accounts.
 
-The current response does **not** include:
-
-- `provinceId` or province name;
-- `updatedAt`;
-- `telegramId`;
-- access or refresh tokens;
-- XP, streak, achievements, tier, or leaderboard rank.
+The self-profile response includes provinceId and shareMilestones. It does not include updatedAt, telegramId, access or refresh tokens, XP, streak, achievements, tier, or leaderboard rank.
 
 ### `PublicProfileResponse`
 
@@ -176,12 +169,20 @@ Returned by anonymous `GET /api/v1/profiles/{userId}`:
   "gamification": {
     "userId": "a1b2c3d4-e5f6-4890-abcd-ef1234567890",
     "totalXp": 5550,
+    "xpBalance": 5550,
+    "currentTierMinXp": 5000,
     "currentStreak": 13,
     "highestStreak": 21,
     "currentTier": "LEGEND",
     "currentTierIcon": "/icons/legend.png",
     "nextTier": null,
+    "nextTierMinXp": 0,
     "xpToNext": 0
+  },
+  "buddy": {
+    "species": "cat",
+    "name": "Milo",
+    "equipped": {}
   }
 }
 ```
@@ -272,7 +273,7 @@ Common errors:
 | `400` | `Username is already taken` |
 | `400` | `Email is already taken` |
 | `400` | DTO validation errors |
-| `429` | Shared auth rate limit exceeded |
+| `429` | Route-specific authentication rate limit exceeded |
 | `500` | A database constraint fails outside the service's explicit checks, for example a duplicate phone number |
 
 Important frontend rule: do not send an empty string for optional
@@ -292,7 +293,7 @@ Request:
 }
 ```
 
-The endpoint accepts **username only**. Email login is not implemented.
+The endpoint accepts username only; email login is not supported.
 
 Success: `200 OK` with a new `AuthResponse` and a newly persisted refresh
 token.
@@ -302,12 +303,9 @@ token.
 | `400` | `Invalid username or password` |
 | `400` | `Account is temporarily locked. Try again later.` |
 | `403` | Account is suspended |
-| `429` | Shared auth rate limit exceeded |
+| `429` | Route-specific authentication rate limit exceeded |
 
-The code intends to lock an account after five failed attempts for 15 minutes.
-The current transaction rolls back the failed-attempt update when it throws the
-login error, so lockout persistence must be fixed before it is relied on for
-security.
+The backend records failed-login attempts in a separate transaction so attempts persist when authentication fails. The configured threshold and lock duration are controlled by auth settings.
 
 ### Refresh session
 
@@ -380,9 +378,7 @@ Use this request:
 - after returning to the foreground when another device/admin may have changed
   the account.
 
-Do not send a refresh token as the Bearer value, even though the current backend
-does not technically distinguish token types. That is a security defect, not a
-supported contract.
+Send only the access token as a Bearer token. The JWT filter requires token_purpose=access and rejects refresh tokens with 401.
 
 ### Update current user
 
@@ -401,8 +397,9 @@ All fields are optional. Omitted or JSON `null` fields mean “leave unchanged.�
 | `displayName` | string | Updates directly; DTO currently has no blank/length validation |
 | `bio` | string | Updates directly; database maximum is 160 characters |
 | `gender` | string | Updates directly; database maximum is 20 characters |
-| `provinceId` | UUID string | Existing province is assigned; unknown UUID is silently ignored |
+| provinceId | UUID string | Assigns an existing province; an unknown UUID returns 400 |
 | `avatarUrl` | string | Must exactly match `/avatars/avatar-1.png` through `/avatars/avatar-30.png` |
+| shareMilestones | boolean | Updates whether progress milestones are shared |
 
 Example:
 
@@ -411,7 +408,8 @@ Example:
   "displayName": "Sok Sophea",
   "bio": "Learning every day.",
   "gender": "female",
-  "avatarUrl": "/avatars/avatar-17.png"
+  "avatarUrl": "/avatars/avatar-17.png",
+  "shareMilestones": true
 }
 ```
 
@@ -526,10 +524,7 @@ Valid code:
 A wrong code returns `200 OK` with `verified: false`. Expired, missing, or
 over-attempted codes return `400`.
 
-If a `users.telegram_id` row already matches the identifier, successful OTP
-verification sets `phone_verified = true`. No auth endpoint currently attaches
-that Telegram ID to the signed-in user, so this does not complete a normal
-phone/Telegram verification flow.
+This legacy OTP endpoint does not link a Telegram account to the signed-in user. Phone ownership uses the authenticated POST /api/v1/auth/phone/verify/start flow and a Telegram contact card.
 
 ### Forgot password
 
@@ -577,8 +572,7 @@ The new password follows the registration password rule. Success:
 }
 ```
 
-Existing refresh tokens are not revoked after a password reset. This is a
-production security blocker.
+After a successful password reset, the backend revokes every refresh token associated with the account.
 
 ### Verify email
 
@@ -599,9 +593,19 @@ Success:
 }
 ```
 
-Registration creates a 24-hour verification token, but delivery is a stub. The
-token is neither emailed nor returned, so a newly registered user cannot reach
-this endpoint through a normal frontend flow.
+Registration creates a 24-hour verification token. When RESEND_ENABLED=true with valid Resend configuration, delivery is queued after the transaction commits. When delivery is disabled, no message is sent and the account remains unverified.
+
+A user can request a new verification message:
+
+POST /api/v1/auth/resend-verification-email
+
+Request:
+
+{
+  "email": "sophea@example.com"
+}
+
+The endpoint always returns a generic response so callers cannot learn whether an address belongs to an unverified account. It is rate-limited to five requests per 15 minutes per client address. The message opens the backend-hosted email-verification page, which submits the token to POST /api/v1/auth/verify-email.
 
 ## PostgreSQL identity data model
 
@@ -619,7 +623,7 @@ This is the canonical identity/profile table.
 | `gender` | varchar(20) | Yes | Self profile |
 | `role` | `Role` enum | No | `USER`, `MODERATOR`, or `ADMIN` |
 | `phone_number` | varchar(20), unique | Yes | Self profile; not used by current OTP implementation |
-| `phone_verified` | boolean | No | Self profile; currently conflated with Telegram OTP verification |
+| phone_verified | boolean | No | Self profile; set by phone contact verification, and by legacy OTP verification when its identifier matches a linked Telegram account |
 | `telegram_id` | text, unique | Yes | Telegram recovery; not exposed by profile API |
 | `password` | text | Yes | BCrypt hash for password accounts; null is possible for Google-only accounts |
 | `google_id` | text, unique | Yes | Google account link |
@@ -647,8 +651,8 @@ and `user@example.com` may become different rows.
 | `email_verification_tokens` | Email verification state | Raw token stored; expired rows deleted daily |
 | `user_gamification` | XP/streak aggregate for every registered user | Created during normal and Google registration; `V15` backfills older users |
 
-The repository has no migration that inserts province rows. A fresh database
-therefore has an empty `provinces` table unless it is populated manually.
+Flyway migration V21 seeds the Cambodian province rows used by GET /api/v1/auth/provinces.
+
 
 ## How auth/profile data feeds leaderboard and showcase
 
@@ -676,6 +680,8 @@ Response entries:
   "displayName": "Sok Sophea",
   "avatarUrl": "/avatars/avatar-17.png",
   "totalXp": 5550,
+    "xpBalance": 5550,
+    "currentTierMinXp": 5000,
   "tierName": "GOLD",
   "tierIcon": "/icons/gold.png"
 }
@@ -820,88 +826,12 @@ AuthUser
   phoneVerified: bool
   role: USER | MODERATOR | ADMIN
   countryId: string?
+  provinceId: UUID?
   createdAt: offset-aware timestamp?
+  shareMilestones: bool
 ```
 
-Do not add `provinceId` or `updatedAt` as required JSON fields yet; the backend
-does not return them.
-
-## Audit findings and required backend work
-
-### P0 — fix before production authentication
-
-1. **Separate access and refresh token types.** Current JWTs have identical
-   claims apart from expiry, and the auth filter accepts any valid signed JWT.
-   A refresh token can therefore authenticate as a Bearer token, even after its
-   database row is revoked.
-2. **Require a production JWT secret.** The application has a known development
-   fallback. Production startup should fail if `JWT_SECRET` is absent/weak.
-3. **Protect `/auth/me` through Spring Security.** Permit only the genuinely
-   public auth routes and use the authenticated principal instead of manually
-   parsing the header.
-4. **Persist failed-login attempts outside the rolled-back login transaction.**
-   Current lockout updates roll back with the thrown credential error.
-5. **Fix Google linking.** Require Google's verified-email claim and reject
-   suspended users before issuing tokens.
-6. **Revoke all user refresh tokens after password reset.**
-7. **Make forgot-password non-enumerating.** Return the same public result for
-   existing and missing accounts and move diagnostic details to secure logs.
-8. **Store hashes of refresh/verification tokens rather than raw secrets.**
-
-### P0 — fix before province onboarding/leaderboard
-
-1. Add and seed a province catalog migration.
-2. Add a public/readable `GET /api/v1/provinces` contract returning ID, Khmer
-   name, and Latin name.
-3. Reject unknown `provinceId` with `400`; do not silently ignore it.
-4. Return `provinceId` and province names from `UserProfileResponse`.
-5. Add an explicit way to clear/change province and define what happens to
-   historical leaderboard snapshots.
-
-### P1 — fix for leaderboard and showcase
-
-1. Choose and document one canonical main leaderboard. The live XP and snapshot
-   score leaderboards currently rank users differently.
-2. Enrich snapshot rows with display name, avatar, username, and province, or
-   provide a bulk public-user lookup.
-3. Add cursor/page limits to snapshot leaderboards; the current endpoint returns
-   an unbounded list.
-4. Correct `snapshoDate` to `snapshotDate` with a versioned compatibility plan.
-5. Use `long`/PostgreSQL `BIGINT` for snapshot score because XP is already
-   `BIGINT` while snapshot score is still `INTEGER`/Java `int`.
-6. Define whether suspended users should remain visible; both leaderboard paths
-   currently include them.
-
-### P1 — data quality and contract cleanup
-
-1. Normalize username/email/phone values and enforce case-insensitive uniqueness
-   where appropriate.
-2. Validate optional phone, gender, profile display name, and bio at the DTO
-   boundary so database errors do not become `500` responses.
-3. Return `409 Conflict` for uniqueness conflicts instead of generic `400`/`500`.
-4. Add profile `updatedAt` and an optimistic version/ETag if concurrent profile
-   edits matter.
-5. Complete either Telegram attachment/verification or email-based recovery;
-   hide unfinished alternatives from the production client.
-6. Scope rate limits by endpoint and account as well as trusted client IP. The
-   current filter trusts `X-Forwarded-For`, is per-process, and applies the same
-   small budget to every auth route.
-
-## Frontend acceptance checklist
-
-- [ ] All paths use `/api/v1/auth`, never `/api/auth`.
-- [ ] Login form says username, not email.
-- [ ] Registration password UI enforces uppercase + lowercase + digit + 8 chars.
-- [ ] Empty optional values are omitted/null rather than sent as empty strings.
-- [ ] Access and refresh tokens use platform secure storage and never logs.
-- [ ] Register/login/Google/refresh responses replace the entire local session.
-- [ ] `/me` is fetched after authentication; JWT claims are not the profile.
-- [ ] A single-flight refresh lock prevents multiple simultaneous rotations.
-- [ ] Each protected request is retried no more than once.
-- [ ] Logout clears local state even when the network request fails.
-- [ ] Relative avatar paths are resolved against the API origin.
-- [ ] Province, email verification, recovery, and public showcase features are
-      feature-gated until their backend blockers are resolved.
+provinceId is returned by the self-profile response and may be null. shareMilestones is also returned. updatedAt is not currently included.
 
 ## Implementation sources
 

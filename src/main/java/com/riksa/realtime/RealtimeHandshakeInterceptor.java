@@ -37,7 +37,7 @@ public class RealtimeHandshakeInterceptor implements HandshakeInterceptor {
                 .build()
                 .getQueryParams()
                 .getFirst("token");
-        if (token == null || token.isBlank() || !jwtService.isTokenValid(token)) {
+        if (token == null || token.isBlank() || !jwtService.isAccessTokenValid(token)) {
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
             return false;
         }

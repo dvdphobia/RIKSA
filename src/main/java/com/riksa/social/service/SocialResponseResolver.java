@@ -2,6 +2,7 @@ package com.riksa.social.service;
 
 import com.riksa.auth.entity.User;
 import com.riksa.auth.repository.UserRepository;
+import com.riksa.common.exception.InvalidCursorException;
 import com.riksa.social.dto.CategoryResponse;
 import com.riksa.social.dto.CommentPage;
 import com.riksa.social.dto.CommentResponse;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -113,15 +115,20 @@ public class SocialResponseResolver {
 
     // ── Comments ─────────────────────────────────────────
 
-    public CommentPage resolveComments(UUID postId, UUID currentUserId, int limit) {
+    public CommentPage resolveComments(UUID postId, UUID currentUserId, UUID cursor, int limit) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
         if (post.getStatus() == ContentStatus.HIDDEN) {
             throw new IllegalArgumentException("Post not found: " + postId);
         }
 
-        List<Comment> comments = commentRepository
-                .findByPostIdAndParentIdIsNullAndStatusOrderByCreatedAtAsc(postId, ContentStatus.VISIBLE, PageRequest.of(0, limit + 1));
+        Comment cursorComment = cursor == null ? null : requireCursor(cursor,
+                comment -> Objects.equals(comment.getPostId(), postId) && comment.getParentId() == null);
+        List<Comment> comments = cursorComment == null
+                ? commentRepository.findByPostIdAndParentIdIsNullAndStatusOrderByCreatedAtAscIdAsc(
+                        postId, ContentStatus.VISIBLE, PageRequest.of(0, limit + 1))
+                : commentRepository.findPostCommentsAfterCursor(postId, ContentStatus.VISIBLE,
+                        cursorComment.getCreatedAt(), cursorComment.getId(), PageRequest.of(0, limit + 1));
 
         boolean hasNext = comments.size() > limit;
         if (hasNext) comments = comments.subList(0, limit);
@@ -130,13 +137,18 @@ public class SocialResponseResolver {
                 .map(c -> resolveComment(c, currentUserId))
                 .toList();
 
-        UUID endCursor = hasNext && !comments.isEmpty() ? comments.get(comments.size() - 1).getId() : null;
+        UUID endCursor = comments.isEmpty() ? null : comments.get(comments.size() - 1).getId();
         return new CommentPage(edges, new PageInfo(hasNext, endCursor));
     }
 
-    public CommentPage resolveReplies(UUID parentId, UUID currentUserId, int limit) {
-        List<Comment> replies = commentRepository
-                .findByParentIdAndStatusOrderByCreatedAtAsc(parentId, ContentStatus.VISIBLE, PageRequest.of(0, limit + 1));
+    public CommentPage resolveReplies(UUID parentId, UUID currentUserId, UUID cursor, int limit) {
+        Comment cursorComment = cursor == null ? null : requireCursor(cursor,
+                comment -> Objects.equals(comment.getParentId(), parentId));
+        List<Comment> replies = cursorComment == null
+                ? commentRepository.findByParentIdAndStatusOrderByCreatedAtAscIdAsc(
+                        parentId, ContentStatus.VISIBLE, PageRequest.of(0, limit + 1))
+                : commentRepository.findRepliesAfterCursor(parentId, ContentStatus.VISIBLE,
+                        cursorComment.getCreatedAt(), cursorComment.getId(), PageRequest.of(0, limit + 1));
 
         boolean hasNext = replies.size() > limit;
         if (hasNext) replies = replies.subList(0, limit);
@@ -145,8 +157,20 @@ public class SocialResponseResolver {
                 .map(c -> resolveComment(c, currentUserId))
                 .toList();
 
-        UUID endCursor = hasNext && !replies.isEmpty() ? replies.get(replies.size() - 1).getId() : null;
+        UUID endCursor = replies.isEmpty() ? null : replies.get(replies.size() - 1).getId();
         return new CommentPage(edges, new PageInfo(hasNext, endCursor));
+    }
+
+    private Comment requireCursor(UUID cursorId, java.util.function.Predicate<Comment> scopeCheck) {
+        Comment cursor = commentRepository.findById(cursorId)
+                .filter(comment -> comment.getStatus() == ContentStatus.VISIBLE)
+                .filter(scopeCheck)
+                .orElseThrow(() -> new InvalidCursorException(
+                        "Comment cursor is missing, hidden, or belongs to another thread"));
+        if (cursor.getCreatedAt() == null) {
+            throw new InvalidCursorException("Comment cursor has no creation time");
+        }
+        return cursor;
     }
 
     public CommentResponse resolveComment(Comment comment, UUID currentUserId) {
@@ -181,8 +205,11 @@ public class SocialResponseResolver {
 
     public ReactionType resolveMyReaction(UUID currentUserId, UUID postId, UUID commentId) {
         if (currentUserId == null) return null;
-        Optional<Reaction> reaction = reactionRepository
-                .findByUserIdAndPostIdAndCommentId(currentUserId, postId, commentId);
-        return reaction.map(Reaction::getType).orElse(null);
+        return reactionRepository
+                .findAllByUserIdAndPostIdAndCommentIdOrderByCreatedAtAscIdAsc(currentUserId, postId, commentId)
+                .stream()
+                .findFirst()
+                .map(Reaction::getType)
+                .orElse(null);
     }
 }

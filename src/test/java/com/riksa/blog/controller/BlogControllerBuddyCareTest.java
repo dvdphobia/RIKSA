@@ -122,6 +122,7 @@ class BlogControllerBuddyCareTest {
         when(blogService.listPosts(BlogStatus.APPROVED, null, 0, 20))
                 .thenReturn(new PageImpl<>(List.of(post)));
         when(blogService.getPost(postId)).thenReturn(post);
+        when(engagementService.getPostForDetail(postId, USER_ID, false)).thenReturn(post);
 
         mockMvc.perform(get("/api/v1/blog"))
                 .andExpect(status().isOk())
@@ -134,6 +135,24 @@ class BlogControllerBuddyCareTest {
                 .andExpect(jsonPath("$.id").value(postId.toString()))
                 .andExpect(jsonPath("$.moderationScore").doesNotExist())
                 .andExpect(jsonPath("$.moderationReasons").doesNotExist());
+        verify(engagementService).getPostForDetail(postId, USER_ID, false);
+    }
+
+    @Test
+    void hiddenPostIsNotReturnedToOrdinaryUser() throws Exception {
+        UUID postId = UUID.randomUUID();
+        BlogPost post = new BlogPost();
+        post.setId(postId);
+        post.setStatus(BlogStatus.HIDDEN);
+        when(engagementService.getPostForDetail(postId, USER_ID, false))
+                .thenThrow(new com.riksa.common.exception.ResourceNotFoundException(
+                        "Blog post not found: " + postId));
+        when(blogService.getPost(postId)).thenReturn(post);
+
+        mockMvc.perform(get("/api/v1/blog/{id}", postId))
+                .andExpect(status().isNotFound());
+
+        verify(engagementService, never()).trackView(any(), any());
     }
 
     @Test

@@ -17,6 +17,7 @@ public final class AdminBlogMapper {
                 post.getCoverUrl(),
                 post.getStatus(),
                 post.getRejectionReason(),
+                post.getHiddenReason(),
                 post.getViewCount(),
                 post.getLikeCount(),
                 post.getCategoryId(),

@@ -1,6 +1,6 @@
 # Telegram sign-in and sign-up
 
-Last updated: September 15, 2026 · Backend API base: `/api/v1/auth` · Migration `V32`
+Backend API base: /api/v1/auth · Verify routes and challenge storage against the current auth source before changing this flow.
 
 Users never enter a Telegram ID. After **Continue with Telegram**, the app
 offers two options. Both use the same account rule: the stable Telegram user id

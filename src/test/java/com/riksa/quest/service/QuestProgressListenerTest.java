@@ -12,6 +12,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.UUID;
 import java.util.Arrays;
+import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -26,31 +27,40 @@ class QuestProgressListenerTest {
     void progressEventsMapToTheirQuestTypesAndIgnoreWrongAnswers() {
         QuestService service = mock(QuestService.class);
         QuestProgressListener listener = new QuestProgressListener(service);
+        OffsetDateTime completedAt = OffsetDateTime.parse("2026-11-10T10:00:00+07:00");
+        var lessonEvent = new LessonCompletedEvent(this, USER_ID, SOURCE_ID, 10, completedAt);
 
-        listener.onLessonCompleted(new LessonCompletedEvent(this, USER_ID, SOURCE_ID, 10));
+        listener.onLessonCompleted(lessonEvent);
+        listener.announceLessonCompletion(lessonEvent);
         listener.onExerciseAnswered(new ExerciseAnsweredEvent(this, USER_ID, SOURCE_ID, true));
         listener.onExerciseAnswered(new ExerciseAnsweredEvent(this, USER_ID, SOURCE_ID, false));
         listener.onSocialAction(new SocialActionEvent(this, USER_ID));
 
-        verify(service).recordLesson(USER_ID);
+        verify(service).recordLesson(USER_ID, SOURCE_ID, completedAt);
         verify(service).recordCorrectAnswer(USER_ID);
         verify(service).recordSocialAction(USER_ID);
         verifyNoMoreInteractions(service);
     }
 
     @Test
-    void everyProgressHandlerWaitsUntilTheSourceTransactionCommits() throws Exception {
-        var listenerMethods = Arrays.stream(QuestProgressListener.class.getDeclaredMethods())
-                .filter(method -> method.getName().startsWith("on"))
+    void lessonProgressRunsBeforeCommitAndNotificationsAfterCommit() throws Exception {
+        var lessonProgress = QuestProgressListener.class.getDeclaredMethod("onLessonCompleted", LessonCompletedEvent.class);
+        assertThat(lessonProgress.getAnnotation(TransactionalEventListener.class).phase())
+                .isEqualTo(TransactionPhase.BEFORE_COMMIT);
+        assertThat(lessonProgress.getAnnotation(Async.class)).isNull();
+
+        var afterCommitMethods = Arrays.stream(QuestProgressListener.class.getDeclaredMethods())
+                .filter(method -> method.getName().equals("announceLessonCompletion")
+                        || method.getName().equals("onExerciseAnswered")
+                        || method.getName().equals("onSocialAction"))
                 .toList();
-        assertThat(listenerMethods).hasSize(3);
-        assertThat(listenerMethods)
+        assertThat(afterCommitMethods).hasSize(3);
+        assertThat(afterCommitMethods)
                 .allSatisfy(method -> assertThat(method.getAnnotation(TransactionalEventListener.class))
                         .isNotNull()
                         .extracting(TransactionalEventListener::phase)
                         .isEqualTo(TransactionPhase.AFTER_COMMIT));
-        // A synchronous handler would write inside the already-committed transaction.
-        assertThat(listenerMethods)
+        assertThat(afterCommitMethods)
                 .allSatisfy(method -> assertThat(method.getAnnotation(Async.class))
                         .isNotNull()
                         .extracting(Async::value)

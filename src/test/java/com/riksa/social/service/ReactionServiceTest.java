@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,9 +42,9 @@ class ReactionServiceTest {
         post.setAuthorId(UUID.randomUUID());
         post.setReactionCount(0);
 
-        when(reactionRepository.findByUserIdAndPostIdAndCommentId(userId, postId, null))
-                .thenReturn(Optional.empty());
-        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(reactionRepository.findAllByUserIdAndPostIdAndCommentIdOrderByCreatedAtAscIdAsc(userId, postId, null))
+                .thenReturn(List.of());
+        when(postRepository.findByIdForUpdate(postId)).thenReturn(Optional.of(post));
         when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Post result = reactionService.react(userId, postId, null, ReactionType.UPVOTE);
@@ -65,15 +66,15 @@ class ReactionServiceTest {
         existing.setPostId(postId);
         existing.setType(ReactionType.UPVOTE);
 
-        when(reactionRepository.findByUserIdAndPostIdAndCommentId(userId, postId, null))
-                .thenReturn(Optional.of(existing));
-        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(reactionRepository.findAllByUserIdAndPostIdAndCommentIdOrderByCreatedAtAscIdAsc(userId, postId, null))
+                .thenReturn(List.of(existing));
+        when(postRepository.findByIdForUpdate(postId)).thenReturn(Optional.of(post));
         when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Post result = reactionService.react(userId, postId, null, ReactionType.UPVOTE);
 
         assertThat(result.getReactionCount()).isEqualTo(2);
-        verify(reactionRepository).delete(existing);
+        verify(reactionRepository).deleteAll(List.of(existing));
     }
 
     @Test
@@ -89,9 +90,9 @@ class ReactionServiceTest {
         existing.setPostId(postId);
         existing.setType(ReactionType.UPVOTE);
 
-        when(reactionRepository.findByUserIdAndPostIdAndCommentId(userId, postId, null))
-                .thenReturn(Optional.of(existing));
-        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(reactionRepository.findAllByUserIdAndPostIdAndCommentIdOrderByCreatedAtAscIdAsc(userId, postId, null))
+                .thenReturn(List.of(existing));
+        when(postRepository.findByIdForUpdate(postId)).thenReturn(Optional.of(post));
 
         Post result = reactionService.react(userId, postId, null, ReactionType.LOVE);
 
@@ -112,34 +113,34 @@ class ReactionServiceTest {
         existing.setUserId(userId);
         existing.setPostId(postId);
 
-        when(reactionRepository.findByUserIdAndPostIdAndCommentId(userId, postId, null))
-                .thenReturn(Optional.of(existing));
-        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(reactionRepository.findAllByUserIdAndPostIdAndCommentIdOrderByCreatedAtAscIdAsc(userId, postId, null))
+                .thenReturn(List.of(existing));
+        when(postRepository.findByIdForUpdate(postId)).thenReturn(Optional.of(post));
         when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Post result = reactionService.removeReaction(userId, postId, null);
 
         assertThat(result.getReactionCount()).isEqualTo(4);
-        verify(reactionRepository).delete(existing);
+        verify(reactionRepository).deleteAll(List.of(existing));
     }
 
     @Test
-    void removeReaction_nonExistent_stillAdjustsCounter() {
+    void removeReaction_nonExistent_doesNotAdjustCounter() {
         UUID userId = UUID.randomUUID();
         UUID postId = UUID.randomUUID();
         Post post = new Post();
         post.setId(postId);
         post.setReactionCount(3);
 
-        when(reactionRepository.findByUserIdAndPostIdAndCommentId(userId, postId, null))
-                .thenReturn(Optional.empty());
-        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
-        when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(reactionRepository.findAllByUserIdAndPostIdAndCommentIdOrderByCreatedAtAscIdAsc(userId, postId, null))
+                .thenReturn(List.of());
+        when(postRepository.findByIdForUpdate(postId)).thenReturn(Optional.of(post));
 
         Post result = reactionService.removeReaction(userId, postId, null);
 
-        // Counter still adjusted even if no reaction found
-        assertThat(result.getReactionCount()).isEqualTo(2);
+        assertThat(result.getReactionCount()).isEqualTo(3);
+        verify(postRepository, never()).save(any(Post.class));
+        verify(reactionRepository, never()).deleteAll(any());
     }
 
     @Test
@@ -150,7 +151,7 @@ class ReactionServiceTest {
         post.setId(postId);
         post.setStatus(ContentStatus.HIDDEN);
 
-        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(postRepository.findByIdForUpdate(postId)).thenReturn(Optional.of(post));
 
         org.assertj.core.api.Assertions.assertThatThrownBy(
                 () -> reactionService.react(userId, postId, null, ReactionType.UPVOTE))
@@ -165,14 +166,11 @@ class ReactionServiceTest {
         UUID userId = UUID.randomUUID();
         UUID postId = UUID.randomUUID();
         UUID commentId = UUID.randomUUID();
-        Post post = new Post();
-        post.setId(postId);
         Comment comment = new Comment();
         comment.setId(commentId);
         comment.setStatus(ContentStatus.HIDDEN);
 
-        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
-        when(commentRepository.findById(commentId)).thenReturn(Optional.of(comment));
+        when(commentRepository.findByIdForUpdate(commentId)).thenReturn(Optional.of(comment));
 
         org.assertj.core.api.Assertions.assertThatThrownBy(
                 () -> reactionService.react(userId, postId, commentId, ReactionType.UPVOTE))
@@ -180,6 +178,30 @@ class ReactionServiceTest {
                 .hasMessageContaining("Comment not found");
 
         verify(reactionRepository, never()).save(any(Reaction.class));
+    }
+
+    @Test
+    void removeReaction_repeatedRequestOnlyDecrementsOnce() {
+        UUID userId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        Post post = new Post();
+        post.setId(postId);
+        post.setReactionCount(5);
+        Reaction existing = new Reaction();
+        existing.setUserId(userId);
+        existing.setPostId(postId);
+
+        when(reactionRepository.findAllByUserIdAndPostIdAndCommentIdOrderByCreatedAtAscIdAsc(userId, postId, null))
+                .thenReturn(List.of(existing), List.of());
+        when(postRepository.findByIdForUpdate(postId)).thenReturn(Optional.of(post));
+        when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Post firstResult = reactionService.removeReaction(userId, postId, null);
+        Post secondResult = reactionService.removeReaction(userId, postId, null);
+
+        assertThat(firstResult.getReactionCount()).isEqualTo(4);
+        assertThat(secondResult.getReactionCount()).isEqualTo(4);
+        verify(reactionRepository, times(1)).deleteAll(List.of(existing));
     }
 
     @Test
@@ -195,9 +217,9 @@ class ReactionServiceTest {
         existing.setPostId(postId);
         existing.setType(ReactionType.UPVOTE);
 
-        when(reactionRepository.findByUserIdAndPostIdAndCommentId(userId, postId, null))
-                .thenReturn(Optional.of(existing));
-        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(reactionRepository.findAllByUserIdAndPostIdAndCommentIdOrderByCreatedAtAscIdAsc(userId, postId, null))
+                .thenReturn(List.of(existing));
+        when(postRepository.findByIdForUpdate(postId)).thenReturn(Optional.of(post));
         when(postRepository.save(any(Post.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Post result = reactionService.react(userId, postId, null, ReactionType.UPVOTE);

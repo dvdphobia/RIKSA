@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
@@ -73,8 +74,8 @@ class SocialResponseResolverTest {
         Reaction reaction = new Reaction(); reaction.setType(ReactionType.DOWNVOTE);
         when(userRepository.findById(authorId)).thenReturn(Optional.of(author));
         when(categoryService.listCategories()).thenReturn(List.of(category));
-        when(reactionRepository.findByUserIdAndPostIdAndCommentId(currentUser, post.getId(), null))
-                .thenReturn(Optional.of(reaction));
+        when(reactionRepository.findAllByUserIdAndPostIdAndCommentIdOrderByCreatedAtAscIdAsc(
+                currentUser, post.getId(), null)).thenReturn(List.of(reaction));
         assertThat(resolver().resolvePost(post, currentUser).myReaction()).isEqualTo(ReactionType.DOWNVOTE);
     }
 
@@ -85,20 +86,71 @@ class SocialResponseResolverTest {
         Comment first = comment(postId, null, authorId), second = comment(postId, null, authorId);
         User author = new User(); author.setId(authorId); author.setUsername("u"); author.setDisplayName("User");
         when(postRepository.findById(postId)).thenReturn(Optional.of(post));
-        when(commentRepository.findByPostIdAndParentIdIsNullAndStatusOrderByCreatedAtAsc(
+        when(commentRepository.findByPostIdAndParentIdIsNullAndStatusOrderByCreatedAtAscIdAsc(
                 eq(postId), eq(ContentStatus.VISIBLE), any(Pageable.class)))
                 .thenReturn(List.of(first, second));
         when(userRepository.findById(authorId)).thenReturn(Optional.of(author));
-        var page = resolver().resolveComments(postId, null, 1);
+        var page = resolver().resolveComments(postId, null, null, 1);
         assertThat(page.edges()).hasSize(1);
         assertThat(page.pageInfo().hasNextPage()).isTrue();
         assertThat(page.pageInfo().endCursor()).isEqualTo(first.getId());
 
         Comment reply = comment(postId, parentId, authorId);
-        when(commentRepository.findByParentIdAndStatusOrderByCreatedAtAsc(
+        when(commentRepository.findByParentIdAndStatusOrderByCreatedAtAscIdAsc(
                 eq(parentId), eq(ContentStatus.VISIBLE), any(Pageable.class)))
                 .thenReturn(List.of(reply));
-        assertThat(resolver().resolveReplies(parentId, null, 10).edges()).hasSize(1);
+        assertThat(resolver().resolveReplies(parentId, null, null, 10).edges()).hasSize(1);
+    }
+
+    @Test
+    void resolveComments_afterCursorUsesCreatedAtAndIdKeyset() {
+        UUID postId = UUID.randomUUID();
+        Post post = post(UUID.randomUUID(), UUID.randomUUID());
+        post.setId(postId);
+        Comment cursor = comment(postId, null, null);
+        cursor.setCreatedAt(java.time.OffsetDateTime.parse("2026-01-01T00:00:00Z"));
+        Comment next = comment(postId, null, null);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(commentRepository.findById(cursor.getId())).thenReturn(Optional.of(cursor));
+        when(commentRepository.findPostCommentsAfterCursor(
+                eq(postId), eq(ContentStatus.VISIBLE), eq(cursor.getCreatedAt()), eq(cursor.getId()), any(Pageable.class)))
+                .thenReturn(List.of(next));
+
+        var page = resolver().resolveComments(postId, null, cursor.getId(), 10);
+
+        assertThat(page.edges()).hasSize(1);
+        assertThat(page.pageInfo().endCursor()).isEqualTo(next.getId());
+        verify(commentRepository).findPostCommentsAfterCursor(
+                postId, ContentStatus.VISIBLE, cursor.getCreatedAt(), cursor.getId(), PageRequest.of(0, 11));
+    }
+
+    @Test
+    void resolveReplies_rejectsCursorFromAnotherThread() {
+        UUID parentId = UUID.randomUUID();
+        Comment cursor = comment(UUID.randomUUID(), UUID.randomUUID(), null);
+        when(commentRepository.findById(cursor.getId())).thenReturn(Optional.of(cursor));
+
+        assertThatThrownBy(() -> resolver().resolveReplies(parentId, null, cursor.getId(), 5))
+                .isInstanceOf(com.riksa.common.exception.InvalidCursorException.class)
+                .hasMessageContaining("another thread");
+
+        verify(commentRepository, never()).findRepliesAfterCursor(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void resolveComments_rejectsCursorFromAnotherPost() {
+        UUID postId = UUID.randomUUID();
+        Post post = post(UUID.randomUUID(), UUID.randomUUID());
+        post.setId(postId);
+        Comment cursor = comment(UUID.randomUUID(), null, null);
+        when(postRepository.findById(postId)).thenReturn(Optional.of(post));
+        when(commentRepository.findById(cursor.getId())).thenReturn(Optional.of(cursor));
+
+        assertThatThrownBy(() -> resolver().resolveComments(postId, null, cursor.getId(), 10))
+                .isInstanceOf(com.riksa.common.exception.InvalidCursorException.class)
+                .hasMessageContaining("another thread");
+
+        verify(commentRepository, never()).findPostCommentsAfterCursor(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -109,7 +161,7 @@ class SocialResponseResolverTest {
         post.setStatus(ContentStatus.HIDDEN);
         when(postRepository.findById(postId)).thenReturn(Optional.of(post));
 
-        assertThatThrownBy(() -> resolver().resolveComments(postId, null, 10))
+        assertThatThrownBy(() -> resolver().resolveComments(postId, null, null, 10))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Post not found");
 
@@ -121,7 +173,7 @@ class SocialResponseResolverTest {
         UUID postId = UUID.randomUUID();
         when(postRepository.findById(postId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> resolver().resolveComments(postId, null, 10))
+        assertThatThrownBy(() -> resolver().resolveComments(postId, null, null, 10))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Post not found");
     }

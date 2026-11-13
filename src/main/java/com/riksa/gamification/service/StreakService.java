@@ -42,11 +42,17 @@ public class StreakService {
      */
     @Transactional
     public long updateStreak(UUID userId) {
+        return updateStreak(userId, OffsetDateTime.now(CAMBODIA_TZ));
+    }
+
+    /** Apply a completion using its persisted time, so delayed delivery is deterministic. */
+    @Transactional
+    public long updateStreak(UUID userId, OffsetDateTime completedAt) {
         UserGamification ug = userGamificationRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new IllegalStateException(
                         "UserGamification row not found for user " + userId));
 
-        OffsetDateTime now = OffsetDateTime.now(CAMBODIA_TZ);
+        OffsetDateTime completionTime = completedAt.atZoneSameInstant(CAMBODIA_TZ).toOffsetDateTime();
         OffsetDateTime lastCompleted = ug.getLastCompletedAt();
 
         long newStreak;
@@ -56,11 +62,12 @@ public class StreakService {
             newStreak = 1;
         } else {
             OffsetDateTime lastInCambodia = lastCompleted.atZoneSameInstant(CAMBODIA_TZ).toOffsetDateTime();
-            int daysBetween = now.toLocalDate().compareTo(lastInCambodia.toLocalDate());
+            int daysBetween = completionTime.toLocalDate().compareTo(lastInCambodia.toLocalDate());
 
-            if (daysBetween == 0) {
-                // Same day — no change
-                log.debug("User {} completed on same day, streak unchanged: {}", userId, ug.getCurrentStreak());
+            if (daysBetween <= 0) {
+                // Same-day delivery is a duplicate; older events must not move the streak backward.
+                log.debug("Ignoring duplicate or older completion for user {} on {} (last completion: {})",
+                        userId, completionTime, lastInCambodia);
                 return ug.getCurrentStreak();
             } else if (daysBetween == 1) {
                 // Next day — streak increments
@@ -75,7 +82,7 @@ public class StreakService {
         if (newStreak > ug.getHighestStreak()) {
             ug.setHighestStreak(newStreak);
         }
-        ug.setLastCompletedAt(now);
+        ug.setLastCompletedAt(completionTime);
         userGamificationRepository.save(ug);
 
         log.info("User {} streak updated: {} → {}", userId, ug.getCurrentStreak(), newStreak);

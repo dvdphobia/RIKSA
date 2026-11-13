@@ -9,6 +9,7 @@ import com.riksa.blog.event.BlogApprovedEvent;
 import com.riksa.blog.event.BlogRejectedEvent;
 import com.riksa.blog.event.BlogPostApprovedEvent;
 import com.riksa.blog.repository.BlogPostRepository;
+import com.riksa.common.audit.AuditLogService;
 import com.riksa.common.event.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,6 +31,9 @@ public class BlogModerationService {
     @Autowired(required = false)
     private NotificationService notificationService;
 
+    @Autowired(required = false)
+    private AuditLogService auditLogService;
+
     @Transactional(readOnly = true)
     public Page<BlogPost> list(BlogStatus status, int page, int size) {
         int safeSize = Math.max(1, Math.min(size, 100));
@@ -46,10 +50,18 @@ public class BlogModerationService {
     @Transactional
     public BlogPost approve(UUID postId, UUID moderatorId){
         BlogPost post = getPostForUpdate(postId);
-        if (post.getStatus() != BlogStatus.PENDING && post.getStatus() != BlogStatus.APPROVED) {
+        BlogStatus previousStatus = post.getStatus();
+        String previousHiddenReason = post.getHiddenReason();
+        if (previousStatus != BlogStatus.PENDING && previousStatus != BlogStatus.APPROVED
+                && previousStatus != BlogStatus.HIDDEN) {
             throw new IllegalStateException("Post already moderated: " + post.getStatus());
         }
-        return publishApproved(post, moderatorId);
+        BlogPost approved = publishApproved(post, moderatorId);
+        if (previousStatus == BlogStatus.HIDDEN && auditLogService != null) {
+            auditLogService.record(moderatorId, "BLOG_RESTORE", "BLOG", postId,
+                    java.util.Map.of("previousReason", previousHiddenReason == null ? "" : previousHiddenReason));
+        }
+        return approved;
     }
 
     /** Publishes a post and emits approval events only on its first approval. */
@@ -58,6 +70,7 @@ public class BlogModerationService {
         boolean firstApproval = post.getFirstApprovedAt() == null;
         post.setStatus(BlogStatus.APPROVED);
         post.setRejectionReason(null);
+        post.setHiddenReason(null);
         if (firstApproval) {
             post.setFirstApprovedAt(OffsetDateTime.now());
         }
@@ -88,6 +101,29 @@ public class BlogModerationService {
         if (notificationService != null) {
             notificationService.notify(post.getAuthorId(), null, NotificationType.BLOG_REJECTED,
                     "BLOG", postId, null, reason != null && !reason.isBlank() ? reason : post.getTitle());
+        }
+        return post;
+    }
+
+    @Transactional
+    public BlogPost hide(UUID postId, String reason, UUID moderatorId) {
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("Reason is required to hide a blog post");
+        }
+        if (reason.trim().length() > 1200) {
+            throw new IllegalArgumentException("Hide reason must be at most 1200 characters");
+        }
+        BlogPost post = getPostForUpdate(postId);
+        if (post.getStatus() != BlogStatus.APPROVED) {
+            throw new IllegalStateException("Only published blog posts can be hidden");
+        }
+        String normalizedReason = reason.trim();
+        post.setStatus(BlogStatus.HIDDEN);
+        post.setHiddenReason(normalizedReason);
+        post = blogPostRepository.save(post);
+        if (auditLogService != null) {
+            auditLogService.record(moderatorId, "BLOG_HIDE", "BLOG", postId,
+                    java.util.Map.of("reason", normalizedReason));
         }
         return post;
     }

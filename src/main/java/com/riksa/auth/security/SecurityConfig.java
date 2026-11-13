@@ -3,6 +3,7 @@ package com.riksa.auth.security;
 import com.riksa.realtime.RealtimeConfig;
 
 import com.riksa.common.constants.AdminEndpoints;
+import com.riksa.common.constants.AuthEndpoints;
 import com.riksa.common.constants.MediaEndpoints;
 import com.riksa.common.constants.ProfileEndpoints;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,11 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                AuthEndpoints.BASE + AuthEndpoints.ME,
+                                AuthEndpoints.BASE + AuthEndpoints.TELEGRAM_LINK,
+                                AuthEndpoints.BASE + AuthEndpoints.PHONE_VERIFY_START
+                        ).authenticated()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, ProfileEndpoints.BASE + "/**").permitAll()
                         .requestMatchers(HttpMethod.GET,
@@ -64,6 +70,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health/**").permitAll()
                         .requestMatchers("/avatars/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/legal/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/email-verification.html").permitAll()
                         // Post images are embedded in posts any reader can see.
                         // Uploading still requires a signed-in user.
                         .requestMatchers(HttpMethod.GET, MediaEndpoints.BASE + "/**").permitAll()

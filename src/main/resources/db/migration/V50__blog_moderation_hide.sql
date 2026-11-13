@@ -1,0 +1,4 @@
+ALTER TYPE "BlogStatus" ADD VALUE IF NOT EXISTS 'HIDDEN';
+
+ALTER TABLE "blog_posts"
+    ADD COLUMN IF NOT EXISTS hidden_reason VARCHAR(1200);

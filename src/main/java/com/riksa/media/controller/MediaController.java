@@ -4,10 +4,13 @@ import com.riksa.common.constants.MediaEndpoints;
 import com.riksa.media.dto.MediaUploadResponse;
 import com.riksa.media.service.MediaPublicUrlFactory;
 import com.riksa.media.service.MediaStorageService;
+import com.riksa.media.entity.MediaAsset;
+import com.riksa.media.repository.MediaAssetRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -29,9 +32,16 @@ public class MediaController {
 
     private final MediaStorageService storage;
     private final MediaPublicUrlFactory publicUrlFactory;
+    private final MediaAssetRepository mediaAssetRepository;
 
     @PostMapping(value = MediaEndpoints.ROOT, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public MediaUploadResponse upload(@RequestPart("file") MultipartFile file) {
+    public MediaUploadResponse upload(
+            @AuthenticationPrincipal java.util.UUID userId,
+            @RequestPart("file") MultipartFile file
+    ) {
+        if (userId == null) {
+            throw new IllegalStateException("An authenticated user is required to upload media");
+        }
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Image file is empty");
         }
@@ -44,9 +54,16 @@ public class MediaController {
 
         String id = storage.store(bytes);
         var dimensions = storage.dimensions(bytes);
+        String url = publicUrlFactory.urlFor(id);
+        try {
+            mediaAssetRepository.save(new MediaAsset(id, userId, url));
+        } catch (RuntimeException exception) {
+            storage.deleteIfExists(id);
+            throw exception;
+        }
         return new MediaUploadResponse(
                 id,
-                publicUrlFactory.urlFor(id),
+                url,
                 dimensions == null ? null : dimensions.width(),
                 dimensions == null ? null : dimensions.height());
     }

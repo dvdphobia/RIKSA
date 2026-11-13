@@ -81,7 +81,7 @@ public class PostController {
     public CommentPage postComments(PostResponse post, @Argument UUID cursor, @Argument Integer limit) {
         UUID userId = getCurrentUserId();
         int pageLimit = (limit != null && limit > 0) ? Math.min(limit, 50) : 10;
-        return resolver.resolveComments(post.id(), userId, pageLimit);
+        return resolver.resolveComments(post.id(), userId, cursor, pageLimit);
     }
 
     /** Loads all media for the current post page with one IN query. */

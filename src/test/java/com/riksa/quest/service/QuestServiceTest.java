@@ -13,6 +13,7 @@ import com.riksa.quest.entity.QuestType;
 import com.riksa.quest.entity.WeeklyQuest;
 import com.riksa.quest.entity.WeeklyQuestType;
 import com.riksa.quest.repository.DailyQuestRepository;
+import com.riksa.quest.repository.QuestLessonProgressEventRepository;
 import com.riksa.quest.repository.QuestChestRepository;
 import com.riksa.quest.repository.WeeklyQuestRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +51,7 @@ class QuestServiceTest {
     private DailyQuestRepository questRepository;
     private WeeklyQuestRepository weeklyQuestRepository;
     private QuestChestRepository questChestRepository;
+    private QuestLessonProgressEventRepository questLessonProgressEventRepository;
     private XpLedgerService xpLedgerService;
     private UserGamificationRepository userGamificationRepository;
     private MarketService marketService;
@@ -60,6 +62,7 @@ class QuestServiceTest {
         questRepository = mock(DailyQuestRepository.class);
         weeklyQuestRepository = mock(WeeklyQuestRepository.class);
         questChestRepository = mock(QuestChestRepository.class);
+        questLessonProgressEventRepository = mock(QuestLessonProgressEventRepository.class);
         xpLedgerService = mock(XpLedgerService.class);
         userGamificationRepository = mock(UserGamificationRepository.class);
         marketService = mock(MarketService.class);
@@ -144,6 +147,26 @@ class QuestServiceTest {
         // replaying today's event therefore leaves active-day progress unchanged in the database.
         verify(weeklyQuestRepository, times(2)).refreshActiveDaysProgress(USER_ID, WEEK_START,
                 WEEK_START.plusWeeks(1));
+    }
+
+    @Test
+    void committedLessonEventUsesOriginalDateAndIsIdempotent() {
+        UUID lessonId = UUID.randomUUID();
+        OffsetDateTime completedAt = OffsetDateTime.parse("2026-09-20T16:30:00Z"); // Sunday 23:30 in Cambodia
+        when(questLessonProgressEventRepository.insertIfAbsent(
+                any(), eq(USER_ID), eq(lessonId), eq(completedAt))).thenReturn(1, 0);
+
+        service.recordLesson(USER_ID, lessonId, completedAt);
+        service.recordLesson(USER_ID, lessonId, completedAt);
+
+        LocalDate completionDate = LocalDate.of(2026, 9, 20);
+        LocalDate weekStart = LocalDate.of(2026, 9, 14);
+        verify(questRepository).incrementProgress(USER_ID, completionDate, QuestType.COMPLETE_LESSON);
+        verify(weeklyQuestRepository).incrementProgress(USER_ID, weekStart, WeeklyQuestType.WEEKLY_LESSONS);
+        verify(weeklyQuestRepository).refreshActiveDaysProgress(USER_ID, weekStart, weekStart.plusWeeks(1));
+        verify(questRepository, times(3)).insertIfAbsent(any(), eq(USER_ID), eq(completionDate), any(), anyInt(), anyInt());
+        verify(weeklyQuestRepository, times(4)).insertIfAbsent(any(), eq(USER_ID), eq(weekStart),
+                any(), anyInt(), anyInt());
     }
 
     @Test
@@ -279,7 +302,7 @@ class QuestServiceTest {
     private QuestService newService(Instant instant) {
         Clock clock = Clock.fixed(instant, ZoneOffset.UTC);
         return new QuestService(questRepository, weeklyQuestRepository, questChestRepository,
-                xpLedgerService, userGamificationRepository, marketService, clock);
+                questLessonProgressEventRepository, xpLedgerService, userGamificationRepository, marketService, clock);
     }
 
     private DailyQuest dailyQuest(QuestType type, int target, int progress, boolean claimed) {

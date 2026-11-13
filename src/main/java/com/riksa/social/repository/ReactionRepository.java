@@ -14,6 +14,9 @@ public interface ReactionRepository extends JpaRepository<Reaction, UUID> {
 
     Optional<Reaction> findByUserIdAndPostIdAndCommentId(UUID userId, UUID postId, UUID commentId);
 
+    List<Reaction> findAllByUserIdAndPostIdAndCommentIdOrderByCreatedAtAscIdAsc(
+            UUID userId, UUID postId, UUID commentId);
+
     List<Reaction> findByUserIdAndPostIdInAndCommentIdIsNull(UUID userId, List<UUID> postIds);
 
     boolean existsByUserIdAndPostIdAndType(UUID userId, UUID postId, ReactionType type);

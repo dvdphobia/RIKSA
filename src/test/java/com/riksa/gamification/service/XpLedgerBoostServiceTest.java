@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,11 +51,11 @@ class XpLedgerBoostServiceTest {
         gamification = new UserGamification();
         gamification.setUserId(userId);
         when(userGamificationRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(gamification));
-        when(xpTransactionRepository.findByUserIdAndSourceTypeAndSourceId(any(), any(), any()))
+        lenient().when(xpTransactionRepository.findByUserIdAndSourceTypeAndSourceId(any(), any(), any()))
                 .thenReturn(Optional.empty());
-        when(userGamificationRepository.save(any(UserGamification.class)))
+        lenient().when(userGamificationRepository.save(any(UserGamification.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(xpTransactionRepository.save(any(XpTransaction.class)))
+        lenient().when(xpTransactionRepository.save(any(XpTransaction.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
@@ -102,6 +103,41 @@ class XpLedgerBoostServiceTest {
         ArgumentCaptor<XpTransaction> transaction = ArgumentCaptor.forClass(XpTransaction.class);
         verify(xpTransactionRepository).save(transaction.capture());
         assertThat(transaction.getValue().getAmount()).isEqualTo(5);
+    }
+
+    @Test
+    void awardXpResultReportsTheCappedAmountActuallyGranted() {
+        UUID sourceId = UUID.randomUUID();
+        when(xpBoostRepository.findFirstByStartsAtLessThanEqualAndEndsAtGreaterThanOrderByStartsAtDesc(
+                any(OffsetDateTime.class), any(OffsetDateTime.class))).thenReturn(Optional.of(boost("2.0")));
+        when(settingsService.getXpRules()).thenReturn(new XpRulesSettings(30));
+        when(xpTransactionRepository.sumAmountByUserAndSourceTypeInWindow(
+                eq(userId), eq("LESSON_COMPLETION"), any(OffsetDateTime.class), any(OffsetDateTime.class)))
+                .thenReturn(25L);
+
+        var result = xpLedgerService.awardXpAndGetResult(userId, 20, "LESSON_COMPLETION", sourceId);
+
+        assertThat(result.amountAwarded()).isEqualTo(5);
+        assertThat(result.totalXp()).isEqualTo(5);
+    }
+
+    @Test
+    void awardXpRetryReturnsOriginalLedgerAmountWithoutApplyingBoostAgain() {
+        UUID sourceId = UUID.randomUUID();
+        XpTransaction existing = new XpTransaction();
+        existing.setAmount(17);
+        gamification.setTotalXp(117);
+        when(xpTransactionRepository.findByUserIdAndSourceTypeAndSourceId(userId, "LESSON_COMPLETION", sourceId))
+                .thenReturn(Optional.of(existing));
+
+        var result = xpLedgerService.awardXpAndGetResult(userId, 20, "LESSON_COMPLETION", sourceId);
+
+        assertThat(result.amountAwarded()).isEqualTo(17);
+        assertThat(result.totalXp()).isEqualTo(117);
+        verify(xpTransactionRepository, never()).save(any());
+        verify(eventPublisher, never()).publish(any());
+        verify(xpBoostRepository, never())
+                .findFirstByStartsAtLessThanEqualAndEndsAtGreaterThanOrderByStartsAtDesc(any(), any());
     }
 
     @Test

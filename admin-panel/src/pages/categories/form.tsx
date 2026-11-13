@@ -10,6 +10,8 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { ChevronLeft } from "lucide-react";
+import { Alert, AlertDescription } from "../../components/ui/alert";
+import { Skeleton } from "../../components/ui/skeleton";
 
 interface CategoryForm {
   name: string;
@@ -62,6 +64,55 @@ export const CategoryForm = ({ mode }: { mode: "create" | "edit" }) => {
     onError: (e) => toast.error(e.message || "Save failed"),
   });
 
+  const submit = (values: CategoryForm) => {
+    if (isEdit && !record.data) {
+      toast.error("Category has not loaded; changes were not saved");
+      return;
+    }
+    save.mutate({
+      name: values.name,
+      slug: values.slug,
+      description: values.description ?? "",
+      iconUrl: values.iconUrl ?? "",
+    });
+  };
+
+  if (isEdit && !id) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4">
+        <Alert variant="destructive">
+          <AlertDescription>Category ID is missing. No changes can be saved.</AlertDescription>
+        </Alert>
+        <Button variant="outline" onClick={toList}>Back to categories</Button>
+      </div>
+    );
+  }
+
+  if (isEdit && record.isLoading) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (isEdit && (record.isError || !record.data)) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4">
+        <Alert variant="destructive">
+          <AlertDescription>
+            Could not load this category. The edit form is unavailable so defaults cannot overwrite it.
+          </AlertDescription>
+        </Alert>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => record.refetch()}>Retry</Button>
+          <Button variant="outline" onClick={toList}>Back to categories</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-6 flex items-center gap-2">
@@ -73,14 +124,7 @@ export const CategoryForm = ({ mode }: { mode: "create" | "edit" }) => {
         </h1>
       </div>
       <form
-        onSubmit={handleSubmit((values) =>
-          save.mutate({
-            name: values.name,
-            slug: values.slug,
-            description: values.description ?? "",
-            iconUrl: values.iconUrl ?? "",
-          }),
-        )}
+        onSubmit={handleSubmit(submit)}
         className="space-y-4 rounded-md border bg-card p-6"
       >
         <div className="space-y-2">
@@ -108,7 +152,7 @@ export const CategoryForm = ({ mode }: { mode: "create" | "edit" }) => {
           <Label>Icon URL</Label>
           <Input {...register("iconUrl")} />
         </div>
-        <Button type="submit" disabled={save.isPending}>
+        <Button type="submit" disabled={save.isPending || (isEdit && !record.data)}>
           {save.isPending ? "Saving..." : "Save"}
         </Button>
       </form>

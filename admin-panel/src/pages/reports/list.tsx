@@ -45,6 +45,7 @@ export const ReportList = () => {
   const canHide =
     resolveTarget?.targetType === "POST" ||
     resolveTarget?.targetType === "COMMENT" ||
+    resolveTarget?.targetType === "BLOG" ||
     resolveTarget?.targetType === "RESOURCE";
 
   const query = useInfiniteQuery({
@@ -122,6 +123,12 @@ export const ReportList = () => {
           Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-20 w-full" />
           ))}
+        {query.isError && (
+          <div className="flex items-center justify-between rounded-md border border-destructive/40 p-4 text-sm">
+            <p className="text-destructive">Could not load reports: {query.error.message}</p>
+            <Button variant="outline" onClick={() => query.refetch()}>Retry</Button>
+          </div>
+        )}
         {reports.map((r) => (
           <div
             key={r.id}
@@ -151,7 +158,7 @@ export const ReportList = () => {
             </div>
           </div>
         ))}
-        {!query.isLoading && reports.length === 0 && (
+        {!query.isLoading && !query.isError && reports.length === 0 && (
           <p className="py-12 text-center text-muted-foreground">
             No {status.toLowerCase()} reports
           </p>
@@ -212,11 +219,6 @@ export const ReportList = () => {
                   </SelectItem>
                 </SelectContent>
               </Select>
-              {resolveTarget?.targetType === "BLOG" && (
-                <p className="text-xs text-muted-foreground">
-                  Blogs use the approve/reject flow instead of hiding.
-                </p>
-              )}
             </div>
           </div>
           <DialogFooter>

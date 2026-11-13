@@ -16,7 +16,13 @@ export const tokenStore = {
   getRefresh: () => localStorage.getItem(REFRESH_KEY),
   getUser: (): AuthUser | null => {
     const raw = localStorage.getItem(USER_KEY);
-    return raw ? (JSON.parse(raw) as AuthUser) : null;
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as AuthUser;
+      return parsed.role === "ADMIN" ? parsed : null;
+    } catch {
+      return null;
+    }
   },
   save: (accessToken: string, refreshToken: string, user: AuthUser) => {
     localStorage.setItem(ACCESS_KEY, accessToken);
@@ -65,7 +71,16 @@ async function refreshTokens(): Promise<boolean> {
     const data = await res.json();
     const user = tokenStore.getUser();
     if (!data.accessToken || !user) return false;
-    tokenStore.save(data.accessToken, data.refreshToken ?? refreshToken, user);
+    const nextUser: AuthUser = {
+      userId: data.userId ?? user.userId,
+      username: data.username ?? user.username,
+      role: data.role ?? user.role,
+    };
+    if (nextUser.role !== "ADMIN") {
+      tokenStore.clear();
+      return false;
+    }
+    tokenStore.save(data.accessToken, data.refreshToken ?? refreshToken, nextUser);
     return true;
   } catch {
     return false;

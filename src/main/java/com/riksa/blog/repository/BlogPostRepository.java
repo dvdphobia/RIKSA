@@ -20,6 +20,7 @@ public interface BlogPostRepository extends JpaRepository<BlogPost, UUID> {
     long countByStatus(BlogStatus status);
     Page<BlogPost> findByStatusAndCategoryId(BlogStatus status, UUID categoryId, Pageable pageable);
     Page<BlogPost> findByAuthorId(UUID authorId, Pageable pageable);
+    List<BlogPost> findAllByAuthorId(UUID authorId);
     Page<BlogPost> findByAuthorIdAndStatus(UUID authorId, BlogStatus status, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

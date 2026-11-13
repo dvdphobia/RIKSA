@@ -1,7 +1,7 @@
 export type Role = "USER" | "MODERATOR" | "ADMIN";
 export type DifficultyLevel = "EASY" | "MEDIUM" | "HARD" | "DIFFICULT";
 export type ContentStatus = "VISIBLE" | "HIDDEN";
-export type BlogStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type BlogStatus = "PENDING" | "APPROVED" | "REJECTED" | "HIDDEN";
 export type ReportStatus = "OPEN" | "RESOLVED" | "DISMISSED";
 export type ReportAction = "NONE" | "HIDE";
 export type ReportTargetType = "POST" | "COMMENT" | "BLOG" | "RESOURCE";
@@ -36,6 +36,51 @@ export interface BlogPage<T = BlogPost> {
   size: number;
   totalElements: number;
   totalPages: number;
+}
+
+export interface AuthSessionResponse {
+  userId: string;
+  accessToken: string;
+  refreshToken: string;
+  tokenType?: string;
+  username: string;
+  role: Role;
+}
+
+export interface TelegramBotInfo {
+  available: boolean;
+  botUsername: string | null;
+  botUrl: string | null;
+  botAppUrl: string | null;
+  codeLength: number;
+}
+
+export interface TelegramAuthStartResponse {
+  requestToken: string;
+  botUrl: string;
+  botAppUrl: string;
+  botUsername: string;
+  expiresAt: string;
+  expiresInSeconds: number;
+  pollIntervalSeconds: number;
+}
+
+export type TelegramAuthStatus =
+  | "PENDING"
+  | "AUTHENTICATED"
+  | "PROFILE_REQUIRED"
+  | "DENIED"
+  | "EXPIRED";
+
+export interface TelegramAuthResult {
+  status: TelegramAuthStatus;
+  auth?: AuthSessionResponse;
+  signupToken?: string;
+  telegram?: {
+    displayName: string | null;
+    username: string | null;
+  };
+  expiresAt?: string;
 }
 
 export interface AuthUser {
@@ -118,6 +163,7 @@ export interface BlogPost {
   coverUrl: string | null;
   status: BlogStatus;
   rejectionReason: string | null;
+  hiddenReason: string | null;
   viewCount: number;
   likeCount: number;
   categoryId: string | null;
@@ -215,7 +261,7 @@ export interface CommentModeration {
 
 export interface AuditLog {
   id: string;
-  actorId: string;
+  actorId: string | null;
   action: string;
   targetType: string;
   targetId: string | null;

@@ -2,7 +2,7 @@
 
 > **Audience:** Figma designers, Flutter devs, backend devs, and competition judges.
 > **Source of truth for API:** Spring Boot controllers under `src/main/java/com/riksa/**/controller/*`.
-> **Design system:** X.com + Cambodian identity + Reddit voting — see `docs/PROJECT_CONTEXT_PROMPT.md`.
+> **Design direction (historical):** X.com + Cambodian identity + Reddit voting — see [the archived project prompt](../archive/2026-11-documentation-cleanup/docs/PROJECT_CONTEXT_PROMPT.md). Current visual principles are in the Flutter app [design guide](../../../RIKSA-FLUTTER/DESIGN.md).
 >
 > Organized **phase by phase following the user journey**. For every screen you'll see: the UI elements it contains, the API it consumes (verb, path, request, response, auth), and demo notes.
 
@@ -807,7 +807,7 @@ Open Krama Tutor → context card shows "Rank: Rising Scholar · 🔥 13-day str
 
 > **6 screens.** Moderator/Admin manage lessons, categories, blog moderation, and user roles. Not part of the student demo flow, but judges will ask "how is content moderated?"
 
-> 📖 Reference: `docs/ADMIN_PANEL_GUIDE (2).md` — read before designing admin screens.
+> 📖 Reference: `ADMIN_API.md` — read before designing admin screens.
 
 ## P6.S1 — Admin Dashboard
 **Elements:**
@@ -980,6 +980,6 @@ Open admin → approve a pending blog post → create a new lesson with 3 exerci
 
 # Next steps
 
-1. **Figma team:** Design screens phase by phase, in phase order. Each screen's element list above is your component checklist. Follow the design system in `docs/PROJECT_CONTEXT_PROMPT.md`.
-2. **Backend team:** Pick up the endpoints marked 🔴 — Phase 2 (Learning student endpoints) and Phase 3 (XP grant event chain) are on the demo critical path.
-3. **This doc:** Update as screens get designed and APIs get implemented. The `screenDetail/index.html` navigation hub links into this doc by phase.
+1. Treat this as a legacy screen map. Check the current Flutter screens and backend API contracts before relying on a flow or endpoint detail.
+2. For redesign work, use the app product and visual principles in the Flutter repository's PRODUCT.md and DESIGN.md.
+3. Keep the screen IDs if they help organize the redesign, and update this map as the flows change.

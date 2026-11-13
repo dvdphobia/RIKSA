@@ -1,6 +1,7 @@
 package com.riksa.auth.service;
 
 import com.riksa.auth.dto.*;
+import com.riksa.auth.event.EmailVerificationRequestedEvent;
 import com.riksa.auth.event.UserProfileUpdatedEvent;
 import com.riksa.auth.avatar.AvatarCatalog;
 import com.riksa.auth.entity.Role;
@@ -122,7 +123,7 @@ public class AuthService {
 
     @Transactional
     public AuthResponse refreshToken(String token) {
-        if (!jwtService.isTokenValid(token)) {
+        if (!jwtService.isRefreshTokenValid(token)) {
             throw new IllegalArgumentException("Invalid or expired refresh token");
         }
 
@@ -239,6 +240,14 @@ public class AuthService {
         user.setFailedLoginAttempts(0);
         user.setLockedUntil(null);
         userRepository.save(user);
+        refreshTokenRepository.revokeAllByUser(user);
+    }
+
+    @Transactional
+    public void resendEmailVerification(String email) {
+        userRepository.findByEmail(email)
+                .filter(user -> !Boolean.TRUE.equals(user.getEmailVerified()))
+                .ifPresent(this::sendEmailVerification);
     }
 
     @Transactional
@@ -327,14 +336,15 @@ public class AuthService {
 
     private void handleFailedLogin(User user) {
         int attempts = user.getFailedLoginAttempts() + 1;
-        user.setFailedLoginAttempts(attempts);
-
         if (attempts >= maxFailedAttempts) {
-            user.setLockedUntil(OffsetDateTime.now().plusMinutes(lockoutMinutes));
             log.warn("Account locked for user {} after {} failed attempts", user.getUsername(), attempts);
         }
 
-        userRepository.save(user);
+        userRepository.recordFailedLogin(
+                user.getId(),
+                maxFailedAttempts,
+                OffsetDateTime.now().plusMinutes(lockoutMinutes)
+        );
     }
 
     private void sendEmailVerification(User user) {
@@ -346,9 +356,9 @@ public class AuthService {
 
         emailVerificationTokenRepository.save(verificationToken);
 
-        // Stub: replace this with an email provider before enabling email verification in production.
-        // Never log verification tokens, even in development.
-        log.info("Email verification token generated for {}", user.getEmail());
+        // The listener sends only after this transaction commits, so email can never
+        // contain a token whose database row was rolled back.
+        eventPublisher.publish(new EmailVerificationRequestedEvent(this, user.getEmail(), token));
     }
 
     private AuthResponse buildAuthResponse(User user) {

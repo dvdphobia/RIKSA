@@ -5,6 +5,7 @@ import com.riksa.report.enums.ReportStatus;
 import com.riksa.report.enums.ReportTargetType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -21,6 +22,11 @@ public interface ContentReportRepository extends JpaRepository<ContentReport, UU
     long countByStatus(ReportStatus status);
 
     long countByReporterId(UUID reporterId);
+
+    @Modifying
+    @Query("DELETE FROM ContentReport r WHERE r.targetType = :targetType AND r.targetId IN :targetIds")
+    int deleteByTargetTypeAndTargetIdIn(@Param("targetType") ReportTargetType targetType,
+                                        @Param("targetIds") List<UUID> targetIds);
 
     // The current schema supports POST, COMMENT, and BLOG targets only. This returns
     // reports on owned content; direct user-target reports are not part of the schema.

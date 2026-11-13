@@ -16,10 +16,6 @@ import java.util.UUID;
 
 @Component
 public class QuestProgressListener {
-    // After commit the finished transaction is still bound to this thread, so
-    // a @Transactional write here would join it and never be committed. Like
-    // the other gamification listeners, record progress on the async executor,
-    // where QuestService opens its own transaction.
     private final QuestService questService;
     // Told once QuestService's own transaction has committed, so the app's
     // refetch sees the new progress. Null where no hub is wired (unit tests).
@@ -35,10 +31,14 @@ public class QuestProgressListener {
         this.realtimeHub = realtimeHub;
     }
 
+    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    public void onLessonCompleted(LessonCompletedEvent event) {
+        questService.recordLesson(event.getUserId(), event.getLessonId(), event.getCompletedAt());
+    }
+
     @Async("gamificationTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void onLessonCompleted(LessonCompletedEvent event) {
-        questService.recordLesson(event.getUserId());
+    public void announceLessonCompletion(LessonCompletedEvent event) {
         announce(event.getUserId());
     }
     @Async("gamificationTaskExecutor")

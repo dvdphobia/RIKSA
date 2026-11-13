@@ -3,6 +3,10 @@ package com.riksa.admin.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.riksa.admin.dto.ReportResolutionRequest;
+import com.riksa.blog.entity.BlogPost;
+import com.riksa.blog.enums.BlogStatus;
+import com.riksa.blog.repository.BlogPostRepository;
+import com.riksa.blog.service.BlogModerationService;
 import com.riksa.common.audit.AuditLogService;
 import com.riksa.common.exception.InvalidCursorException;
 import com.riksa.common.exception.ResourceNotFoundException;
@@ -37,6 +41,8 @@ import java.util.UUID;
 public class ReportAdminService {
 
     private final ContentReportRepository reportRepository;
+    private final BlogPostRepository blogPostRepository;
+    private final BlogModerationService blogModerationService;
     private final PostRepository postRepository;
     private final LessonResourceRepository lessonResourceRepository;
     private final CommentRepository commentRepository;
@@ -152,8 +158,14 @@ public class ReportAdminService {
                 socialModerationService.setCommentStatus(moderatorId, report.getTargetId(), ContentStatus.HIDDEN, reason);
                 yield null;
             }
-            case BLOG -> throw new IllegalArgumentException(
-                    "HIDE action is not supported for BLOG targets; use blog moderation");
+            case BLOG -> {
+                BlogPost post = blogPostRepository.findById(report.getTargetId()).orElse(null);
+                if (post == null) yield "targetMissing";
+                if (post.getStatus() == BlogStatus.HIDDEN) yield "alreadyHidden";
+                if (post.getStatus() != BlogStatus.APPROVED) yield "notPublished";
+                blogModerationService.hide(report.getTargetId(), reason, moderatorId);
+                yield null;
+            }
             case RESOURCE -> {
                 LessonResource resource = lessonResourceRepository.findById(report.getTargetId()).orElse(null);
                 if (resource == null) yield "targetMissing";

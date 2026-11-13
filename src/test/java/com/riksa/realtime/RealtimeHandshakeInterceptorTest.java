@@ -38,7 +38,7 @@ class RealtimeHandshakeInterceptorTest {
 
     @Test
     void rejectsAnInvalidToken() {
-        when(jwtService.isTokenValid("bad")).thenReturn(false);
+        when(jwtService.isAccessTokenValid("bad")).thenReturn(false);
         ServerHttpResponse response = mock(ServerHttpResponse.class);
 
         boolean admitted = interceptor.beforeHandshake(
@@ -49,10 +49,23 @@ class RealtimeHandshakeInterceptorTest {
     }
 
     @Test
+    void rejectsARefreshTokenEvenWhenItsSignatureIsValid() {
+        when(jwtService.isAccessTokenValid("refresh")).thenReturn(false);
+        ServerHttpResponse response = mock(ServerHttpResponse.class);
+
+        boolean admitted = interceptor.beforeHandshake(
+                request(RealtimeConfig.PATH + "?token=refresh"), response, null, new HashMap<>());
+
+        assertThat(admitted).isFalse();
+        verify(response).setStatusCode(HttpStatus.UNAUTHORIZED);
+        verify(jwtService, org.mockito.Mockito.never()).getUserId("refresh");
+    }
+
+    @Test
     void rejectsADisabledAccount() {
         UUID userId = UUID.randomUUID();
         UserSecurityState state = new UserSecurityState(false, "USER");
-        when(jwtService.isTokenValid("good")).thenReturn(true);
+        when(jwtService.isAccessTokenValid("good")).thenReturn(true);
         when(jwtService.getUserId("good")).thenReturn(userId);
         when(states.get(userId)).thenReturn(state);
         ServerHttpResponse response = mock(ServerHttpResponse.class);
@@ -68,7 +81,7 @@ class RealtimeHandshakeInterceptorTest {
     void admitsAnActiveAccountAndRemembersWhoItIs() {
         UUID userId = UUID.randomUUID();
         UserSecurityState state = new UserSecurityState(true, "USER");
-        when(jwtService.isTokenValid("good")).thenReturn(true);
+        when(jwtService.isAccessTokenValid("good")).thenReturn(true);
         when(jwtService.getUserId("good")).thenReturn(userId);
         when(states.get(userId)).thenReturn(state);
         Map<String, Object> attributes = new HashMap<>();

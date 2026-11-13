@@ -18,11 +18,11 @@ import com.riksa.social.repository.PostRepository;
 import com.riksa.social.repository.ReactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -40,67 +40,71 @@ public class ReactionService {
 
     @Transactional
     public Post react(UUID userId, UUID postId, UUID commentId, ReactionType type) {
-        rejectHiddenTargets(postId, commentId);
-        announceChange(postId, commentId);
+        if (type == null) {
+            throw new IllegalArgumentException("Reaction type is required");
+        }
+        Post post = lockVisibleTarget(postId, commentId);
 
-        Optional<Reaction> existing = reactionRepository
-                .findByUserIdAndPostIdAndCommentId(userId, postId, commentId);
+        List<Reaction> existing = reactionRepository
+                .findAllByUserIdAndPostIdAndCommentIdOrderByCreatedAtAscIdAsc(userId, postId, commentId);
 
-        if (existing.isPresent()) {
-            Reaction reaction = existing.get();
-            if (reaction.getType() == type) {
+        if (!existing.isEmpty()) {
+            boolean togglesOff = existing.stream().allMatch(reaction -> reaction.getType() == type);
+            if (togglesOff) {
                 // same type → toggle off (remove)
-                reactionRepository.delete(reaction);
-                return adjustPostCounter(postId, -1);
+                reactionRepository.deleteAll(existing);
+                Post updatedPost = adjustPostCounter(post, postId == null ? 0 : -existing.size());
+                announceChange(post.getId());
+                return updatedPost;
             } else {
-                reaction.setType(type);
-                reactionRepository.save(reaction);
-                return getPost(postId);
+                Reaction canonical = existing.getFirst();
+                canonical.setType(type);
+                reactionRepository.save(canonical);
+                if (existing.size() > 1) {
+                    reactionRepository.deleteAll(existing.subList(1, existing.size()));
+                }
+                Post updatedPost = existing.size() > 1
+                        ? adjustPostCounter(post, postId == null ? 0 : -(existing.size() - 1))
+                        : post;
+                announceChange(post.getId());
+                return updatedPost;
             }
         }
 
-        try {
-            Reaction reaction = new Reaction();
-            reaction.setUserId(userId);
-            reaction.setPostId(postId);
-            reaction.setCommentId(commentId);
-            reaction.setType(type);
-            reactionRepository.save(reaction);
-            Post updatedPost = adjustPostCounter(postId, +1);
+        Reaction reaction = new Reaction();
+        reaction.setUserId(userId);
+        reaction.setPostId(postId);
+        reaction.setCommentId(commentId);
+        reaction.setType(type);
+        reactionRepository.save(reaction);
+        Post updatedPost = adjustPostCounter(post, postId == null ? 0 : +1);
 
-            // Preserve the achievement event and count one action on another learner's content.
-            UUID actionPostId = postId;
-            if (actionPostId == null && commentId != null) {
-                actionPostId = commentRepository.findById(commentId).map(Comment::getPostId).orElse(null);
-            }
-            if (actionPostId != null) {
-                Post post = getPost(actionPostId);
-                notifyReaction(userId, post, postId, commentId);
-                if (postId != null) {
-                    eventPublisher.publishEvent(new ReactionReceivedEvent(this, postId, post.getAuthorId()));
-                }
-                if (post.getAuthorId() != null && !post.getAuthorId().equals(userId)) {
-                    eventPublisher.publishEvent(new SocialActionEvent(this, userId));
-                }
-            }
-
-            return updatedPost;
-        } catch (DataIntegrityViolationException e) {
-            Reaction reaction = reactionRepository
-                    .findByUserIdAndPostIdAndCommentId(userId, postId, commentId)
-                    .orElseThrow();
-            reaction.setType(type);
-            reactionRepository.save(reaction);
-            return getPost(postId);
+        // Preserve the achievement event and count one action on another learner's content.
+        notifyReaction(userId, post, postId, commentId);
+        if (postId != null) {
+            eventPublisher.publishEvent(new ReactionReceivedEvent(this, postId, post.getAuthorId()));
         }
+        if (post.getAuthorId() != null && !post.getAuthorId().equals(userId)) {
+            eventPublisher.publishEvent(new SocialActionEvent(this, userId));
+        }
+
+        announceChange(post.getId());
+        return updatedPost;
     }
 
     @Transactional
     public Post removeReaction(UUID userId, UUID postId, UUID commentId) {
-        announceChange(postId, commentId);
-        reactionRepository.findByUserIdAndPostIdAndCommentId(userId, postId, commentId)
-                .ifPresent(reactionRepository::delete);
-        return adjustPostCounter(postId, -1);
+        Post post = lockVisibleTarget(postId, commentId);
+        List<Reaction> existing = reactionRepository
+                .findAllByUserIdAndPostIdAndCommentIdOrderByCreatedAtAscIdAsc(userId, postId, commentId);
+        if (existing.isEmpty()) {
+            return post;
+        }
+
+        reactionRepository.deleteAll(existing);
+        Post updatedPost = adjustPostCounter(post, postId == null ? 0 : -existing.size());
+        announceChange(post.getId());
+        return updatedPost;
     }
 
     /** A new reaction tells the owner of the post or comment. Changes and removals don't. */
@@ -121,40 +125,41 @@ public class ReactionService {
     }
 
     /** Delivered only if the transaction commits, so every return path is covered. */
-    private void announceChange(UUID postId, UUID commentId) {
-        UUID changedPostId = postId;
-        if (changedPostId == null && commentId != null) {
-            changedPostId = commentRepository.findById(commentId).map(Comment::getPostId).orElse(null);
-        }
-        if (changedPostId != null) {
-            eventPublisher.publishEvent(RealtimeEvent.toEveryone(
-                    this, RealtimeTypes.POST_CHANGED, Map.of("postId", changedPostId)));
-        }
+    private void announceChange(UUID postId) {
+        eventPublisher.publishEvent(RealtimeEvent.toEveryone(
+                this, RealtimeTypes.POST_CHANGED, Map.of("postId", postId)));
     }
 
-    private Post adjustPostCounter(UUID postId, int delta) {
-        if (postId == null) return null;
-        Post post = getPost(postId);
+    private Post adjustPostCounter(Post post, int delta) {
+        if (delta == 0) {
+            return post;
+        }
         post.setReactionCount(Math.max(0, post.getReactionCount() + delta));
         return postRepository.save(post);
     }
 
-    private Post getPost(UUID postId) {
-        return postRepository.findById(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
-    }
-
-    private void rejectHiddenTargets(UUID postId, UUID commentId) {
-        if (postId != null && getPost(postId).getStatus() == ContentStatus.HIDDEN) {
-            throw new IllegalArgumentException("Post not found: " + postId);
-        }
+    private Post lockVisibleTarget(UUID postId, UUID commentId) {
         if (commentId != null) {
-            Comment comment = commentRepository.findById(commentId)
+            Comment comment = commentRepository.findByIdForUpdate(commentId)
                     .orElseThrow(() -> new IllegalArgumentException("Comment not found: " + commentId));
             if (comment.getStatus() == ContentStatus.HIDDEN) {
                 throw new IllegalArgumentException("Comment not found: " + commentId);
             }
+            if (postId != null && !Objects.equals(postId, comment.getPostId())) {
+                throw new IllegalArgumentException("Comment does not belong to the specified post");
+            }
+            postId = comment.getPostId();
         }
+        if (postId == null) {
+            throw new IllegalArgumentException("Post or comment target is required");
+        }
+        UUID resolvedPostId = postId;
+        Post post = postRepository.findByIdForUpdate(resolvedPostId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found: " + resolvedPostId));
+        if (post.getStatus() == ContentStatus.HIDDEN) {
+            throw new IllegalArgumentException("Post not found: " + postId);
+        }
+        return post;
     }
 }
 

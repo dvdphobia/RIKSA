@@ -24,4 +24,16 @@ class JwtServiceTest {
         assertThat(jwtService.getUserId(first)).isEqualTo(userId);
         assertThat(jwtService.getUserId(second)).isEqualTo(userId);
     }
+
+    @Test
+    void accessAndRefreshTokensAreOnlyValidForTheirOwnPurpose() {
+        UUID userId = UUID.randomUUID();
+        String accessToken = jwtService.generateAccessToken(userId, "learner", "USER");
+        String refreshToken = jwtService.generateRefreshToken(userId, "learner", "USER");
+
+        assertThat(jwtService.isAccessTokenValid(accessToken)).isTrue();
+        assertThat(jwtService.isRefreshTokenValid(accessToken)).isFalse();
+        assertThat(jwtService.isAccessTokenValid(refreshToken)).isFalse();
+        assertThat(jwtService.isRefreshTokenValid(refreshToken)).isTrue();
+    }
 }

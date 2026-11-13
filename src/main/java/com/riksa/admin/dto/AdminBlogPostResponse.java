@@ -14,6 +14,7 @@ public record AdminBlogPostResponse(
         String coverUrl,
         BlogStatus status,
         String rejectionReason,
+        String hiddenReason,
         int viewCount,
         int likeCount,
         UUID categoryId,

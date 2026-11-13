@@ -16,6 +16,7 @@ import com.riksa.quest.entity.QuestType;
 import com.riksa.quest.entity.WeeklyQuest;
 import com.riksa.quest.entity.WeeklyQuestType;
 import com.riksa.quest.repository.DailyQuestRepository;
+import com.riksa.quest.repository.QuestLessonProgressEventRepository;
 import com.riksa.quest.repository.QuestChestRepository;
 import com.riksa.quest.repository.WeeklyQuestRepository;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,7 @@ public class QuestService {
     private final DailyQuestRepository questRepository;
     private final WeeklyQuestRepository weeklyQuestRepository;
     private final QuestChestRepository questChestRepository;
+    private final QuestLessonProgressEventRepository questLessonProgressEventRepository;
     private final XpLedgerService xpLedgerService;
     private final UserGamificationRepository userGamificationRepository;
     private final MarketService marketService;
@@ -71,6 +73,22 @@ public class QuestService {
     public void recordLesson(UUID userId) {
         recordProgress(userId, QuestType.COMPLETE_LESSON, WeeklyQuestType.WEEKLY_LESSONS);
         LocalDate start = weekStart(today());
+        weeklyQuestRepository.refreshActiveDaysProgress(userId, start, start.plusWeeks(1));
+    }
+
+    /**
+     * Record one committed lesson once, using its completion date even when
+     * event handling or a client retry happens later.
+     */
+    @Transactional
+    public void recordLesson(UUID userId, UUID lessonId, OffsetDateTime completedAt) {
+        int inserted = questLessonProgressEventRepository.insertIfAbsent(
+                UUID.randomUUID(), userId, lessonId, completedAt);
+        if (inserted == 0) return;
+
+        LocalDate completionDate = completedAt.atZoneSameInstant(DAY_ZONE).toLocalDate();
+        LocalDate start = weekStart(completionDate);
+        recordProgress(userId, QuestType.COMPLETE_LESSON, WeeklyQuestType.WEEKLY_LESSONS, completionDate);
         weeklyQuestRepository.refreshActiveDaysProgress(userId, start, start.plusWeeks(1));
     }
 
@@ -145,7 +163,10 @@ public class QuestService {
     }
 
     private void recordProgress(UUID userId, QuestType dailyType, WeeklyQuestType weeklyType) {
-        LocalDate date = today();
+        recordProgress(userId, dailyType, weeklyType, today());
+    }
+
+    private void recordProgress(UUID userId, QuestType dailyType, WeeklyQuestType weeklyType, LocalDate date) {
         LocalDate start = weekStart(date);
         ensureQuests(userId, date);
         questRepository.incrementProgress(userId, date, dailyType);

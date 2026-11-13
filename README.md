@@ -1,6 +1,10 @@
 # RIKSA
 
-Riksa Learning Platform API — Cambodian educational platform backend serving a future Flutter mobile app.
+Riksa backend — the Spring Boot REST and GraphQL API serving the Flutter student app and React admin panel.
+
+## Documentation
+
+Start with [docs/README.md](docs/README.md) for active API contracts, setup, deployment, and design references.
 
 ## Tech Stack
 
@@ -20,9 +24,7 @@ Riksa Learning Platform API — Cambodian educational platform backend serving a
 
 ## Project Status
 
-- **Auth module** is fully implemented.
-- **Common infrastructure** is in place (exceptions, filters, scheduling, validation).
-- **Gamification, Learning, Leaderboard, Social, Blog, AI Chat** modules have database schemas and partial or full entity/repository code; some endpoints and business logic are still under development.
+The backend includes authentication, learning, gamification, leaderboard, social, blog, AI tutor, buddy, market, quests, notifications, moderation, media, resources, and admin features. The Flutter student app is in the sibling RIKSA-FLUTTER repository; the React admin panel is in this repository under admin-panel/. See [docs/README.md](docs/README.md) for the active API and design references; verify exact behavior against the controllers and migrations.
 
 ## Prerequisites
 
@@ -183,6 +185,23 @@ If the Maven wrapper cannot download Maven inside the container, the `Dockerfile
 ./mvnw clean package -DskipTests
 docker compose up -d
 ```
+
+## Email Verification
+
+Email verification delivery uses Resend and is disabled by default. With RESEND_ENABLED=false, registration still creates a 24-hour verification token, but sends no email and leaves the account unverified.
+
+Set these deployment values to enable delivery:
+
+- RESEND_ENABLED=true
+- RESEND_API_KEY: keep this in deployment secrets or a local ignored .env file.
+- RESEND_FROM: a sender address on a verified domain, such as Riksa <no-reply@auth.example.com>.
+- RESEND_CONFIRMATION_URL: the public HTTPS page URL, such as https://api.example.com/email-verification.html.
+
+Before enabling it, [verify the sending domain in Resend](https://resend.com/docs/dashboard/domains/introduction). The backend sends mail through the [Resend send-email API](https://resend.com/docs/api-reference/emails/send-email). If delivery is enabled but any value is missing or the confirmation URL is not HTTPS, application startup fails with a configuration error.
+
+POST /api/v1/auth/resend-verification-email accepts an email address and always returns the same response, whether or not that address belongs to an unverified account. It is limited to five requests per 15 minutes per client address. The email opens a backend-hosted page where the user presses Confirm email; the page works in a regular browser without native app links and then calls POST /api/v1/auth/verify-email. It also provides a generic resend form for expired or missing links.
+
+Delivery is queued after the database transaction commits and runs asynchronously, so a provider outage does not roll back registration or block the resend response. If the bounded queue is full, the delivery task is dropped and a generic log entry is written; the user can request another email. Delivery failures are caught without logging addresses, tokens, API keys, or provider response bodies. The Resend request has a 3-second connect timeout, a 10-second read timeout, and a stable hashed idempotency key per verification token.
 
 ## Development Notes
 

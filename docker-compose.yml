@@ -62,6 +62,10 @@ services:
       OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       MEDIA_STORAGE_DIR: /app/uploads/media
       MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:-}
+      RESEND_ENABLED: ${RESEND_ENABLED:-false}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-}
+      RESEND_CONFIRMATION_URL: ${RESEND_CONFIRMATION_URL:-}
     volumes:
       - media_data:/app/uploads/media
     depends_on:

@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.UUID;
 
 public interface LessonResourceRepository extends JpaRepository<LessonResource, UUID> {
+    List<LessonResource> findAllByAuthorId(UUID authorId);
+
     String ADMIN_SELECT = """
             SELECT r.id AS \"id\",
                    r.lesson_id AS \"lessonId\",

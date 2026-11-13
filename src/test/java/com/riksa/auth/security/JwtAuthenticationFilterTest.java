@@ -44,7 +44,7 @@ class JwtAuthenticationFilterTest {
     @Test
     void validToken_activeUser_setsAuthentication() throws Exception {
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
-        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(jwtService.isAccessTokenValid(token)).thenReturn(true);
         when(jwtService.getUserId(token)).thenReturn(userId);
         when(userSecurityStateService.get(userId)).thenReturn(new UserSecurityState(true, "USER"));
 
@@ -60,7 +60,7 @@ class JwtAuthenticationFilterTest {
     @Test
     void validToken_suspendedUser_doesNotAuthenticate() throws Exception {
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
-        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(jwtService.isAccessTokenValid(token)).thenReturn(true);
         when(jwtService.getUserId(token)).thenReturn(userId);
         when(userSecurityStateService.get(userId)).thenReturn(new UserSecurityState(false, "USER"));
 
@@ -73,7 +73,7 @@ class JwtAuthenticationFilterTest {
     @Test
     void validToken_expiredSuspension_setsAuthentication() throws Exception {
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
-        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(jwtService.isAccessTokenValid(token)).thenReturn(true);
         when(jwtService.getUserId(token)).thenReturn(userId);
         when(userSecurityStateService.get(userId)).thenReturn(new UserSecurityState(true, "USER"));
 
@@ -85,7 +85,7 @@ class JwtAuthenticationFilterTest {
     @Test
     void validToken_userNotFound_doesNotAuthenticate() throws Exception {
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
-        when(jwtService.isTokenValid(token)).thenReturn(true);
+        when(jwtService.isAccessTokenValid(token)).thenReturn(true);
         when(jwtService.getUserId(token)).thenReturn(userId);
         when(userSecurityStateService.get(userId)).thenReturn(new UserSecurityState(false, "USER"));
 
@@ -98,7 +98,7 @@ class JwtAuthenticationFilterTest {
     @Test
     void invalidToken_returnsUnauthorizedWithoutCallingController() throws Exception {
         when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
-        when(jwtService.isTokenValid(token)).thenReturn(false);
+        when(jwtService.isAccessTokenValid(token)).thenReturn(false);
 
         filter.doFilterInternal(request, response, filterChain);
 
@@ -107,6 +107,18 @@ class JwtAuthenticationFilterTest {
         verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         verifyNoInteractions(filterChain);
         verifyNoInteractions(userSecurityStateService);
+    }
+
+    @Test
+    void refreshToken_returnsUnauthorizedEvenWhenSignatureIsValid() throws Exception {
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+        when(jwtService.isAccessTokenValid(token)).thenReturn(false);
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(response).setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        verifyNoInteractions(filterChain, userSecurityStateService);
+        verify(jwtService, never()).getUserId(token);
     }
 
     @Test

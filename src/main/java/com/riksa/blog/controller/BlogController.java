@@ -119,16 +119,13 @@ public class BlogController {
     @GetMapping(BlogEndpoints.POST)
     public ResponseEntity<BlogPostResponse> getPost(@PathVariable UUID id) {
         UUID userId = getCurrentUserId();
-        var post = blogService.getPost(id);
-        // Non-moderators can only see APPROVED posts
         boolean isModerator = SecurityContextHolder.getContext().getAuthentication()
                 .getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_MODERATOR")
                         || a.getAuthority().equals("ROLE_ADMIN"));
-        if (post.getStatus() != BlogStatus.APPROVED && !isModerator) {
-            throw new IllegalArgumentException("Blog post not found: " + id);
-        }
-        blogEngagementService.trackView(id, userId);
+        // Resolve visibility and count a published view from one fresh, locked database row.
+        // Authors and moderators retain access to their non-approved posts.
+        var post = blogEngagementService.getPostForDetail(id, userId, isModerator);
         return ResponseEntity.ok(BlogMapper.toResponse(post,
                 blogEngagementService.isLiked(id, userId)));
     }

@@ -15,15 +15,15 @@ import com.riksa.auth.telegram.TelegramBotInfoResponse;
 import com.riksa.auth.telegram.TelegramCodeRequest;
 import com.riksa.auth.telegram.TelegramLinkRequest;
 import com.riksa.auth.telegram.TelegramUpdate;
-import com.riksa.auth.security.JwtService;
 import com.riksa.auth.service.AuthService;
+import com.riksa.auth.service.AccountDeletionService;
 import com.riksa.auth.service.OAuth2Service;
 import com.riksa.auth.token.RefreshTokenRequest;
 import com.riksa.common.constants.AuthEndpoints;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-// import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -36,8 +36,8 @@ import java.util.UUID;
 public class AuthController {
 
     private final AuthService authService;
+    private final AccountDeletionService accountDeletionService;
     private final OAuth2Service oAuth2Service;
-    private final JwtService jwtService;
     private final TelegramAuthFlowService telegramAuthFlowService;
     private final PhoneVerificationService phoneVerificationService;
 
@@ -103,19 +103,19 @@ public class AuthController {
 
     @PostMapping(AuthEndpoints.TELEGRAM_LINK)
     public ResponseEntity<MessageResponse> linkTelegram(
-            @RequestHeader("Authorization") String authHeader,
+            @AuthenticationPrincipal UUID userId,
             @Valid @RequestBody TelegramLinkRequest request
     ) {
-        telegramAuthFlowService.link(extractUserId(authHeader), request);
+        telegramAuthFlowService.link(userId, request);
         return ResponseEntity.ok(new MessageResponse("Telegram account linked successfully"));
     }
 
     /** Returns the bot link that verifies the signed-in user's phone through Telegram. */
     @PostMapping(AuthEndpoints.PHONE_VERIFY_START)
     public ResponseEntity<PhoneVerificationService.StartResponse> startPhoneVerification(
-            @RequestHeader("Authorization") String authHeader
+            @AuthenticationPrincipal UUID userId
     ) {
-        return ResponseEntity.ok(phoneVerificationService.start(extractUserId(authHeader)));
+        return ResponseEntity.ok(phoneVerificationService.start(userId));
     }
 
     @PostMapping(AuthEndpoints.TELEGRAM_WEBHOOK)
@@ -146,8 +146,7 @@ public class AuthController {
     }
 
     @GetMapping(AuthEndpoints.ME)
-    public ResponseEntity<UserProfileResponse> getProfile(@RequestHeader("Authorization") String authHeader) {
-        UUID userId = extractUserId(authHeader);
+    public ResponseEntity<UserProfileResponse> getProfile(@AuthenticationPrincipal UUID userId) {
         return ResponseEntity.ok(authService.getProfile(userId));
     }
 
@@ -158,10 +157,9 @@ public class AuthController {
 
     @PutMapping(AuthEndpoints.ME)
     public ResponseEntity<UserProfileResponse> updateProfile(
-            @RequestHeader("Authorization") String authHeader,
+            @AuthenticationPrincipal UUID userId,
             @Valid @RequestBody UpdateProfileRequest request
     ) {
-        UUID userId = extractUserId(authHeader);
         return ResponseEntity.ok(authService.updateProfile(
                 userId,
                 request.getDisplayName(),
@@ -171,6 +169,12 @@ public class AuthController {
                 request.getAvatarUrl(),
                 request.getShareMilestones()
         ));
+    }
+
+    @DeleteMapping(AuthEndpoints.ME)
+    public ResponseEntity<Void> deleteCurrentAccount(@AuthenticationPrincipal UUID userId) {
+        accountDeletionService.delete(userId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping(AuthEndpoints.FORGOT_PASSWORD)
@@ -185,6 +189,16 @@ public class AuthController {
         return ResponseEntity.ok(new MessageResponse("Password has been reset successfully"));
     }
 
+    @PostMapping(AuthEndpoints.RESEND_VERIFICATION_EMAIL)
+    public ResponseEntity<MessageResponse> resendVerificationEmail(
+            @Valid @RequestBody ResendVerificationEmailRequest request
+    ) {
+        authService.resendEmailVerification(request.getEmail());
+        return ResponseEntity.ok(new MessageResponse(
+                "If an account exists with that email and needs verification, an email will be sent."
+        ));
+    }
+
     @PostMapping(AuthEndpoints.VERIFY_EMAIL)
     public ResponseEntity<Map<String, Object>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
         boolean verified = authService.verifyEmail(request.getToken());
@@ -192,13 +206,5 @@ public class AuthController {
                 "verified", verified,
                 "message", verified ? "Email verified successfully" : "Verification failed"
         ));
-    }
-
-    private UUID extractUserId(String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("Missing or invalid Authorization header");
-        }
-        String token = authHeader.substring(7);
-        return jwtService.getUserId(token);
     }
 }

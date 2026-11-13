@@ -3,6 +3,10 @@ package com.riksa.admin.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.riksa.admin.dto.ReportResolutionRequest;
+import com.riksa.blog.entity.BlogPost;
+import com.riksa.blog.enums.BlogStatus;
+import com.riksa.blog.repository.BlogPostRepository;
+import com.riksa.blog.service.BlogModerationService;
 import com.riksa.common.audit.AuditLogService;
 import com.riksa.common.exception.ResourceNotFoundException;
 import com.riksa.gamification.dto.CursorPage;
@@ -45,6 +49,8 @@ import static org.mockito.Mockito.*;
 class ReportAdminServiceTest {
 
     @Mock private ContentReportRepository reportRepository;
+    @Mock private BlogPostRepository blogPostRepository;
+    @Mock private BlogModerationService blogModerationService;
     @Mock private PostRepository postRepository;
     @Mock private LessonResourceRepository lessonResourceRepository;
     @Mock private CommentRepository commentRepository;
@@ -60,8 +66,9 @@ class ReportAdminServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ReportAdminService(reportRepository, postRepository, lessonResourceRepository, commentRepository,
-                socialModerationService, auditLogService, objectMapper);
+        service = new ReportAdminService(reportRepository, blogPostRepository, blogModerationService,
+                postRepository, lessonResourceRepository, commentRepository, socialModerationService,
+                auditLogService, objectMapper);
     }
 
     @Test
@@ -231,18 +238,41 @@ class ReportAdminServiceTest {
     }
 
     @Test
-    void resolve_hideBlogTarget_throwsBadRequest() {
+    void resolve_resolvedWithHideBlog_hidesPublishedTarget() {
         ContentReport reportEntity = report(ReportTargetType.BLOG, OffsetDateTime.now().minusHours(1));
+        UUID targetId = reportEntity.getTargetId();
+        BlogPost blogPost = new BlogPost();
+        blogPost.setId(targetId);
+        blogPost.setStatus(BlogStatus.APPROVED);
         UUID reportId = UUID.randomUUID();
         reportEntity.setId(reportId);
         when(reportRepository.findById(reportId)).thenReturn(Optional.of(reportEntity));
+        when(reportRepository.save(any(ContentReport.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(blogPostRepository.findById(targetId)).thenReturn(Optional.of(blogPost));
 
-        assertThatThrownBy(() -> service.resolve(moderatorId, reportId, resolution(ReportStatus.RESOLVED, ReportAction.HIDE)))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("not supported for BLOG");
+        service.resolve(moderatorId, reportId, resolution(ReportStatus.RESOLVED, ReportAction.HIDE));
 
-        assertThat(reportEntity.getStatus()).isEqualTo(ReportStatus.OPEN);
-        verify(reportRepository, never()).save(any());
+        assertThat(reportEntity.getStatus()).isEqualTo(ReportStatus.RESOLVED);
+        verify(blogModerationService).hide(targetId, "Reported as SPAM", moderatorId);
+    }
+
+    @Test
+    void resolve_hideAlreadyHiddenBlog_skipsHideButResolves() {
+        ContentReport reportEntity = report(ReportTargetType.BLOG, OffsetDateTime.now().minusHours(1));
+        UUID targetId = reportEntity.getTargetId();
+        BlogPost blogPost = new BlogPost();
+        blogPost.setId(targetId);
+        blogPost.setStatus(BlogStatus.HIDDEN);
+        UUID reportId = UUID.randomUUID();
+        reportEntity.setId(reportId);
+        when(reportRepository.findById(reportId)).thenReturn(Optional.of(reportEntity));
+        when(reportRepository.save(any(ContentReport.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(blogPostRepository.findById(targetId)).thenReturn(Optional.of(blogPost));
+
+        service.resolve(moderatorId, reportId, resolution(ReportStatus.RESOLVED, ReportAction.HIDE));
+
+        verifyNoInteractions(blogModerationService);
+        assertThat(reportEntity.getStatus()).isEqualTo(ReportStatus.RESOLVED);
     }
 
     @Test
