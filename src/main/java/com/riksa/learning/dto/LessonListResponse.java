@@ -20,6 +20,8 @@ public class LessonListResponse {
     private int position;
     private UUID categoryId;
     private String categoryName;
+    private String backgroundKey;
+    private String backgroundImageUrl;
     private int exerciseCount;
     private boolean completed;
     private LessonProgressState state;

@@ -101,6 +101,7 @@ public class LessonService {
         r.setCompleted(completed);
         r.setState(lessonProgressionService.getState(userId, lesson));
         r.setCreatedAt(lesson.getCreatedAt());
+        applyBackground(r, lesson);
         return r;
     }
 
@@ -115,6 +116,7 @@ public class LessonService {
         r.setCategoryId(lesson.getCategory() != null ? lesson.getCategory().getId() : null);
         r.setCategoryName(lesson.getCategory() != null ? lesson.getCategory().getName() : null);
         r.setReflectionPrompt(lesson.getReflectionPrompt());
+        applyBackground(r, lesson);
         r.setState(lessonProgressionService.getState(userId, lesson));
         r.setCreatedAt(lesson.getCreatedAt());
         r.setUpdatedAt(lesson.getUpdatedAt());
@@ -129,6 +131,18 @@ public class LessonService {
                 .map(exercise -> toExerciseResponse(exercise, completedExerciseIds.contains(exercise.getId())))
                 .toList());
         return r;
+    }
+
+    private void applyBackground(LessonListResponse response, Lesson lesson) {
+        LessonBackgrounds.Resolved background = LessonBackgrounds.resolve(lesson);
+        response.setBackgroundKey(background.backgroundKey());
+        response.setBackgroundImageUrl(background.backgroundImageUrl());
+    }
+
+    private void applyBackground(LessonDetailResponse response, Lesson lesson) {
+        LessonBackgrounds.Resolved background = LessonBackgrounds.resolve(lesson);
+        response.setBackgroundKey(background.backgroundKey());
+        response.setBackgroundImageUrl(background.backgroundImageUrl());
     }
 
     private ExerciseResponse toExerciseResponse(Exercise e, boolean completed) {

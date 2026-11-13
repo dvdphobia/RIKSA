@@ -68,6 +68,9 @@ public class LessonRoadmapService {
         response.setCompleted(completed);
         response.setState(progressionService.getState(userId, lesson));
         response.setCreatedAt(lesson.getCreatedAt());
+        LessonBackgrounds.Resolved background = LessonBackgrounds.resolve(lesson);
+        response.setBackgroundKey(background.backgroundKey());
+        response.setBackgroundImageUrl(background.backgroundImageUrl());
         return response;
     }
 }

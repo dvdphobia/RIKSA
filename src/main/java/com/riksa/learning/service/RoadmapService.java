@@ -105,10 +105,12 @@ public class RoadmapService {
                 double progress = completed ? 1.0
                         : lessonExercises.isEmpty() ? 0.0
                         : Math.min(1.0, (double) correct / lessonExercises.size());
+                LessonBackgrounds.Resolved background = LessonBackgrounds.resolve(lesson);
                 lessonResponses.add(new RoadmapLessonResponse(
                         lesson.getId(), lesson.getTitle(), lesson.getDescription(), lesson.getDifficulty(),
                         lesson.getBaseXp(), lessonRewardPolicy.potentialXp(lesson, lessonExercises),
-                        lesson.getEstimatedMinutes(), lessonExercises.size(), progress, lessonStatus, current));
+                        lesson.getEstimatedMinutes(), lessonExercises.size(), progress, lessonStatus, current,
+                        background.backgroundKey(), background.backgroundImageUrl()));
             }
 
             unitResponses.add(new RoadmapUnitResponse(

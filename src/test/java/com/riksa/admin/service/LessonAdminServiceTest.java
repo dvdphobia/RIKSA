@@ -12,6 +12,7 @@ import com.riksa.learning.repository.LessonRepository;
 import com.riksa.learning.repository.RoadmapUnitRepository;
 import com.riksa.social.entity.Category;
 import com.riksa.social.repository.CategoryRepository;
+import com.riksa.social.service.UploadedMediaUrlValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -38,6 +39,7 @@ class LessonAdminServiceTest {
     @Mock private CategoryRepository categoryRepository;
     @Mock private LessonMarkdownParser markdownParser;
     @Mock private AuditLogService auditLogService;
+    @Mock private UploadedMediaUrlValidator uploadedMediaUrlValidator;
 
     @InjectMocks private LessonAdminService lessonAdminService;
     private final UUID actorId = UUID.randomUUID();
@@ -434,5 +436,73 @@ class LessonAdminServiceTest {
         assertThat(result.getSuccessCount()).isEqualTo(1);
         assertThat(result.getFailureCount()).isEqualTo(1);
         assertThat(result.getErrors()).containsExactly("bad.md: parse error");
+    }
+
+    @Test
+    void create_storesRawBackgroundAndRejectsUnknownKey() {
+        String image = "https://api.example.test/api/v1/media/image.png";
+        when(uploadedMediaUrlValidator.normalize(image)).thenReturn(image);
+        when(lessonRepository.save(any(Lesson.class))).thenAnswer(inv -> {
+            Lesson lesson = inv.getArgument(0);
+            lesson.setId(UUID.randomUUID());
+            return lesson;
+        });
+        when(exerciseRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        LessonCreateRequest req = lessonRequest();
+        req.setBackgroundKey(" math ");
+        req.setBackgroundImageUrl(image);
+
+        LessonResponse created = lessonAdminService.create(actorId, req);
+
+        assertThat(created.getBackgroundKey()).isEqualTo("math");
+        assertThat(created.getBackgroundImageUrl()).isEqualTo(image);
+
+        req.setBackgroundKey("art");
+        assertThatThrownBy(() -> lessonAdminService.create(actorId, req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("backgroundKey must be one of");
+    }
+
+    @Test
+    void update_omittedBackgroundIsKeptAndExplicitNullClearsIt() {
+        UUID lessonId = UUID.randomUUID();
+        Lesson lesson = new Lesson();
+        lesson.setId(lessonId);
+        lesson.setTitle("Old");
+        lesson.setDifficulty(DifficultyLevel.EASY);
+        lesson.setBaseXp(10);
+        lesson.setBackgroundKey("biology");
+        lesson.setBackgroundImageUrl("https://api.example.test/api/v1/media/image.png");
+        when(lessonRepository.findById(lessonId)).thenReturn(Optional.of(lesson));
+        when(lessonRepository.save(any(Lesson.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(exerciseRepository.findByLessonId(lessonId)).thenReturn(List.of());
+
+        LessonUpdateRequest rename = new LessonUpdateRequest();
+        rename.setTitle("New");
+        LessonResponse kept = lessonAdminService.update(actorId, lessonId, rename);
+        assertThat(kept.getBackgroundKey()).isEqualTo("biology");
+        assertThat(kept.getBackgroundImageUrl()).isEqualTo(lesson.getBackgroundImageUrl());
+
+        LessonUpdateRequest clear = new LessonUpdateRequest();
+        clear.setBackgroundKey(null);
+        clear.setBackgroundImageUrl("  ");
+        LessonResponse cleared = lessonAdminService.update(actorId, lessonId, clear);
+        assertThat(cleared.getBackgroundKey()).isNull();
+        assertThat(cleared.getBackgroundImageUrl()).isNull();
+    }
+
+    private LessonCreateRequest lessonRequest() {
+        ExerciseRequest exercise = new ExerciseRequest();
+        exercise.setQuestion("Q?");
+        exercise.setAnswerKey("A");
+        exercise.setDifficulty(DifficultyLevel.EASY);
+        exercise.setPoints(5);
+        LessonCreateRequest req = new LessonCreateRequest();
+        req.setTitle("Backgrounds");
+        req.setDifficulty(DifficultyLevel.EASY);
+        req.setBaseXp(10);
+        req.setExercises(List.of(exercise));
+        return req;
     }
 }

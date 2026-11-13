@@ -318,6 +318,8 @@ Base path: `/lessons`
   "baseXp": 10,
   "categoryId": "uuid-or-null",
   "reflectionPrompt": "What surprised you?",
+  "backgroundKey": "math",
+  "backgroundImageUrl": null,
   "exercises": [
     { "id": "uuid", "question": "What is a variable?", "difficulty": "EASY", "points": 5 }
   ],
@@ -349,6 +351,8 @@ Request body:
   "baseXp": 10,
   "categoryId": "uuid (optional)",
   "reflectionPrompt": "What surprised you? (optional)",
+  "backgroundKey": "physics",
+  "backgroundImageUrl": "https://api.example/api/v1/media/4f3c1a2b-0000-0000-0000-000000000000.png",
   "exercises": [
     {
       "question": "What is a variable?",
@@ -370,16 +374,22 @@ Request body:
 | `exercise.points` | no | ≥ 1, default `5` |
 | `baseXp` | no | ≥ 0, default `10` |
 | `categoryId` | no | must exist, else `400 "Category not found: ..."` |
+| `backgroundKey` | no | `math`, `physics`, `chemistry`, `biology`, `computer_science`, or `none`. Null or blank stores null (inherit the subject). Any other value is `400` with message `backgroundKey must be one of: math, physics, chemistry, biology, computer_science, none` |
+| `backgroundImageUrl` | no | Null or blank stores null. Otherwise a URL returned by `POST /api/v1/media` (JPEG, PNG, GIF, or WebP, at most 2 MB). A foreign or missing image is `400` |
+
+These two fields are the **raw** lesson override. They are not resolved against the subject. `GET` returns the same raw values, including null.
 
 Success: **`201 Created`** with `Location` header and the `LessonResponse` body.
 
 ### 7.4 `PUT /lessons/{id}` — update
 
-All fields optional — `null`/absent means "don't change":
+All fields optional. An **absent** field means "don't change". An explicit JSON `null` clears nullable fields, including `backgroundKey` and `backgroundImageUrl` (the lesson then inherits that field from its subject).
 
 ```json
-{ "title": "New title", "baseXp": 20 }
+{ "title": "New title", "baseXp": 20, "backgroundKey": "none", "backgroundImageUrl": null }
 ```
+
+`backgroundKey` and `backgroundImageUrl` use the same validation as create.
 
 **Exercises are all-or-nothing:** if `exercises` is present (non-empty) it *replaces all
 existing exercises*; if absent, exercises are untouched. There is no single-exercise edit —
@@ -453,6 +463,8 @@ Base path: `/categories`
   "slug": "programming",
   "description": "All about coding",
   "iconUrl": "https://...",
+  "backgroundKey": "computer_science",
+  "backgroundImageUrl": null,
   "createdAt": "2026-01-01T00:00:00Z",
   "updatedAt": "2026-01-01T00:00:00Z"
 }
@@ -469,15 +481,25 @@ Returns `CategoryResponse`. `404` if not found.
 ### 8.3 `POST /categories` — create
 
 ```json
-{ "name": "Programming", "slug": "programming", "description": "...", "iconUrl": "..." }
+{
+  "name": "Programming",
+  "slug": "programming",
+  "description": "...",
+  "iconUrl": "...",
+  "backgroundKey": "computer_science",
+  "backgroundImageUrl": null
+}
 ```
 
 `name` and `slug` are required and unique → duplicates return `400 "Category name already exists: ..."` / `"Category slug already exists: ..."`.
+
+`backgroundKey` and `backgroundImageUrl` are the **raw subject default** (not resolved). `backgroundKey` allows `math`, `physics`, `chemistry`, `biology`, `computer_science`, `none`, or null. Unknown keys are `400`. `backgroundImageUrl` is null or a `POST /api/v1/media` URL (JPEG, PNG, GIF, or WebP, at most 2 MB). Null means the student app uses its built-in subject illustration when a lesson does not override the field.
+
 Success: **`201`** + `Location` header + `CategoryResponse`.
 
 ### 8.4 `PUT /categories/{id}` — update
 
-Same body as create — **all fields required** (full replacement, not partial). Uniqueness rules apply. Returns `CategoryResponse`.
+Same body as create — **full replacement, not partial**. Uniqueness rules apply. A missing `backgroundKey` or `backgroundImageUrl` is stored as null. Returns `CategoryResponse`.
 
 ### 8.5 `DELETE /categories/{id}` — delete
 

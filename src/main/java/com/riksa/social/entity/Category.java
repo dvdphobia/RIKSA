@@ -54,6 +54,14 @@ public class Category {
     @Column(name = "banner_color", length = 7)
     private String bannerColor;
 
+    /** Subject default preset. Null means the app uses its built-in subject art. */
+    @Column(name = "background_key", length = 32)
+    private String backgroundKey;
+
+    /** Subject default illustration. Null means no uploaded image. */
+    @Column(name = "background_image_url", columnDefinition = "TEXT")
+    private String backgroundImageUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;

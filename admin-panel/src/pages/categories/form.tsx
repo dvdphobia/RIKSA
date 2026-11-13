@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { apiFetch } from "../../lib/api";
-import type { Category } from "../../lib/types";
+import type { Category, LessonBackgroundKey } from "../../lib/types";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -12,12 +12,15 @@ import { Textarea } from "../../components/ui/textarea";
 import { ChevronLeft } from "lucide-react";
 import { Alert, AlertDescription } from "../../components/ui/alert";
 import { Skeleton } from "../../components/ui/skeleton";
+import { LessonBackgroundSection } from "../../components/lesson-background-section";
 
 interface CategoryForm {
   name: string;
   slug: string;
   description?: string;
   iconUrl?: string;
+  backgroundKey: LessonBackgroundKey | null;
+  backgroundImageUrl: string | null;
 }
 
 export const CategoryForm = ({ mode }: { mode: "create" | "edit" }) => {
@@ -30,8 +33,12 @@ export const CategoryForm = ({ mode }: { mode: "create" | "edit" }) => {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
-  } = useForm<CategoryForm>();
+  } = useForm<CategoryForm>({
+    defaultValues: { backgroundKey: null, backgroundImageUrl: null },
+  });
 
   const record = useQuery({
     queryKey: ["categories", "one", id],
@@ -46,6 +53,8 @@ export const CategoryForm = ({ mode }: { mode: "create" | "edit" }) => {
         slug: record.data.slug,
         description: record.data.description ?? "",
         iconUrl: record.data.iconUrl ?? "",
+        backgroundKey: record.data.backgroundKey,
+        backgroundImageUrl: record.data.backgroundImageUrl,
       });
     }
   }, [record.data, reset]);
@@ -74,6 +83,8 @@ export const CategoryForm = ({ mode }: { mode: "create" | "edit" }) => {
       slug: values.slug,
       description: values.description ?? "",
       iconUrl: values.iconUrl ?? "",
+      backgroundKey: values.backgroundKey,
+      backgroundImageUrl: values.backgroundImageUrl,
     });
   };
 
@@ -123,35 +134,43 @@ export const CategoryForm = ({ mode }: { mode: "create" | "edit" }) => {
           {isEdit ? "Edit category" : "New category"}
         </h1>
       </div>
-      <form
-        onSubmit={handleSubmit(submit)}
-        className="space-y-4 rounded-md border bg-card p-6"
-      >
-        <div className="space-y-2">
-          <Label>Name *</Label>
-          <Input {...register("name", { required: "Name is required" })} />
-          {errors.name && (
-            <p className="text-sm text-destructive">{errors.name.message}</p>
-          )}
+      <form onSubmit={handleSubmit(submit)} className="space-y-6">
+        <div className="space-y-4 rounded-md border bg-card p-6">
+          <div className="space-y-2">
+            <Label>Name *</Label>
+            <Input {...register("name", { required: "Name is required" })} />
+            {errors.name && (
+              <p className="text-sm text-destructive">{errors.name.message}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label>Slug *</Label>
+            <Input
+              placeholder="e.g. programming"
+              {...register("slug", { required: "Slug is required" })}
+            />
+            {errors.slug && (
+              <p className="text-sm text-destructive">{errors.slug.message}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Textarea {...register("description")} />
+          </div>
+          <div className="space-y-2">
+            <Label>Icon URL</Label>
+            <Input {...register("iconUrl")} />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label>Slug *</Label>
-          <Input
-            placeholder="e.g. programming"
-            {...register("slug", { required: "Slug is required" })}
-          />
-          {errors.slug && (
-            <p className="text-sm text-destructive">{errors.slug.message}</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label>Description</Label>
-          <Textarea {...register("description")} />
-        </div>
-        <div className="space-y-2">
-          <Label>Icon URL</Label>
-          <Input {...register("iconUrl")} />
-        </div>
+        <LessonBackgroundSection
+          inheritSubject={false}
+          backgroundKey={watch("backgroundKey")}
+          backgroundImageUrl={watch("backgroundImageUrl")}
+          onBackgroundKey={(key) => setValue("backgroundKey", key, { shouldDirty: true })}
+          onBackgroundImageUrl={(url) =>
+            setValue("backgroundImageUrl", url, { shouldDirty: true })
+          }
+        />
         <Button type="submit" disabled={save.isPending || (isEdit && !record.data)}>
           {save.isPending ? "Saving..." : "Save"}
         </Button>
