@@ -13,7 +13,8 @@ import jakarta.validation.constraints.Size;
 
 /**
  * Omitted fields mean "don't change". Explicit nulls clear nullable fields such
- * as description, category, reflectionPrompt, and roadmapUnitId.
+ * as description, category, reflectionPrompt, roadmapUnitId, backgroundKey,
+ * and backgroundImageUrl.
  * {@code exercises} is a special case: if present, it replaces all existing
  * exercises; if null, exercises are left untouched.
  */
@@ -45,6 +46,13 @@ public class LessonUpdateRequest {
     private boolean reflectionPromptProvided;
     @JsonIgnore
     private boolean roadmapUnitIdProvided;
+    @JsonIgnore
+    private boolean backgroundKeyProvided;
+    @JsonIgnore
+    private boolean backgroundImageUrlProvided;
+
+    private String backgroundKey;
+    private String backgroundImageUrl;
 
     public void setCategoryId(UUID categoryId) {
         this.categoryId = categoryId;
@@ -66,6 +74,16 @@ public class LessonUpdateRequest {
         this.roadmapUnitIdProvided = true;
     }
 
+    public void setBackgroundKey(String backgroundKey) {
+        this.backgroundKey = backgroundKey;
+        this.backgroundKeyProvided = true;
+    }
+
+    public void setBackgroundImageUrl(String backgroundImageUrl) {
+        this.backgroundImageUrl = backgroundImageUrl;
+        this.backgroundImageUrlProvided = true;
+    }
+
     @JsonIgnore
     public boolean isCategoryIdProvided() {
         return categoryIdProvided;
@@ -84,6 +102,16 @@ public class LessonUpdateRequest {
     @JsonIgnore
     public boolean isRoadmapUnitIdProvided() {
         return roadmapUnitIdProvided;
+    }
+
+    @JsonIgnore
+    public boolean isBackgroundKeyProvided() {
+        return backgroundKeyProvided;
+    }
+
+    @JsonIgnore
+    public boolean isBackgroundImageUrlProvided() {
+        return backgroundImageUrlProvided;
     }
 
     @Valid

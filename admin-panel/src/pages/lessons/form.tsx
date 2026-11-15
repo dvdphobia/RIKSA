@@ -15,6 +15,7 @@ import type {
   Exercise,
   ExerciseType,
   Lesson,
+  LessonBackgroundKey,
   RoadmapUnit,
 } from "../../lib/types";
 import { Button } from "../../components/ui/button";
@@ -32,6 +33,7 @@ import { Skeleton } from "../../components/ui/skeleton";
 import { Alert, AlertDescription } from "../../components/ui/alert";
 import { ChevronLeft, Plus, Trash2, X } from "lucide-react";
 import { lazy, Suspense, useEffect } from "react";
+import { LessonBackgroundSection } from "../../components/lesson-background-section";
 
 // The rich text editor pulls in ProseMirror and the markdown converters; keep
 // them out of the main bundle so only the lesson form pays for them.
@@ -70,6 +72,8 @@ interface LessonFormValues {
   categoryId?: string;
   roadmapUnitId?: string;
   reflectionPrompt?: string;
+  backgroundKey: LessonBackgroundKey | null;
+  backgroundImageUrl: string | null;
   exercises: ExerciseForm[];
 }
 
@@ -160,6 +164,8 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
       difficulty: "EASY",
       baseXp: 10,
       estimatedMinutes: 8,
+      backgroundKey: null,
+      backgroundImageUrl: null,
       exercises: [emptyExercise()],
     },
   });
@@ -185,6 +191,8 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
       categoryId: l.categoryId ?? undefined,
       roadmapUnitId: l.roadmapUnitId ?? undefined,
       reflectionPrompt: l.reflectionPrompt ?? "",
+      backgroundKey: l.backgroundKey,
+      backgroundImageUrl: l.backgroundImageUrl,
       exercises: l.exercises.length
         ? [...l.exercises]
             .sort((a, b) => (a.sectionIndex ?? 1) - (b.sectionIndex ?? 1))
@@ -246,6 +254,8 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
       categoryId: values.categoryId || null,
       roadmapUnitId: values.categoryId ? values.roadmapUnitId || null : null,
       reflectionPrompt: values.reflectionPrompt || null,
+      backgroundKey: values.backgroundKey,
+      backgroundImageUrl: values.backgroundImageUrl,
     };
     if (sendExercises) payload.exercises = values.exercises.map(toPayload);
     save.mutate(payload);
@@ -409,6 +419,24 @@ export const LessonForm = ({ mode }: { mode: "create" | "edit" }) => {
               />
             </div>
           </div>
+
+          <LessonBackgroundSection
+            inheritSubject
+            backgroundKey={watch("backgroundKey")}
+            backgroundImageUrl={watch("backgroundImageUrl")}
+            subjectKey={
+              (categories.data ?? []).find((category) => category.id === categoryId)
+                ?.backgroundKey ?? null
+            }
+            subjectImageUrl={
+              (categories.data ?? []).find((category) => category.id === categoryId)
+                ?.backgroundImageUrl ?? null
+            }
+            onBackgroundKey={(key) => setValue("backgroundKey", key, { shouldDirty: true })}
+            onBackgroundImageUrl={(url) =>
+              setValue("backgroundImageUrl", url, { shouldDirty: true })
+            }
+          />
 
           <div className="space-y-4 rounded-md border bg-card p-6">
             <div>

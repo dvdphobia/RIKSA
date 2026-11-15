@@ -15,5 +15,7 @@ public record RoadmapLessonResponse(
         int exerciseCount,
         double progress,
         String status,
-        boolean current
+        boolean current,
+        String backgroundKey,
+        String backgroundImageUrl
 ) {}

@@ -20,6 +20,8 @@ public class LessonResponse {
     private UUID categoryId;
     private UUID roadmapUnitId;
     private String reflectionPrompt;
+    private String backgroundKey;
+    private String backgroundImageUrl;
     private List<ExerciseResponse> exercises;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;

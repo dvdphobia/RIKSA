@@ -12,6 +12,7 @@ Use the source code and Flyway migrations as the authority for current behavior.
 
 - [Authentication, profiles, and identity](AUTH_API.md)
 - [Admin API](ADMIN_API.md)
+- [Learning API](LEARNING_API.md)
 - [Blog API](BLOG_API.md)
 - [Flutter Telegram authentication handoff](FLUTTER_TELEGRAM_AUTH.md)
 

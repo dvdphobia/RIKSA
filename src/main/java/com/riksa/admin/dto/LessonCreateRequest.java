@@ -41,6 +41,12 @@ public class LessonCreateRequest {
 
     private String reflectionPrompt;
 
+    /** Preset key, or null to inherit the subject. */
+    private String backgroundKey;
+
+    /** Uploaded media URL, or null for no lesson image. */
+    private String backgroundImageUrl;
+
     @NotEmpty
     @Valid
     private List<ExerciseRequest> exercises;

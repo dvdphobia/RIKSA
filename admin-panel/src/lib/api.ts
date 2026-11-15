@@ -1,4 +1,4 @@
-import type { AuthUser } from "./types";
+import type { AuthUser, MediaUploadResponse } from "./types";
 
 export const API_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ??
@@ -132,4 +132,27 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
   if (res.status === 204) return undefined as T;
   if (!res.ok) throw await parseError(res);
   return (await res.json()) as T;
+}
+
+/** Same ceiling as MediaStorageService / spring.servlet.multipart.max-file-size. */
+export const MEDIA_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+
+const MEDIA_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+
+/** Rejects a file the media upload endpoint would refuse, before the request. */
+export function assertMediaImage(file: File): void {
+  if (file.type && !MEDIA_IMAGE_TYPES.includes(file.type)) {
+    throw new Error("Image must be a JPEG, PNG, GIF, or WebP");
+  }
+  if (file.size <= 0 || file.size > MEDIA_IMAGE_MAX_BYTES) {
+    throw new Error("Image must be 2 MB or smaller");
+  }
+}
+
+/** Uploads an image through POST /media and returns the stored URL. */
+export async function uploadMedia(file: File): Promise<MediaUploadResponse> {
+  assertMediaImage(file);
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<MediaUploadResponse>("/media", { method: "POST", formData });
 }

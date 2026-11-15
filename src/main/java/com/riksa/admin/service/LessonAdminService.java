@@ -10,8 +10,10 @@ import com.riksa.learning.entity.RoadmapUnit;
 import com.riksa.learning.repository.ExerciseRepository;
 import com.riksa.learning.repository.LessonRepository;
 import com.riksa.learning.repository.RoadmapUnitRepository;
+import com.riksa.learning.service.LessonBackgrounds;
 import com.riksa.social.entity.Category;
 import com.riksa.social.repository.CategoryRepository;
+import com.riksa.social.service.UploadedMediaUrlValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -44,6 +46,7 @@ public class LessonAdminService {
     private final CategoryRepository categoryRepository;
     private final LessonMarkdownParser markdownParser;
     private final AuditLogService auditLogService;
+    private final UploadedMediaUrlValidator uploadedMediaUrlValidator;
 
     @Transactional
     public LessonResponse create(UUID actorId, LessonCreateRequest req) {
@@ -59,6 +62,8 @@ public class LessonAdminService {
         if (req.getEstimatedMinutes() != null) lesson.setEstimatedMinutes(req.getEstimatedMinutes());
         lesson.setPosition(resolvePosition(category, req.getPosition(), null));
         lesson.setReflectionPrompt(req.getReflectionPrompt());
+        lesson.setBackgroundKey(LessonBackgrounds.normalizeKey(req.getBackgroundKey()));
+        lesson.setBackgroundImageUrl(normalizeImage(req.getBackgroundImageUrl()));
         lesson = lessonRepository.save(lesson);
 
         List<Exercise> exercises = buildExercises(req.getExercises(), lesson);
@@ -105,6 +110,12 @@ public class LessonAdminService {
         }
         if (req.isReflectionPromptProvided()) lesson.setReflectionPrompt(req.getReflectionPrompt());
         else if (req.getReflectionPrompt() != null) lesson.setReflectionPrompt(req.getReflectionPrompt());
+        if (req.isBackgroundKeyProvided()) {
+            lesson.setBackgroundKey(LessonBackgrounds.normalizeKey(req.getBackgroundKey()));
+        }
+        if (req.isBackgroundImageUrlProvided()) {
+            lesson.setBackgroundImageUrl(normalizeImage(req.getBackgroundImageUrl()));
+        }
 
         // Replace exercises if provided
         List<Exercise> exercises;
@@ -269,6 +280,13 @@ public class LessonAdminService {
 
     // --- helpers ---
 
+    private String normalizeImage(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        return uploadedMediaUrlValidator.normalize(raw);
+    }
+
     private Category resolveCategory(UUID categoryId) {
         if (categoryId == null) return null;
         Category category = categoryRepository.findById(categoryId)
@@ -371,6 +389,8 @@ public class LessonAdminService {
         resp.setCategoryId(lesson.getCategory() != null ? lesson.getCategory().getId() : null);
         resp.setRoadmapUnitId(lesson.getRoadmapUnit() != null ? lesson.getRoadmapUnit().getId() : null);
         resp.setReflectionPrompt(lesson.getReflectionPrompt());
+        resp.setBackgroundKey(lesson.getBackgroundKey());
+        resp.setBackgroundImageUrl(lesson.getBackgroundImageUrl());
         resp.setExercises(exercises.stream().map(e -> new ExerciseResponse(e.getId(), e.getQuestion(), e.getAnswerKey(),
                 e.getDifficulty().name(), e.getPoints(), e.getSectionIndex(), e.getType(), e.getOptions(), e.getHint(),
                 e.getExplanation())).toList());

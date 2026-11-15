@@ -14,6 +14,8 @@ public class CategoryResponse {
     private String slug;
     private String description;
     private String iconUrl;
+    private String backgroundKey;
+    private String backgroundImageUrl;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 }

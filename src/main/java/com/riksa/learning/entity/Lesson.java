@@ -54,6 +54,14 @@ public class Lesson {
     @Column(name = "reflection_prompt", columnDefinition = "TEXT")
     private String reflectionPrompt;
 
+    /** Preset illustration. Null inherits the subject. {@code none} turns the preset off. */
+    @Column(name = "background_key", length = 32)
+    private String backgroundKey;
+
+    /** Uploaded illustration. Null inherits the subject image. */
+    @Column(name = "background_image_url", columnDefinition = "TEXT")
+    private String backgroundImageUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;

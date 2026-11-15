@@ -22,6 +22,8 @@ public class LessonDetailResponse {
     private UUID categoryId;
     private String categoryName;
     private String reflectionPrompt;
+    private String backgroundKey;
+    private String backgroundImageUrl;
     private LessonProgressState state;
     private List<ExerciseResponse> exercises;
     private OffsetDateTime createdAt;

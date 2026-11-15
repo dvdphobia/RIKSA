@@ -4,6 +4,7 @@ import com.riksa.admin.dto.CategoryRequest;
 import com.riksa.admin.dto.CategoryResponse;
 import com.riksa.social.entity.Category;
 import com.riksa.social.repository.CategoryRepository;
+import com.riksa.social.service.UploadedMediaUrlValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.*;
 class CategoryAdminServiceTest {
 
     @Mock private CategoryRepository categoryRepository;
+    @Mock private UploadedMediaUrlValidator uploadedMediaUrlValidator;
 
     @InjectMocks private CategoryAdminService categoryAdminService;
 
@@ -154,5 +156,30 @@ class CategoryAdminServiceTest {
         assertThatThrownBy(() -> categoryAdminService.delete(id))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Category not found");
+    }
+
+    @Test
+    void create_storesRawBackgroundAndRejectsUnknownKey() {
+        String image = "https://api.example.test/api/v1/media/image.png";
+        when(uploadedMediaUrlValidator.normalize(image)).thenReturn(image);
+        when(categoryRepository.existsByName("Biology")).thenReturn(false);
+        when(categoryRepository.existsBySlug("biology")).thenReturn(false);
+        when(categoryRepository.save(any(Category.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        CategoryRequest req = new CategoryRequest();
+        req.setName("Biology");
+        req.setSlug("biology");
+        req.setBackgroundKey("biology");
+        req.setBackgroundImageUrl(image);
+
+        CategoryResponse created = categoryAdminService.create(req);
+
+        assertThat(created.getBackgroundKey()).isEqualTo("biology");
+        assertThat(created.getBackgroundImageUrl()).isEqualTo(image);
+
+        req.setBackgroundKey("latin");
+        assertThatThrownBy(() -> categoryAdminService.create(req))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("backgroundKey must be one of");
     }
 }

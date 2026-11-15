@@ -116,6 +116,24 @@ export interface Exercise {
   explanation: string | null;
 }
 
+/** Built-in lesson-page illustrations shipped in the student app. */
+export type LessonBackgroundKey =
+  | "math"
+  | "physics"
+  | "chemistry"
+  | "biology"
+  | "computer_science"
+  | "none";
+
+export const LESSON_BACKGROUND_KEYS: { key: LessonBackgroundKey; label: string }[] = [
+  { key: "math", label: "Math" },
+  { key: "physics", label: "Physics" },
+  { key: "chemistry", label: "Chemistry" },
+  { key: "biology", label: "Biology" },
+  { key: "computer_science", label: "Computer science" },
+  { key: "none", label: "None" },
+];
+
 export interface Lesson {
   id: string;
   title: string;
@@ -127,6 +145,8 @@ export interface Lesson {
   position: number;
   roadmapUnitId: string | null;
   estimatedMinutes: number;
+  backgroundKey: LessonBackgroundKey | null;
+  backgroundImageUrl: string | null;
   exercises: Exercise[];
   createdAt: string;
   updatedAt: string;
@@ -138,6 +158,8 @@ export interface Category {
   slug: string;
   description: string | null;
   iconUrl: string | null;
+  backgroundKey: LessonBackgroundKey | null;
+  backgroundImageUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
