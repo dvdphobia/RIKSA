@@ -134,13 +134,14 @@ public class AuthService {
             throw new IllegalArgumentException("Refresh token has expired");
         }
 
-        stored.setRevoked(true);
-        refreshTokenRepository.save(stored);
-
         User user = stored.getUser();
 
         if (user.isSuspended()) {
             throw new AccessDeniedException("Account suspended until " + user.getSuspendedUntil());
+        }
+
+        if (refreshTokenRepository.revokeIfActive(token) != 1) {
+            throw new IllegalArgumentException("Refresh token not found or revoked");
         }
 
         return buildAuthResponse(user);

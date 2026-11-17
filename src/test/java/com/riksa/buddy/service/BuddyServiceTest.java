@@ -158,6 +158,80 @@ class BuddyServiceTest {
     }
 
     @Test
+    void guestMergeCapsUntrustedCareValues() {
+        Buddy merged = service.mergeGuestState(USER_ID, null, null, Integer.MAX_VALUE, Integer.MAX_VALUE);
+
+        assertThat(merged.getEnergy()).isEqualTo(100);
+        assertThat(merged.getBond()).isEqualTo(300);
+        assertThat(merged.getGuestMergedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void secondGuestMergeCannotRaiseEnergyOrBond() {
+        service.mergeGuestState(USER_ID, null, null, 85, 45);
+
+        Buddy merged = service.mergeGuestState(USER_ID, null, null, 100, 300);
+
+        assertThat(merged.getEnergy()).isEqualTo(85);
+        assertThat(merged.getBond()).isEqualTo(45);
+        assertThat(merged.getGuestMergedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void energyOnlyMergeAlsoConsumesTheGuestBondAllowance() {
+        service.mergeGuestState(USER_ID, null, null, 85, null);
+
+        Buddy merged = service.mergeGuestState(USER_ID, null, null, null, 300);
+
+        assertThat(merged.getEnergy()).isEqualTo(85);
+        assertThat(merged.getBond()).isEqualTo(30);
+    }
+
+    @Test
+    void bondOnlyMergeAlsoConsumesTheGuestEnergyAllowance() {
+        service.mergeGuestState(USER_ID, null, null, null, 45);
+
+        Buddy merged = service.mergeGuestState(USER_ID, null, null, 100, null);
+
+        assertThat(merged.getEnergy()).isEqualTo(80);
+        assertThat(merged.getBond()).isEqualTo(45);
+    }
+
+    @Test
+    void choosingIdentityWithoutGuestCareLeavesTheMergeAvailable() {
+        Buddy chosen = service.mergeGuestState(USER_ID, "capybara", "Mochi", null, null);
+        assertThat(chosen.getGuestMergedAt()).isNull();
+
+        Buddy merged = service.mergeGuestState(USER_ID, null, null, 95, 45);
+
+        assertThat(merged.getEnergy()).isEqualTo(95);
+        assertThat(merged.getBond()).isEqualTo(45);
+        assertThat(merged.getGuestMergedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void guestCapDoesNotReduceServerEarnedBond() {
+        buddy.setBond(500);
+
+        Buddy merged = service.mergeGuestState(USER_ID, null, null, null, Integer.MAX_VALUE);
+
+        assertThat(merged.getBond()).isEqualTo(500);
+    }
+
+    @Test
+    void retrySettlesEnergyWithoutReapplyingGuestCare() {
+        service.mergeGuestState(USER_ID, null, null, 95, 45);
+        service = new BuddyService(buddyRepository, eventRepository, new BuddyCareRules(),
+                Clock.fixed(NOW.plusHours(24).toInstant(), ZoneOffset.UTC), marketService);
+
+        Buddy merged = service.mergeGuestState(USER_ID, null, null, 100, 300);
+
+        assertThat(merged.getEnergy()).isEqualTo(75);
+        assertThat(merged.getBond()).isEqualTo(45);
+        assertThat(merged.getGuestMergedAt()).isEqualTo(NOW);
+    }
+
+    @Test
     void guestMergeOnNewRowChoosesGuestSpeciesAndName() {
         buddy.setChosenAt(null);
         when(buddyRepository.insertIfMissing(any(), anyString(), anyString(), any())).thenReturn(1);

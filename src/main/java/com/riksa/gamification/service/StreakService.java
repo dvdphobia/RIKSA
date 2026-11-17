@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 /**
@@ -62,7 +63,8 @@ public class StreakService {
             newStreak = 1;
         } else {
             OffsetDateTime lastInCambodia = lastCompleted.atZoneSameInstant(CAMBODIA_TZ).toOffsetDateTime();
-            int daysBetween = completionTime.toLocalDate().compareTo(lastInCambodia.toLocalDate());
+            long daysBetween = ChronoUnit.DAYS.between(
+                    lastInCambodia.toLocalDate(), completionTime.toLocalDate());
 
             if (daysBetween <= 0) {
                 // Same-day delivery is a duplicate; older events must not move the streak backward.

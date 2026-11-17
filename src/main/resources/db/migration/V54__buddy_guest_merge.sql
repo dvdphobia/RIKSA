@@ -1,0 +1,2 @@
+ALTER TABLE buddy
+    ADD COLUMN guest_merged_at TIMESTAMPTZ NULL;

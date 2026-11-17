@@ -40,7 +40,7 @@ public class LessonCompletionService {
 
     /**
      * Finalize a lesson for a user. All exercises must have a correct attempt
-     * on record, and a non-blank reflection must be submitted. XP earned is
+     * on record, and a substantial reflection must be submitted. XP earned is
      * baseXp + sum(points of correct exercises). On success a
      * {@link LessonCompletedEvent} is published inside the same transaction so
      * reward listeners can update XP, streaks, and quests before commit.
@@ -71,9 +71,6 @@ public class LessonCompletionService {
 
         // Validate reflection
         String reflectionText = request.getReflectionText();
-        if (reflectionText == null || reflectionText.isBlank()) {
-            reflectionText = "Completed lesson successfully";
-        }
         int score = reflectionValidator.validate(reflectionText);
 
         List<Exercise> exercises = exerciseRepository.findByLessonId(lessonId);

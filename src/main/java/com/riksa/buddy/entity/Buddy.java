@@ -46,4 +46,7 @@ public class Buddy {
 
     @Column(name = "chosen_at")
     private OffsetDateTime chosenAt;
+
+    @Column(name = "guest_merged_at")
+    private OffsetDateTime guestMergedAt;
 }
