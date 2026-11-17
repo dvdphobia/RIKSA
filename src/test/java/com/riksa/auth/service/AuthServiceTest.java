@@ -9,6 +9,7 @@ import com.riksa.auth.repository.ProvinceRepository;
 import com.riksa.auth.repository.UserRepository;
 import com.riksa.auth.security.JwtService;
 import com.riksa.auth.token.EmailVerificationTokenRepository;
+import com.riksa.auth.token.RefreshToken;
 import com.riksa.auth.token.RefreshTokenRepository;
 import com.riksa.gamification.repository.UserGamificationRepository;
 import com.riksa.common.event.EventPublisher;
@@ -203,6 +204,67 @@ class AuthServiceTest {
                 .hasMessageContaining("Account suspended until");
 
         verify(jwtService, never()).generateAccessToken(any(), any(), any());
+        verify(refreshTokenRepository, never()).revokeIfActive(any());
+    }
+
+    @Test
+    void refreshToken_canOnlyRotateOnceEvenWithAStaleActiveTokenRead() {
+        String token = "some.jwt.token";
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setUsername("john");
+        user.setRole(Role.USER);
+        RefreshToken stored = new RefreshToken();
+        stored.setToken(token);
+        stored.setUser(user);
+        stored.setExpiresAt(OffsetDateTime.now().plusDays(1));
+        when(jwtService.isRefreshTokenValid(token)).thenReturn(true);
+        // Both requests can read an active token before either request revokes it.
+        when(refreshTokenRepository.findByTokenAndRevokedFalse(token)).thenReturn(Optional.of(stored));
+        when(refreshTokenRepository.revokeIfActive(token)).thenReturn(1, 0);
+        when(jwtService.generateAccessToken(user.getId(), "john", "USER")).thenReturn("new-access");
+        when(jwtService.generateRefreshToken(user.getId(), "john", "USER")).thenReturn("new-refresh");
+
+        AuthResponse response = authService.refreshToken(token);
+
+        assertThat(response.getAccessToken()).isEqualTo("new-access");
+        assertThat(response.getRefreshToken()).isEqualTo("new-refresh");
+        assertThatThrownBy(() -> authService.refreshToken(token)).isInstanceOf(IllegalArgumentException.class);
+        verify(jwtService, times(1)).generateAccessToken(user.getId(), "john", "USER");
+        verify(jwtService, times(1)).generateRefreshToken(user.getId(), "john", "USER");
+        verify(refreshTokenRepository, times(1)).save(argThat(rt -> "new-refresh".equals(rt.getToken())));
+    }
+
+    @Test
+    void refreshToken_lostAtomicRevokeDoesNotIssueReplacementTokens() {
+        String token = "some.jwt.token";
+        RefreshToken stored = new RefreshToken();
+        stored.setUser(new User());
+        stored.setExpiresAt(OffsetDateTime.now().plusDays(1));
+        when(jwtService.isRefreshTokenValid(token)).thenReturn(true);
+        when(refreshTokenRepository.findByTokenAndRevokedFalse(token)).thenReturn(Optional.of(stored));
+        when(refreshTokenRepository.revokeIfActive(token)).thenReturn(0);
+
+        assertThatThrownBy(() -> authService.refreshToken(token)).isInstanceOf(IllegalArgumentException.class);
+
+        verify(jwtService, never()).generateAccessToken(any(), any(), any());
+        verify(jwtService, never()).generateRefreshToken(any(), any(), any());
+        verify(refreshTokenRepository, never()).save(any());
+    }
+
+    @Test
+    void refreshToken_expiredStoredTokenDoesNotRotate() {
+        String token = "some.jwt.token";
+        RefreshToken stored = new RefreshToken();
+        stored.setExpiresAt(OffsetDateTime.now().minusMinutes(1));
+        when(jwtService.isRefreshTokenValid(token)).thenReturn(true);
+        when(refreshTokenRepository.findByTokenAndRevokedFalse(token)).thenReturn(Optional.of(stored));
+
+        assertThatThrownBy(() -> authService.refreshToken(token)).isInstanceOf(IllegalArgumentException.class);
+
+        verify(refreshTokenRepository, never()).revokeIfActive(any());
+        verify(jwtService, never()).generateAccessToken(any(), any(), any());
+        verify(jwtService, never()).generateRefreshToken(any(), any(), any());
     }
 
     @Test

@@ -16,6 +16,9 @@ import com.riksa.learning.repository.LessonCompletionRepository;
 import com.riksa.learning.repository.LessonRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -47,9 +50,32 @@ class LessonCompletionServiceTest {
     private final LessonRewardPolicy lessonRewardPolicy = new LessonRewardPolicy();
 
     private LessonCompletionService service() {
+        return service(reflectionValidator);
+    }
+
+    private LessonCompletionService service(ReflectionValidator validator) {
         return new LessonCompletionService(lessonRepository, exerciseRepository, attemptRepository,
-                completionRepository, reflectionValidator, eventPublisher, lessonRewardPolicy, progressionService,
+                completionRepository, validator, eventPublisher, lessonRewardPolicy, progressionService,
                 gamificationRepository, xpLedgerService);
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {" ", "\t\n", "ok", "abcdefghijklmnop"})
+    void rejectsInsubstantialReflectionWithoutPersistingOrRewarding(String text) {
+        UUID userId = UUID.randomUUID(), lessonId = UUID.randomUUID();
+        lockUser(userId);
+        Lesson lesson = new Lesson(); lesson.setId(lessonId);
+        CompletionRequest request = new CompletionRequest(); request.setReflectionText(text);
+        when(progressionService.requireAccessible(userId, lessonId)).thenReturn(lesson);
+        when(completionRepository.findByUserIdAndLessonId(userId, lessonId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service(new SimpleReflectionValidator(12, 3, 15, 30))
+                .complete(userId, lessonId, request)).isInstanceOf(IllegalArgumentException.class);
+
+        verify(completionRepository, never()).saveAndFlush(any());
+        verify(completionRepository, never()).save(any());
+        verifyNoInteractions(exerciseRepository, attemptRepository, xpLedgerService, eventPublisher);
     }
 
     @Test

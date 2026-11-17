@@ -17,6 +17,8 @@ public final class BuddyCareRules {
     public static final String POST = "POST";
     public static final String BLOG_PUBLISHED = "BLOG_PUBLISHED";
     public static final int MAX_ENERGY = 100;
+    /** One-time guest bond allowance, equivalent to 30 lesson care rewards. */
+    public static final int MAX_GUEST_BOND = 300;
     public static final int MAX_DAILY_LESSON_BOND_AWARDS = 5;
     public static final ZoneId CARE_ZONE = ZoneId.of("Asia/Phnom_Penh");
 

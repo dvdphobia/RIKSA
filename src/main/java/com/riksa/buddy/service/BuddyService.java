@@ -93,8 +93,14 @@ public class BuddyService {
             buddy.setChosenAt(now);
         }
         int settledEnergy = rules.settle(buddy.getEnergy(), buddy.getUpdatedAt(), now);
-        buddy.setEnergy(Math.max(settledEnergy, guestEnergy == null ? 0 : guestEnergy));
-        buddy.setBond(Math.max(buddy.getBond(), guestBond == null ? 0 : guestBond));
+        buddy.setEnergy(settledEnergy);
+        if (buddy.getGuestMergedAt() == null && (guestEnergy != null || guestBond != null)) {
+            int cappedEnergy = guestEnergy == null ? 0 : Math.min(BuddyCareRules.MAX_ENERGY, guestEnergy);
+            int cappedBond = guestBond == null ? 0 : Math.min(BuddyCareRules.MAX_GUEST_BOND, guestBond);
+            buddy.setEnergy(Math.max(settledEnergy, cappedEnergy));
+            buddy.setBond(Math.max(buddy.getBond(), cappedBond));
+            buddy.setGuestMergedAt(now);
+        }
         buddy.setUpdatedAt(now);
         return buddyRepository.save(buddy);
     }

@@ -13,6 +13,8 @@ import com.riksa.admin.service.SettingsService;
 import com.riksa.gamification.repository.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -20,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -150,13 +153,69 @@ class StreakServiceTest {
 
         when(userGamificationRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(ug));
 
-        long result = streakService.updateStreak(userId);
+        long result = streakService.updateStreak(userId, OffsetDateTime.parse("2026-01-31T18:00:00Z"));
 
         assertThat(result).isEqualTo(1);
         assertThat(ug.getCurrentStreak()).isEqualTo(1);
         assertThat(ug.getHighestStreak()).isEqualTo(1);
-        assertThat(ug.getLastCompletedAt()).isNotNull();
+        assertThat(ug.getLastCompletedAt()).isEqualTo(OffsetDateTime.parse("2026-02-01T01:00:00+07:00"));
+        assertThat(ug.getLastCompletedAt().getOffset()).isEqualTo(ZoneOffset.ofHours(7));
         verify(eventPublisher).publish(any(StreakUpdatedEvent.class));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "2026-01-01T10:00:00+07:00, 2026-02-01T10:00:00+07:00, 1",
+            "2025-12-01T10:00:00+07:00, 2026-01-01T10:00:00+07:00, 1",
+            "2026-01-10T10:00:00+07:00, 2026-01-12T10:00:00+07:00, 1",
+            "2026-01-10T10:00:00+07:00, 2026-01-11T10:00:00+07:00, 9",
+            "2026-01-31T10:00:00+07:00, 2026-02-01T10:00:00+07:00, 9",
+            "2025-12-31T10:00:00+07:00, 2026-01-01T10:00:00+07:00, 9",
+            "2025-12-31T16:30:00Z, 2025-12-31T17:30:00Z, 9"
+    })
+    void updateStreak_countsActualDaysInCambodia(String lastCompletedAt, String completedAt, long expectedStreak) {
+        UUID userId = UUID.randomUUID();
+        UserGamification ug = new UserGamification();
+        ug.setUserId(userId);
+        ug.setCurrentStreak(8);
+        ug.setHighestStreak(10);
+        ug.setLastCompletedAt(OffsetDateTime.parse(lastCompletedAt));
+        when(userGamificationRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(ug));
+
+        long result = streakService.updateStreak(userId, OffsetDateTime.parse(completedAt));
+
+        assertThat(result).isEqualTo(expectedStreak);
+        assertThat(ug.getCurrentStreak()).isEqualTo(expectedStreak);
+        assertThat(ug.getHighestStreak()).isEqualTo(10);
+        assertThat(ug.getLastCompletedAt()).isEqualTo(OffsetDateTime.parse(completedAt));
+        verify(userGamificationRepository).save(ug);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "2026-02-01T10:00:00+07:00, 2026-02-01T20:00:00+07:00",
+            "2026-01-31T18:00:00Z, 2026-02-01T10:00:00Z",
+            "2026-02-01T10:00:00+07:00, 2026-01-31T10:00:00+07:00",
+            "2026-02-01T10:00:00+07:00, 2025-01-01T10:00:00+07:00"
+    })
+    void updateStreak_sameDayAndOlderEventsLeaveStateUnchanged(String lastCompletedAt, String completedAt) {
+        UUID userId = UUID.randomUUID();
+        OffsetDateTime lastCompletion = OffsetDateTime.parse(lastCompletedAt);
+        UserGamification ug = new UserGamification();
+        ug.setUserId(userId);
+        ug.setCurrentStreak(8);
+        ug.setHighestStreak(10);
+        ug.setLastCompletedAt(lastCompletion);
+        when(userGamificationRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(ug));
+
+        long result = streakService.updateStreak(userId, OffsetDateTime.parse(completedAt));
+
+        assertThat(result).isEqualTo(8);
+        assertThat(ug.getCurrentStreak()).isEqualTo(8);
+        assertThat(ug.getHighestStreak()).isEqualTo(10);
+        assertThat(ug.getLastCompletedAt()).isEqualTo(lastCompletion);
+        verify(userGamificationRepository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
